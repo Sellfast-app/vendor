@@ -263,6 +263,7 @@ export default function MultiStepSignupPage() {
     setShowPassword((prev) => !prev);
   };
 
+   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -459,7 +460,7 @@ export default function MultiStepSignupPage() {
     <div className="space-y-6">
       <div className="flex flex-col">
         <h1 className="text-2xl font-semibold text-primary">WhatsApp Setup</h1>
-        <p className="text-xs text-[#A0A0A0]">SellFast's bot helps with customer communication and order management</p>
+        <p className="text-xs text-[#A0A0A0]">SellFast&apos;s bot helps with customer communication and order management</p>
       </div>
       
       <div className="space-y-4">
