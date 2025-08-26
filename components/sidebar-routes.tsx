@@ -83,7 +83,7 @@ export const SidebarRoutes = () => {
         />
       ))}
       <div className="mt-[240px] w-full">
-        <div className="w-full border-b border-[#F5F5F5] ">
+        <div className="w-full border-b border-[#F5F5F5] dark:border-background">
           {updatedActionRoutes.map((route) => (
             <SidebarItem
               key={route.label}
@@ -95,7 +95,7 @@ export const SidebarRoutes = () => {
             />
           ))}
         </div>
-        <div className="flex items-center space-x-3 ml-6 mt-5 border-t-gray-700">
+        <div className="flex items-center space-x-3 ml-6 mt-5 ">
           <Avatar className="w-10 h-10 border rounded-full text-center">
           <AvatarImage  alt={businessName} />
             <AvatarFallback>CK</AvatarFallback>
