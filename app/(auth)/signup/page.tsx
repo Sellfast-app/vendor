@@ -6,18 +6,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Link from "next/link";
 import { useState } from "react";
-import { Eye, EyeOff, ChevronDown } from "lucide-react";
+import { Eye, EyeOff, ChevronDown, ArrowLeft, Download, Copy } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Label } from "@radix-ui/react-label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import Logo from "@/components/svgIcons/Logo";
 import { FaArrowRightLong } from "react-icons/fa6";
-import { ArrowLeft } from "lucide-react";
 import AccountIcon from "@/components/svgIcons/AccountIcon";
 import { LuBriefcaseBusiness } from "react-icons/lu";
 import { PiPlugs } from "react-icons/pi";
-
+import StoreFrontIcon from "@/components/svgIcons/StoreFrontIcon";
+import QrCode from "@/components/svgIcons/QrCode";
 
 // Step indicator component
 const StepIndicator = ({ currentStep }: { currentStep: number }) => {
@@ -147,6 +147,7 @@ const ColorSchemeSelector = ({ selectedScheme, onSchemeSelect }: { selectedSchem
 export default function MultiStepSignupPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
   const router = useRouter();
 
   // Form data state
@@ -237,26 +238,12 @@ export default function MultiStepSignupPage() {
     
     setIsLoading(true);
 
-    try {
-      const res = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await res.json();
-      
-      if (res.ok && data.success) {
-        toast.success("Account created successfully! Redirecting...");
-        router.push(`/verify?email=${encodeURIComponent(formData.email)}`);
-      } else {
-        toast.error(data.error || "Signup failed");
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Signup failed. Please try again.");
-    } finally {
+    // Simulate API call with a timeout
+    setTimeout(() => {
+      toast.success("Account created successfully!");
+      setIsSuccess(true);
       setIsLoading(false);
-    }
+    }, 1000);
   };
 
   const togglePasswordVisibility = () => {
@@ -517,7 +504,50 @@ export default function MultiStepSignupPage() {
     </div>
   );
 
+  // Success Screen (outside of steps)
+  const renderSuccessScreen = () => (
+    <div className="space-y-6">
+      <div className="flex justify-center">
+      <StoreFrontIcon/>
+      </div>
+      
+      <div className="space-y-2 flex flex-col justify-center items-center">
+        <h2 className="text-lg font-bold text-gray-900">Your Storefront is Ready! </h2>
+        <p className="text-gray-600 text-xs">
+        We&apos;ve created your awesome <span className="text-[#4FCA6A]">Cassie&apos;s Kitchen</span> storefront with WhatsApp integration
+        </p>
+        <QrCode/>
+        <div className="flex items-center gap-2">
+          <Button variant={"outline"}>Download QR <Download/></Button>
+          <Button variant={"outline"}> Copy Storefront Link <Copy/></Button>
+        </div>
+      </div>
+      <div className="space-y-3">
+        <h3 className="font-bold text-sm">Next Steps</h3>
+        <div className="pl-3 text-sm space-y-2">
+          <p>1. Check your WhatsApp for setup instructions</p>
+          <p>2. Add your first products to the catalog</p>
+          <p>3. Share your storefront link with customers</p>
+          <p>4. Start receiving orders on WhatsApp!</p>
+        </div>
+      </div>
+      
+      <div className="pt-4">
+        <Button 
+          onClick={() => router.push("/dashboard")}
+          className="bg-green-600 hover:bg-green-700 px-6 py-3 w-full"
+        >
+          Go to Your Dashboard
+        </Button>
+      </div>
+    </div>
+  );
+
   const renderCurrentStep = () => {
+    if (isSuccess) {
+      return renderSuccessScreen();
+    }
+    
     switch (currentStep) {
       case 1:
         return renderStep1();
@@ -532,17 +562,24 @@ export default function MultiStepSignupPage() {
 
   return (
     <div className="w-full max-w-lg space-y-6">
+      {!isSuccess && (
         <div className="absolute top-6">
-        <StepIndicator currentStep={currentStep} />
+          <StepIndicator currentStep={currentStep} />
         </div>
-      <Logo />
+      )}
+      
+      {!isSuccess && <Logo />}
+      
       {renderCurrentStep()}
-      <span className="flex justify-center gap-1 text-sm">
-        <p>Already have an account?</p>
-        <Link href="/login" className="text-[#4FCA6A]">
-          Login
-        </Link>
-      </span>
+      
+      {!isSuccess && (
+        <span className="flex justify-center gap-1 text-sm">
+          <p>Already have an account?</p>
+          <Link href="/login" className="text-[#4FCA6A]">
+            Login
+          </Link>
+        </span>
+      )}
     </div>
   );
 }
