@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { cn } from "@/lib/utils";
-import { usePathname, useRouter } from "next/navigation";
+import { cn } from '@/lib/utils';
+import { usePathname, useRouter } from 'next/navigation';
 
 interface SidebarItemProps {
   icon: React.FC<React.SVGProps<SVGSVGElement> & { color?: string }>;
@@ -16,13 +16,13 @@ export const SidebarItem = ({ icon: Icon, label, href, onClick, disabled }: Side
   const router = useRouter();
 
   const isActive =
-    (pathname === "/" && href === "/") ||
+    (pathname === '/' && href === '/') ||
     pathname === href ||
     pathname?.startsWith(`${href}/`) ||
-    (label === "Logout" && pathname === "/");
+    (label === 'Logout' && pathname === '/');
 
-  const isLogout = label === "Logout";
-  
+  const isLogout = label === 'Logout';
+
   const handleClick = () => {
     if (disabled) return;
     if (onClick) {
@@ -33,30 +33,34 @@ export const SidebarItem = ({ icon: Icon, label, href, onClick, disabled }: Side
   };
 
   return (
-    <div className={cn(
-      "border-l-5 rounded-r-lg transition-colors duration-200",
-      isActive ? "border-l-[#4FCA6A]" : "border-l-transparent"
-    )}>
+    <div
+      className={cn(
+        'border-l-5 rounded-r-lg transition-colors duration-200',
+        isActive ? 'border-l-primary' : 'border-l-transparent'
+      )}
+    >
       <button
         onClick={handleClick}
         type="button"
         disabled={disabled}
         className={cn(
-          "flex items-center gap-x-2 text-sm font-[500] pl-6 ml-3 text-[#737373] transition-all hover:bg-slate-300/20 dark:hover:bg-slate-700/20 w-[90%]",
-          isActive && "bg-[#D1FFDB]",
+          'flex items-center gap-x-2 text-sm font-[500] pl-6 ml-3 text-[#737373] transition-all hover:bg-slate-300/20 dark:hover:bg-slate-700/20 w-[90%]',
+          isActive && 'bg-primary-tertiary',
           // Apply different text colors based on whether it's logout or active
-          isLogout ? "text-[#E40101]" : (isActive ? "text-[#4FCA6A]" : "text-[#737373]"),
-          disabled && "opacity-50 cursor-not-allowed"
+          isLogout ? 'text-[#E40101]' : isActive ? 'text-primary' : 'text-[#737373]',
+          disabled && 'opacity-50 cursor-not-allowed'
         )}
       >
         <div className="flex items-center gap-x-2 py-3">
           <Icon
-            // Apply different icon colors based on whether it's logout or active
-            color={isLogout ? "#E40101" : (isActive ? "#4FCA6A" : "#737373")}
-            className={cn(
-              "transition-colors duration-200",
-              !isActive && "dark:[color:#FFFFFF]"
-            )}
+            color={
+              isLogout
+                ? '#E40101'
+                : isActive
+                  ? 'var(--primary)' // Use CSS variable directly
+                  : '#737373'
+            }
+            className="transition-colors duration-200"
           />
           {label}
         </div>

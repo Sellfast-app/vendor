@@ -1,30 +1,32 @@
-"use client";
+// components/signup/MultiStepSignupPage.tsx
+'use client';
 
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import Link from "next/link";
-import { useState } from "react";
-import { Eye, EyeOff, ChevronDown, ArrowLeft, Download, Copy } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { Label } from "@radix-ui/react-label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { toast } from "sonner";
-import Logo from "@/components/svgIcons/Logo";
-import { FaArrowRightLong } from "react-icons/fa6";
-import AccountIcon from "@/components/svgIcons/AccountIcon";
-import { LuBriefcaseBusiness } from "react-icons/lu";
-import { PiPlugs } from "react-icons/pi";
-import StoreFrontIcon from "@/components/svgIcons/StoreFrontIcon";
-import QrCode from "@/components/svgIcons/QrCode";
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import Link from 'next/link';
+import { useState } from 'react';
+import { Eye, EyeOff, ChevronDown, ArrowLeft, Download, Copy } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Label } from '@radix-ui/react-label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { toast } from 'sonner';
+import Logo from '@/components/svgIcons/Logo';
+import { FaArrowRightLong } from 'react-icons/fa6';
+import AccountIcon from '@/components/svgIcons/AccountIcon';
+import { LuBriefcaseBusiness } from 'react-icons/lu';
+import { PiPlugs } from 'react-icons/pi';
+import StoreFrontIcon from '@/components/svgIcons/StoreFrontIcon';
+import QrCode from '@/components/svgIcons/QrCode';
+import { themes } from '@/lib/themes';
 
 // Step indicator component
 const StepIndicator = ({ currentStep }: { currentStep: number }) => {
   const steps = [
-    { number: 1, title: "Account", icon: <AccountIcon/> },
-    { number: 2, title: "Business Info", icon: <LuBriefcaseBusiness /> },
-    { number: 3, title: "WhatsApp Setup", icon: <PiPlugs/> },
+    { number: 1, title: 'Account', icon: <AccountIcon /> },
+    { number: 2, title: 'Business Info', icon: <LuBriefcaseBusiness /> },
+    { number: 3, title: 'WhatsApp Setup', icon: <PiPlugs /> },
   ];
 
   return (
@@ -32,31 +34,33 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => {
       {steps.map((step, index) => (
         <div key={step.number} className="flex items-center">
           <div
-            className={`flex items-center justify-center w-12 h-12 rounded-full  transition-all duration-200 ${
+            className={`flex items-center justify-center w-12 h-12 rounded-full transition-all duration-200 ${
               step.number === currentStep
-                ? "bg-[#4FCA6A] border-[#4FCA6A] text-white"
+                ? 'bg-primary border-primary text-primary-foreground'
                 : step.number < currentStep
-                ? "bg-[#4FCA6A] border-[#4FCA6A] text-white"
-                : "bg-[#D1FFDB] text-gray-400"
+                ? 'bg-primary border-primary text-primary-foreground'
+                : 'bg-primary-tertiary text-gray-400'
             }`}
           >
-            <span  className={`text-sm font-medium ${
-                step.number <= currentStep ? "text-white" : "text-black"
-              }`}>{step.icon}</span>
+            <span
+              className={`text-sm font-medium ${
+                step.number <= currentStep ? 'text-primary-foreground' : 'text-foreground'
+              }`}
+            >
+              {step.icon}
+            </span>
           </div>
           <div className="ml-3 text-left">
             <p
-                className={`text-sm font-medium ${
-                    step.number <= currentStep ? "text-black" : "text-gray-400"
-                  }`}
+              className={`text-sm font-medium ${
+                step.number <= currentStep ? 'text-foreground' : 'text-gray-400'
+              }`}
             >
               {step.title}
             </p>
           </div>
           {index < steps.length - 1 && (
-            <ChevronDown
-              className={`w-4 h-4 mx-4 transform rotate-[-90deg]`}
-            />
+            <ChevronDown className="w-4 h-4 mx-4 transform rotate-[-90deg]" />
           )}
         </div>
       ))}
@@ -67,21 +71,19 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => {
 // Country code selector component
 const CountryCodeSelect = ({ value, onValueChange }: { value: string; onValueChange: (value: string) => void }) => {
   const countryCodes = [
-    { code: "+234", country: "NG"},
-    {code: "+1", country: "US"},    
+    { code: '+234', country: 'NG' },
+    { code: '+1', country: 'US' },
   ];
 
   return (
     <Select value={value} onValueChange={onValueChange}>
-      <SelectTrigger className="w-24 h-11 bg-[#F8F8F8] border-0 border-r border-gray-200">
+      <SelectTrigger className="w-24 h-11 bg-muted border-0 border-r border-gray-200">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
         {countryCodes.map((country) => (
           <SelectItem key={country.code} value={country.code}>
-            <span className="flex items-center gap-2">
-            {country.code}
-            </span>
+            <span className="flex items-center gap-2">{country.code}</span>
           </SelectItem>
         ))}
       </SelectContent>
@@ -93,24 +95,24 @@ const CountryCodeSelect = ({ value, onValueChange }: { value: string; onValueCha
 const ColorSchemeSelector = ({ selectedScheme, onSchemeSelect }: { selectedScheme: string; onSchemeSelect: (scheme: string) => void }) => {
   const colorSchemes = [
     {
-      name: "Surge Green",
-      value: "surge-green",
-      colors: ["#4FCA6A", "#45B862", "#3BA65A"],
+      name: 'Surge Green',
+      value: 'surge-green',
+      colors: themes['surge-green'].light,
     },
     {
-      name: "Ocean Blue",
-      value: "ocean-blue",
-      colors: ["#3B82F6", "#2563EB", "#1D4ED8"],
+      name: 'Ocean Blue',
+      value: 'ocean-blue',
+      colors: themes['ocean-blue'].light,
     },
     {
-      name: "Purple Elegance",
-      value: "purple-elegance",
-      colors: ["#8B5CF6", "#7C3AED", "#6D28D9"],
+      name: 'Purple Elegance',
+      value: 'purple-elegance',
+      colors: themes['purple-elegance'].light,
     },
     {
-      name: "Sunset Orange",
-      value: "sunset-orange",
-      colors: ["#F97316", "#EA580C", "#DC2626"],
+      name: 'Sunset Orange',
+      value: 'sunset-orange',
+      colors: themes['sunset-orange'].light,
     },
   ];
 
@@ -121,20 +123,16 @@ const ColorSchemeSelector = ({ selectedScheme, onSchemeSelect }: { selectedSchem
           key={scheme.value}
           className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
             selectedScheme === scheme.value
-              ? "border-[#4FCA6A] bg-green-50"
-              : "border-gray-200 bg-white hover:border-gray-300"
+              ? 'border-primary bg-primary/10'
+              : 'border-gray-200 bg-white hover:border-gray-300'
           }`}
           onClick={() => onSchemeSelect(scheme.value)}
         >
           <div className="flex items-center space-x-3">
             <div className="flex space-x-1">
-              {scheme.colors.map((color, index) => (
-                <div
-                  key={index}
-                  className="w-4 h-4 rounded-full"
-                  style={{ backgroundColor: color }}
-                />
-              ))}
+              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: scheme.colors.primary }} />
+              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: scheme.colors.secondary }} />
+              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: scheme.colors.tertiary }} />
             </div>
             <span className="text-sm font-medium">{scheme.name}</span>
           </div>
@@ -152,20 +150,15 @@ export default function MultiStepSignupPage() {
 
   // Form data state
   const [formData, setFormData] = useState({
-    // Step 1 - Account
-    email: "",
-    password: "",
+    email: '',
+    password: '',
     agreeToTerms: false,
-    
-    // Step 2 - Business Info
-    businessName: "",
-    businessType: "",
-    businessDescription: "",
-    
-    // Step 3 - WhatsApp Setup
-    countryCode: "+234",
-    phoneNumber: "",
-    colorScheme: "surge-green",
+    businessName: '',
+    businessType: '',
+    businessDescription: '',
+    countryCode: '+234',
+    phoneNumber: '',
+    colorScheme: 'surge-green',
   });
 
   // UI state
@@ -182,39 +175,39 @@ export default function MultiStepSignupPage() {
     switch (step) {
       case 1:
         if (!formData.email || !validateEmail(formData.email)) {
-          toast.error("Please enter a valid email address");
+          toast.error('Please enter a valid email address');
           return false;
         }
         if (!formData.password) {
-          toast.error("Password is required");
+          toast.error('Password is required');
           return false;
         }
         if (!formData.agreeToTerms) {
-          toast.error("Please agree to the terms and conditions");
+          toast.error('Please agree to the terms and conditions');
           return false;
         }
         return true;
       case 2:
         if (!formData.businessName.trim()) {
-          toast.error("Business name is required");
+          toast.error('Business name is required');
           return false;
         }
         if (!formData.businessType) {
-          toast.error("Please select a business type");
+          toast.error('Please select a business type');
           return false;
         }
         if (!formData.businessDescription.trim()) {
-          toast.error("Business description is required");
+          toast.error('Business description is required');
           return false;
         }
         return true;
       case 3:
         if (!formData.phoneNumber.trim()) {
-          toast.error("WhatsApp business number is required");
+          toast.error('WhatsApp business number is required');
           return false;
         }
         if (!formData.colorScheme) {
-          toast.error("Please choose a color scheme");
+          toast.error('Please choose a color scheme');
           return false;
         }
         return true;
@@ -235,12 +228,15 @@ export default function MultiStepSignupPage() {
 
   const handleSubmit = async () => {
     if (!validateStep(3)) return;
-    
+
     setIsLoading(true);
 
-    // Simulate API call with a timeout
+    // Save theme to local storage
+    localStorage.setItem('colorScheme', formData.colorScheme);
+
+    // Simulate API call
     setTimeout(() => {
-      toast.success("Account created successfully!");
+      toast.success('Account created successfully!');
       setIsSuccess(true);
       setIsLoading(false);
     }, 1000);
@@ -249,22 +245,21 @@ export default function MultiStepSignupPage() {
   const togglePasswordVisibility = () => {
     setShowPassword((prev) => !prev);
   };
-
-   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const businessTypes = [
-    "Restaurant/Food Service",
-    "Retail Store",
-    "E-commerce",
-    "Professional Services",
-    "Health & Beauty",
-    "Technology",
-    "Education",
-    "Real Estate",
-    "Other",
+    'Restaurant/Food Service',
+    'Retail Store',
+    'E-commerce',
+    'Professional Services',
+    'Health & Beauty',
+    'Technology',
+    'Education',
+    'Real Estate',
+    'Other',
   ];
 
   // Step 1 - Account Creation
@@ -272,65 +267,61 @@ export default function MultiStepSignupPage() {
     <div className="space-y-6">
       <div className="flex flex-col">
         <h1 className="text-2xl font-semibold text-primary">Create Account</h1>
-        <p className="text-xs text-[#A0A0A0]">Increase your sales revenue by 15-30% with SellFast</p>
+        <p className="text-xs text-muted-foreground">Increase your sales revenue by 15-30% with SellFast</p>
       </div>
-      
+
       <div className="space-y-4">
         <div className="space-y-2">
           <div className="relative">
             <label
               htmlFor="email"
               className={`left-10 text-sm transition-all duration-200 pointer-events-none inline-block px-1 ${
-                formData.email || emailFocused
-                  ? "top-[-1.5] text-xs font-medium"
-                  : "top-5"
+                formData.email || emailFocused ? 'top-[-1.5] text-xs font-medium' : 'top-5'
               }`}
             >
-              Email <span className="text-red-500">*</span>
+              Email <span className="text-destructive">*</span>
             </label>
             <Input
               id="email"
               type="email"
               value={formData.email}
               placeholder="e.g., jamesfood@example.com"
-              onChange={(e) => handleInputChange("email", e.target.value)}
+              onChange={(e) => handleInputChange('email', e.target.value)}
               onFocus={() => setEmailFocused(true)}
               onBlur={() => setEmailFocused(false)}
-              className="w-full h-11 bg-[#F8F8F8] border-0 pr-4 rounded-lg focus:ring-2 transition-all duration-200 flex items-center"
+              className="w-full h-11 bg-muted border-0 pr-4 rounded-lg focus:ring-2 transition-all duration-200 flex items-center"
             />
           </div>
         </div>
-        
+
         <div className="space-y-2">
           <label
             htmlFor="password"
             className={`text-sm transition-all duration-200 pointer-events-none inline-block px-1 ${
-              formData.password || passwordFocused
-                ? "top-[-1.5] text-xs font-medium"
-                : "top-5"
+              formData.password || passwordFocused ? 'top-[-1.5] text-xs font-medium' : 'top-5'
             }`}
           >
-            Password <span className="text-red-500">*</span>
+            Password <span className="text-destructive">*</span>
           </label>
           <div className="relative">
             <Input
               id="password"
-              type={showPassword ? "text" : "password"}
+              type={showPassword ? 'text' : 'password'}
               value={formData.password}
               placeholder="e.g., Password123#"
-              onChange={(e) => handleInputChange("password", e.target.value)}
+              onChange={(e) => handleInputChange('password', e.target.value)}
               onFocus={() => setPasswordFocused(true)}
               onBlur={() => setPasswordFocused(false)}
-              className="w-full h-11 bg-[#F8F8F8] border-0 pr-10 rounded-lg focus:ring-2 transition-all duration-200 flex items-center"
+              className="w-full h-11 bg-muted border-0 pr-10 rounded-lg focus:ring-2 transition-all duration-200 flex items-center"
             />
             <div
               className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer"
               onClick={togglePasswordVisibility}
             >
               {showPassword ? (
-                <EyeOff className="h-4 w-4 text-gray-400" />
+                <EyeOff className="h-4 w-4 text-muted-foreground" />
               ) : (
-                <Eye className="h-4 w-4 text-gray-400" />
+                <Eye className="h-4 w-4 text-muted-foreground" />
               )}
             </div>
           </div>
@@ -339,21 +330,21 @@ export default function MultiStepSignupPage() {
               <Checkbox
                 id="terms"
                 checked={formData.agreeToTerms}
-                onCheckedChange={(checked) => handleInputChange("agreeToTerms", checked)}
+                onCheckedChange={(checked) => handleInputChange('agreeToTerms', checked)}
                 disabled={isLoading}
               />
               <Label htmlFor="terms" className="text-sm font-normal">
-                I agree to all <span className="text-[#4FCA6A]">Terms & Conditions</span>
+                I agree to all <span className="text-primary">Terms & Conditions</span>
               </Label>
             </div>
           </div>
         </div>
       </div>
-      
+
       <Button
         type="button"
         onClick={handleNext}
-        variant={formData.email && formData.password && !isLoading ? "default" : "secondary"}
+        variant={formData.email && formData.password && !isLoading ? 'default' : 'secondary'}
         className="w-full py-2 rounded-lg transition-colors duration-200"
         disabled={!formData.email || !formData.password || isLoading}
       >
@@ -367,30 +358,30 @@ export default function MultiStepSignupPage() {
     <div className="space-y-6">
       <div className="flex flex-col">
         <h1 className="text-2xl font-semibold text-primary">Business Information</h1>
-        <p className="text-xs text-[#A0A0A0]">Supercharge your operations using SellFast</p>
+        <p className="text-xs text-muted-foreground">Supercharge your operations using SellFast</p>
       </div>
-      
+
       <div className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="businessName" className="text-sm font-medium">
-            Business Name <span className="text-red-500">*</span>
+            Business Name <span className="text-destructive">*</span>
           </Label>
           <Input
             id="businessName"
             type="text"
             value={formData.businessName}
             placeholder="e.g., James Food Place"
-            onChange={(e) => handleInputChange("businessName", e.target.value)}
-            className="w-full h-11 bg-[#F8F8F8] border-0 rounded-lg focus:ring-2 transition-all duration-200"
+            onChange={(e) => handleInputChange('businessName', e.target.value)}
+            className="w-full h-11 bg-muted border-0 rounded-lg focus:ring-2 transition-all duration-200"
           />
         </div>
-        
+
         <div className="space-y-2">
           <Label htmlFor="businessType" className="text-sm font-medium">
-            Business Type <span className="text-red-500">*</span>
+            Business Type <span className="text-destructive">*</span>
           </Label>
-          <Select value={formData.businessType} onValueChange={(value) => handleInputChange("businessType", value)}>
-            <SelectTrigger className="w-full h-11 bg-[#F8F8F8] border-0 rounded-lg">
+          <Select value={formData.businessType} onValueChange={(value) => handleInputChange('businessType', value)}>
+            <SelectTrigger className="w-full h-11 bg-muted border-0 rounded-lg">
               <SelectValue placeholder="Select your business type" />
             </SelectTrigger>
             <SelectContent>
@@ -402,25 +393,25 @@ export default function MultiStepSignupPage() {
             </SelectContent>
           </Select>
         </div>
-        
+
         <div className="space-y-2">
           <Label htmlFor="businessDescription" className="text-sm font-medium">
-            Business Description <span className="text-red-500">*</span>
+            Business Description <span className="text-destructive">*</span>
           </Label>
           <Textarea
             id="businessDescription"
             value={formData.businessDescription}
             placeholder="Tell customers what makes your business special"
-            onChange={(e) => handleInputChange("businessDescription", e.target.value)}
-            className="w-full min-h-[100px] bg-[#F8F8F8] border-0 rounded-lg focus:ring-2 transition-all duration-200 resize-none"
+            onChange={(e) => handleInputChange('businessDescription', e.target.value)}
+            className="w-full min-h-[100px] bg-muted border-0 rounded-lg focus:ring-2 transition-all duration-200 resize-none"
             maxLength={500}
           />
-          <div className="text-right text-xs text-gray-500">
+          <div className="text-right text-xs text-muted-foreground">
             {formData.businessDescription.length}/500
           </div>
         </div>
       </div>
-      
+
       <div className="flex space-x-4">
         <Button
           type="button"
@@ -447,41 +438,41 @@ export default function MultiStepSignupPage() {
     <div className="space-y-6">
       <div className="flex flex-col">
         <h1 className="text-2xl font-semibold text-primary">WhatsApp Setup</h1>
-        <p className="text-xs text-[#A0A0A0]">SellFast&apos;s bot helps with customer communication and order management</p>
+        <p className="text-xs text-muted-foreground">SellFast&apos;s bot helps with customer communication and order management</p>
       </div>
-      
+
       <div className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="phoneNumber" className="text-sm font-medium">
-            WhatsApp Business Number <span className="text-red-500">*</span>
+            WhatsApp Business Number <span className="text-destructive">*</span>
           </Label>
           <div className="flex">
             <CountryCodeSelect
               value={formData.countryCode}
-              onValueChange={(value) => handleInputChange("countryCode", value)}
+              onValueChange={(value) => handleInputChange('countryCode', value)}
             />
             <Input
               id="phoneNumber"
               type="tel"
               value={formData.phoneNumber}
               placeholder="809 789 7891"
-              onChange={(e) => handleInputChange("phoneNumber", e.target.value)}
-              className="flex-1 bg-[#F8F8F8] border-0 rounded-r-lg focus:ring-2 transition-all duration-200"
+              onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
+              className="flex-1 bg-muted border-0 rounded-r-lg focus:ring-2 transition-all duration-200"
             />
           </div>
         </div>
-        
+
         <div className="space-y-2">
           <Label className="text-sm font-medium">
-            Choose Your Color Scheme <span className="text-red-500">*</span>
+            Choose Your Color Scheme <span className="text-destructive">*</span>
           </Label>
           <ColorSchemeSelector
             selectedScheme={formData.colorScheme}
-            onSchemeSelect={(scheme) => handleInputChange("colorScheme", scheme)}
+            onSchemeSelect={(scheme) => handleInputChange('colorScheme', scheme)}
           />
         </div>
       </div>
-      
+
       <div className="flex space-x-4">
         <Button
           type="button"
@@ -498,56 +489,56 @@ export default function MultiStepSignupPage() {
           disabled={isLoading}
           className="w-[67%] py-2 rounded-lg transition-colors duration-200"
         >
-          {isLoading ? "Creating Storefront..." : "Create Storefront"}
+          {isLoading ? 'Creating Storefront...' : 'Create Storefront'}
         </Button>
       </div>
     </div>
   );
 
-  // Success Screen (outside of steps)
-  const renderSuccessScreen = () => (
-    <div className="space-y-6">
-      <div className="flex justify-center">
-      <StoreFrontIcon/>
-      </div>
-      
-      <div className="space-y-2 flex flex-col justify-center items-center">
-        <h2 className="text-lg font-bold text-gray-900">Your Storefront is Ready! </h2>
-        <p className="text-gray-600 text-xs">
-        We&apos;ve created your awesome <span className="text-[#4FCA6A]">Cassie&apos;s Kitchen</span> storefront with WhatsApp integration
-        </p>
-        <QrCode/>
-        <div className="flex items-center gap-2">
-          <Button variant={"outline"}>Download QR <Download/></Button>
-          <Button variant={"outline"}> Copy Storefront Link <Copy/></Button>
-        </div>
-      </div>
-      <div className="space-y-3">
-        <h3 className="font-bold text-sm">Next Steps</h3>
-        <div className="pl-3 text-sm space-y-2">
-          <p>1. Check your WhatsApp for setup instructions</p>
-          <p>2. Add your first products to the catalog</p>
-          <p>3. Share your storefront link with customers</p>
-          <p>4. Start receiving orders on WhatsApp!</p>
-        </div>
-      </div>
-      
-      <div className="pt-4">
-        <Button 
-          onClick={() => router.push("/dashboard")}
-          className="bg-green-600 hover:bg-green-700 px-6 py-3 w-full"
-        >
-          Go to Your Dashboard
-        </Button>
+ // Success Screen
+ const renderSuccessScreen = () => (
+  <div className="space-y-6">
+    <div className="flex justify-center">
+      <StoreFrontIcon />
+    </div>
+
+    <div className="space-y-2 flex flex-col justify-center items-center">
+      <h2 className="text-lg font-bold text-foreground">Your Storefront is Ready!</h2>
+      <p className="text-muted-foreground text-xs">
+        We&apos;ve created your awesome <span className="text-primary">{formData.businessName}</span> storefront with WhatsApp integration
+      </p>
+      <QrCode />
+      <div className="flex items-center gap-2">
+        <Button variant="outline">Download QR <Download /></Button>
+        <Button variant="outline">Copy Storefront Link <Copy /></Button>
       </div>
     </div>
-  );
+    <div className="space-y-3">
+      <h3 className="font-bold text-sm">Next Steps</h3>
+      <div className="pl-3 text-sm space-y-2">
+        <p>1. Check your WhatsApp for setup instructions</p>
+        <p>2. Add your first products to the catalog</p>
+        <p>3. Share your storefront link with customers</p>
+        <p>4. Start receiving orders on WhatsApp!</p>
+      </div>
+    </div>
+
+    <div className="pt-4">
+      <Button
+        onClick={() => router.push('/dashboard')}
+        className="bg-primary hover:bg-primary-secondary text-primary-foreground px-6 py-3 w-full"
+      >
+        Go to Your Dashboard
+      </Button>
+    </div>
+  </div>
+);
 
   const renderCurrentStep = () => {
     if (isSuccess) {
       return renderSuccessScreen();
     }
-    
+
     switch (currentStep) {
       case 1:
         return renderStep1();
@@ -567,15 +558,15 @@ export default function MultiStepSignupPage() {
           <StepIndicator currentStep={currentStep} />
         </div>
       )}
-      
+
       {!isSuccess && <Logo />}
-      
+
       {renderCurrentStep()}
-      
+
       {!isSuccess && (
         <span className="flex justify-center gap-1 text-sm">
           <p>Already have an account?</p>
-          <Link href="/login" className="text-[#4FCA6A]">
+          <Link href="/login" className="text-primary">
             Login
           </Link>
         </span>
