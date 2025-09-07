@@ -33,7 +33,7 @@ const adminRoutes: Route[] = [
   { icon: LayoutDashboardIcon, label: "Overview", href: "/dashboard" },
   { icon: Products, label: "Products", href: "/products" },
   { icon: Orders, label: "Orders", href: "/orders" },
-  { icon: Analytics, label: "Orders", href: "/analytics" },
+  { icon: Analytics, label: "Analytics", href: "/analytics" },
   { icon: Payouts, label: "Payouts", href: "/payouts" },
 ];
 
