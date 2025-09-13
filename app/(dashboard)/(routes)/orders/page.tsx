@@ -14,6 +14,7 @@ import ProductsIcon from "@/components/svgIcons/ProductsIcon";
 import PendingDispatch from "@/components/svgIcons/PendingDispatch";
 import PendingOrdersIcon from "@/components/svgIcons/PendingOrdersIcon";
 import CancelledOrders from "@/components/svgIcons/CancelledOrders";
+import OrdersTable from "./_components/OrdersTable";
 
 
 interface OverviewMetric {
@@ -110,6 +111,7 @@ function OrdersPage() {
         </div>
         <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
           <CardContent>
+            <OrdersTable />
           </CardContent>
         </Card>
       </div>

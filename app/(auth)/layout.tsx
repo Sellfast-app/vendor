@@ -1,6 +1,7 @@
 "use client";
 
 import Frame from "@/public/Frame.png";
+import Fra from "@/public/Fra.png";
 import Image from "next/image";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
@@ -19,6 +20,14 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           fill
           className="p-8"
         />
+        <div className="w-[85%] h-[85%] absolute right-0 bottom-13">
+        <Image
+          src={Fra}
+          alt="Light mode background"
+          fill
+          className="p-9"
+        />
+        </div>      
       </div>
      
     </div>

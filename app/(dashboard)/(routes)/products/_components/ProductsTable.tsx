@@ -65,11 +65,11 @@ export default function ProductTable() {
   const getStatusClass = (status: string) => {
     switch (status) {
       case "Ready Stock":
-        return "bg-green-200 text-green-800";
+        return  "bg-[#EFFFE9] rounded-xl";
       case "Made-to-order":
-        return "bg-yellow-200 text-yellow-800";
+        return "bg-[#FFF5E8] rounded-xl";
       case "Out of Stock":
-        return "bg-red-200 text-red-800";
+        return "bg-[#FFEFEF] rounded-xl";
       default:
         return "";
     }
@@ -136,7 +136,11 @@ export default function ProductTable() {
                 <TableCell>{product.remanent}</TableCell>
                 <TableCell>₦{product.sales.toLocaleString()}</TableCell>
                 <TableCell>
-                  <span className={`px-2 py-1 rounded text-sm ${getStatusClass(product.status)}`}>
+                  <span className={`flex items-center px-2 py-1 rounded text-sm ${getStatusClass(product.status)}`}>
+                    <span className={`w-2 h-2 rounded-full mr-2 ${product.status === "Ready Stock" ? "bg-[#53DC19]" : 
+                      product.status === "Made-to-order" ? "bg-[#FFB347]": 
+                      product.status === "Out of Stock" ? "bg-[#E40101]" : ""
+                    }`}/>
                     {product.status}
                   </span>
                 </TableCell>
