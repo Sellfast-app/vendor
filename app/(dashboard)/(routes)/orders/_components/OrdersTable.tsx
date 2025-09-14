@@ -3,7 +3,8 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronLeft, ChevronRight,  FilterIcon, PlusIcon, SearchIcon } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { ChevronLeft, ChevronRight, FilterIcon, PlusIcon, SearchIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { BsThreeDots } from "react-icons/bs";
 import { orderData } from "@/lib/mockdata";
@@ -13,6 +14,12 @@ import MarkIcon from "@/components/svgIcons/MarkIcon";
 import MessageIcon from "@/components/svgIcons/MessageIcon";
 import Cancelcon from "@/components/svgIcons/Cancelcon";
 import EyeIcon from "@/components/svgIcons/EyeIcon";
+import Allcon from "@/components/svgIcons/Allcon";
+import Pending from "@/components/svgIcons/Pending";
+import Processing from "@/components/svgIcons/Processing";
+import Shipped from "@/components/svgIcons/Shipped";
+import Fulfilled from "@/components/svgIcons/Fulfilled";
+import Cancelled from "@/components/svgIcons/Cancelled";
 
 export default function OrderTable() {
   const [currentPage, setCurrentPage] = useState(0);
@@ -20,9 +27,12 @@ export default function OrderTable() {
   const [searchTerm, setSearchTerm] = useState("");
   const [orders, setOrders] = useState(orderData);
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState("all");
 
   useEffect(() => {
     let filteredOrders = [...orderData];
+    
+    // Filter by search term
     if (searchTerm) {
       filteredOrders = filteredOrders.filter(
         (order) =>
@@ -30,9 +40,18 @@ export default function OrderTable() {
           order.customerName.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
+    
+    // Filter by status tab
+    if (activeTab !== "all") {
+      filteredOrders = filteredOrders.filter(
+        (order) => order.status.toLowerCase() === activeTab.toLowerCase()
+      );
+    }
+    
     setOrders(filteredOrders);
     setSelectedOrders([]);
-  }, [searchTerm]);
+    setCurrentPage(0);
+  }, [searchTerm, activeTab]);
 
   const totalPages = Math.ceil(orders.length / pageSize);
   const displayedOrders = orders.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
@@ -99,6 +118,7 @@ export default function OrderTable() {
 
   return (
     <div className="w-full">
+      {/* Search and Filter Section */}
       <div className="flex justify-between mb-4 space-x-4">
         <div className="relative flex items-center pb-2 ">
           <Input
@@ -116,120 +136,171 @@ export default function OrderTable() {
         </div>
       </div>
 
-      <Table>
-        <TableHeader className="bg-[#F5F5F5]">
-          <TableRow>
-            <TableHead className="w-[50px]">
-              <Checkbox
-                checked={selectedOrders.length === displayedOrders.length && displayedOrders.length > 0}
-                onCheckedChange={handleSelectAll}
-              />
-            </TableHead>
-            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Order ID</TableHead>
-            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Date</TableHead>
-            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Customer Name</TableHead>
-            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Payment</TableHead>
-            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Total</TableHead>
-            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Items</TableHead>
-            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Status</TableHead>
-            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {displayedOrders.length > 0 ? (
-            displayedOrders.map((order) => (
-              <TableRow key={order.orderId}>
-                <TableCell className="py-6">
-                  <Checkbox
-                    checked={selectedOrders.includes(order.orderId)}
-                    onCheckedChange={(checked) => handleSelectOrder(order.orderId, checked as boolean)}
-                  />
-                </TableCell>
-                <TableCell className="text-[#4FCA6A] underline">{order.orderId}</TableCell>
-                <TableCell>{order.date}</TableCell>
-                <TableCell>{order.customerName}</TableCell>
-                <TableCell>
-                  <span className="flex items-center">
-                    <span className={`w-2 h-2 rounded-full mr-2 ${getPaymentClass(order.payment)}`}></span>
-                    {order.payment}
-                  </span>
-                </TableCell>
-                <TableCell>₦{order.total.toLocaleString()}</TableCell>
-                <TableCell>{order.items}</TableCell>
-                <TableCell>
-                  <span className={`flex items-center px-2 py-1 w-[] rounded ${getDeliveryClass(order.status)}`}>
-                    <span className={`w-2 h-2 rounded-full mr-2 ${order.status === "Fulfilled" ? "bg-[#53DC19]" : 
-                                                                    order.status === "Pending" ? "bg-[#FFB347]" : 
-                                                                    order.status === "Shipped" ? "bg-[#C200F8]" : 
-                                                                    order.status === "Processing" ? "bg-[#06A4FF]" : 
-                                                                    order.status === "Cancelled" ? "bg-[#E40101]" : ""}`}></span>
-                    {order.status}
-                  </span>
-                </TableCell>
-                <TableCell>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger>
-                            <Button variant="ghost" className="p-0">
-                                <BsThreeDots className="w-4 h-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                            <DropdownMenuItem> <EyeIcon /> View Details</DropdownMenuItem>
-                            <DropdownMenuItem> <MarkIcon/> Mark as Ready</DropdownMenuItem>
-                            <DropdownMenuItem>   <MessageIcon/> Message Customer</DropdownMenuItem>
-                            <DropdownMenuItem><Cancelcon/> Cancel Order</DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                    </TableCell>
-              </TableRow>
-            ))
-          ) : (
-            <TableRow>
-              <TableCell colSpan={9} className="text-center">
-                No orders found
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
-
-      <div className="flex justify-center mt-4 space-x-2">
-        <span className="text-sm">
-          {`${(currentPage * pageSize) + 1}-${Math.min((currentPage + 1) * pageSize, orders.length)} of ${orders.length}`}
-        </span>
+      {/* Filter Tabs */}
+      <div className="flex space-x-2  mb-0 px-2 pb-4 ">
         <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setCurrentPage((p) => Math.max(p - 1, 0))}
-          disabled={currentPage === 0}
+          variant="ghost"
+          className={`px-4 rounded-none text-[#A0A0A0] ${activeTab === "all" ? "border-b border-[#4FCA6A] text-black" : ""}`}
+          onClick={() => setActiveTab("all")}
         >
-          <ChevronLeft className="h-4 w-4" />
+          <Allcon/>
+          All
         </Button>
-        {getPageNumbers().map((page, index) => (
-          <span key={index}>
-            {page === "..." ? (
-              <span className="px-2 text-sm">...</span>
-            ) : (
-              <Button
-                variant={currentPage === page ? "default" : "outline"}
-                size="sm"
-                onClick={() => setCurrentPage(Number(page))}
-                disabled={page === "..." || page === currentPage}
-              >
-                {Number(page) + 1}
-              </Button>
-            )}
-          </span>
-        ))}
         <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages - 1))}
-          disabled={currentPage >= totalPages - 1}
+          variant="ghost"
+          className={`px-4 rounded-none text-[#A0A0A0] ${activeTab === "pending" ? "border-b border-[#4FCA6A] text-black" : ""}`}
+          onClick={() => setActiveTab("pending")}
         >
-          <ChevronRight className="h-4 w-4" />
+          <Pending/>
+          Pending
+        </Button>
+        <Button
+          variant="ghost"
+          className={`px-4 rounded-none text-[#A0A0A0] ${activeTab === "processing" ? "border-b border-[#4FCA6A] text-black" : ""}`}
+          onClick={() => setActiveTab("processing")}
+        >
+          <Processing/>
+          Processing
+        </Button>
+        <Button
+          variant="ghost"
+          className={`px-4 rounded-none text-[#A0A0A0] ${activeTab === "shipped" ? "border-b border-[#4FCA6A] text-black" : ""}`}
+          onClick={() => setActiveTab("shipped")}
+        >
+          <Shipped/>
+          Shipped
+        </Button>
+        <Button
+          variant="ghost"
+          className={`px-4 rounded-none text-[#A0A0A0] ${activeTab === "fulfilled" ? "border-b border-[#4FCA6A] text-black" : ""}`}
+          onClick={() => setActiveTab("fulfilled")}
+        >
+          <Fulfilled/>
+          Fulfilled
+        </Button>
+        <Button
+          variant="ghost"
+          className={`px-4 rounded-none text-[#A0A0A0] ${activeTab === "cancelled" ? "border-b border-[#4FCA6A] text-black" : ""}`}
+          onClick={() => setActiveTab("cancelled")}
+        >
+          <Cancelled/>
+          Cancelled
         </Button>
       </div>
+          <Table>
+            <TableHeader className="bg-[#F5F5F5]">
+              <TableRow>
+                <TableHead className="w-[50px]">
+                  <Checkbox
+                    checked={selectedOrders.length === displayedOrders.length && displayedOrders.length > 0}
+                    onCheckedChange={handleSelectAll}
+                  />
+                </TableHead>
+                <TableHead className="font-semibold text-[#A0A0A0] text-sm">Order ID</TableHead>
+                <TableHead className="font-semibold text-[#A0A0A0] text-sm">Date</TableHead>
+                <TableHead className="font-semibold text-[#A0A0A0] text-sm">Customer Name</TableHead>
+                <TableHead className="font-semibold text-[#A0A0A0] text-sm">Payment</TableHead>
+                <TableHead className="font-semibold text-[#A0A0A0] text-sm">Total</TableHead>
+                <TableHead className="font-semibold text-[#A0A0A0] text-sm">Items</TableHead>
+                <TableHead className="font-semibold text-[#A0A0A0] text-sm">Status</TableHead>
+                <TableHead className="font-semibold text-[#A0A0A0] text-sm">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {displayedOrders.length > 0 ? (
+                displayedOrders.map((order) => (
+                  <TableRow key={order.orderId}>
+                    <TableCell className="py-6">
+                      <Checkbox
+                        checked={selectedOrders.includes(order.orderId)}
+                        onCheckedChange={(checked) => handleSelectOrder(order.orderId, checked as boolean)}
+                      />
+                    </TableCell>
+                    <TableCell className="text-[#4FCA6A] underline">{order.orderId}</TableCell>
+                    <TableCell>{order.date}</TableCell>
+                    <TableCell>{order.customerName}</TableCell>
+                    <TableCell>
+                      <span className="flex items-center">
+                        <span className={`w-2 h-2 rounded-full mr-2 ${getPaymentClass(order.payment)}`}></span>
+                        {order.payment}
+                      </span>
+                    </TableCell>
+                    <TableCell>₦{order.total.toLocaleString()}</TableCell>
+                    <TableCell>{order.items}</TableCell>
+                    <TableCell>
+                      <span className={`flex items-center px-2 py-1 w-[] rounded ${getDeliveryClass(order.status)}`}>
+                        <span className={`w-2 h-2 rounded-full mr-2 ${order.status === "Fulfilled" ? "bg-[#53DC19]" : 
+                                                                        order.status === "Pending" ? "bg-[#FFB347]" : 
+                                                                        order.status === "Shipped" ? "bg-[#C200F8]" : 
+                                                                        order.status === "Processing" ? "bg-[#06A4FF]" : 
+                                                                        order.status === "Cancelled" ? "bg-[#E40101]" : ""}`}></span>
+                        {order.status}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger>
+                                <Button variant="ghost" className="p-0">
+                                    <BsThreeDots className="w-4 h-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                <DropdownMenuItem> <EyeIcon /> View Details</DropdownMenuItem>
+                                <DropdownMenuItem> <MarkIcon/> Mark as Ready</DropdownMenuItem>
+                                <DropdownMenuItem>   <MessageIcon/> Message Customer</DropdownMenuItem>
+                                <DropdownMenuItem><Cancelcon/> Cancel Order</DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center">
+                    No orders found
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+
+          <div className="flex justify-center mt-4 space-x-2">
+            <span className="text-sm">
+              {`${(currentPage * pageSize) + 1}-${Math.min((currentPage + 1) * pageSize, orders.length)} of ${orders.length}`}
+            </span>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setCurrentPage((p) => Math.max(p - 1, 0))}
+              disabled={currentPage === 0}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            {getPageNumbers().map((page, index) => (
+              <span key={index}>
+                {page === "..." ? (
+                  <span className="px-2 text-sm">...</span>
+                ) : (
+                  <Button
+                    variant={currentPage === page ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentPage(Number(page))}
+                    disabled={page === "..." || page === currentPage}
+                  >
+                    {Number(page) + 1}
+                  </Button>
+                )}
+              </span>
+            ))}
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages - 1))}
+              disabled={currentPage >= totalPages - 1}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
     </div>
   );
 }

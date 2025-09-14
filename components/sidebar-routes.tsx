@@ -82,7 +82,7 @@ export const SidebarRoutes = () => {
           href={route.href}
         />
       ))}
-      <div className="mt-[240px] w-full">
+      <div className="mt-[340px] w-full">
         <div className="w-full border-b border-[#F5F5F5] dark:border-background">
           {updatedActionRoutes.map((route) => (
             <SidebarItem
