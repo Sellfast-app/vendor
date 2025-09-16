@@ -8,6 +8,9 @@ import { useState, useEffect } from "react";
 import { BsThreeDots } from "react-icons/bs";
 import { mockData } from "@/lib/mockdata";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import EyeIcon from "@/components/svgIcons/EyeIcon";
+import AddProductModal from "./AddProductModal";
 
 export default function ProductTable() {
   const [currentPage, setCurrentPage] = useState(0);
@@ -15,6 +18,7 @@ export default function ProductTable() {
   const [searchTerm, setSearchTerm] = useState("");
   const [products, setProducts] = useState(mockData);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+    const [isProductModalOpen, setIsProductModalOpen] = useState(false);
 
   useEffect(() => {
     let filteredProducts = [...mockData];
@@ -90,7 +94,7 @@ export default function ProductTable() {
         </div>
         <div className="flex space-x-2">
           <Button variant="outline" className="border-[#F5F5F5] dark:border-[#1F1F1F] "><FilterIcon /> Filter</Button>
-          <Button variant={"outline"} className="border-[#4FCA6A] text-[#4FCA6A]"><PlusIcon className="text-[#4FCA6A]"/> Add Product</Button>
+          <Button variant={"outline"} className="border-[#4FCA6A] text-[#4FCA6A]" onClick={() => setIsProductModalOpen(true)}><PlusIcon className="text-[#4FCA6A]"/> Add Product</Button>
         </div>
       </div>
 
@@ -144,7 +148,24 @@ export default function ProductTable() {
                     {product.status}
                   </span>
                 </TableCell>
-                <TableCell> <BsThreeDots className="w-4 h-4" /></TableCell>
+                <TableCell>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger>
+                      <Button variant="ghost"  className="p-0">
+                      <BsThreeDots className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem>
+                       <EyeIcon/> View Details
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>Edit Product</DropdownMenuItem>
+                      <DropdownMenuItem>Archive Product</DropdownMenuItem>
+                      <DropdownMenuItem>Preview Product</DropdownMenuItem>
+                      <DropdownMenuItem>Delete Product</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  </TableCell>
               </TableRow>
             ))
           ) : (
@@ -194,6 +215,7 @@ export default function ProductTable() {
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
+            <AddProductModal isOpen={isProductModalOpen} onClose={() => setIsProductModalOpen(false)}/>
     </div>
   );
 }

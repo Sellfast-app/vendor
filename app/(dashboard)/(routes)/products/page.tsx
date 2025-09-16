@@ -29,7 +29,6 @@ interface OverviewMetric {
 function ProductsPage() {
   const [, setIsExportModalOpen] = useState(false);
 
-
   const overviewMetrics: OverviewMetric[] = [
     {
       id: "total-products",
