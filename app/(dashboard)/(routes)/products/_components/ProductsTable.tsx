@@ -11,6 +11,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import EyeIcon from "@/components/svgIcons/EyeIcon";
 import AddProductModal from "./AddProductModal";
+import EditIcon from "@/components/svgIcons/EditIcon";
+import ArchiveIcon from "@/components/svgIcons/ArchiveIcon";
+import PreviewIcon from "@/components/svgIcons/PreviewIcon";
+import DeleteIcon from "@/components/svgIcons/DeleteIcon";
 
 export default function ProductTable() {
   const [currentPage, setCurrentPage] = useState(0);
@@ -159,10 +163,10 @@ export default function ProductTable() {
                       <DropdownMenuItem>
                        <EyeIcon/> View Details
                       </DropdownMenuItem>
-                      <DropdownMenuItem>Edit Product</DropdownMenuItem>
-                      <DropdownMenuItem>Archive Product</DropdownMenuItem>
-                      <DropdownMenuItem>Preview Product</DropdownMenuItem>
-                      <DropdownMenuItem>Delete Product</DropdownMenuItem>
+                      <DropdownMenuItem><EditIcon/> Edit Product</DropdownMenuItem>
+                      <DropdownMenuItem><ArchiveIcon/> Archive Product</DropdownMenuItem>
+                      <DropdownMenuItem><PreviewIcon/> Preview Product</DropdownMenuItem>
+                      <DropdownMenuItem><DeleteIcon/> <span className="text-[#E40101]">Delete Product</span></DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                   </TableCell>
