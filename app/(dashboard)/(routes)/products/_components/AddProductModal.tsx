@@ -94,8 +94,8 @@ export default function AddProductModal({ isOpen, onClose }: AddProductModalProp
                             <X className="h-5 w-5" />
                         </Button>
                     </div>
-                    <div className='flex w-full gap-3 mt-2'>
-                        <div className='w-[50%]'>
+                    <div className='flex flex-col md:flex-row w-full gap-3 mt-2'>
+                        <div className='w-full md:w-[50%]'>
                             <h2 className="text-sm font-semibold"> Basic Information</h2>
                             <div>
                                 <Label className='text-xs font-light mt-4 mb-1' htmlFor='product'>
@@ -184,7 +184,7 @@ export default function AddProductModal({ isOpen, onClose }: AddProductModalProp
                                     /></div>
                             </div>
                         </div>
-                        <div className='w-[50%]'>
+                        <div className='w-full md:w-[50%]'>
                             <h2 className="text-sm font-semibold"> Product Image</h2>
                             <div className='border border-dashed border-[#4FCA6A] rounded-lg w-full h-75 mt-4 flex flex-col items-center justify-center gap-3 py-3'>
                                 <ImageIcon />
