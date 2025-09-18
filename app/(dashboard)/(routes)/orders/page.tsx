@@ -108,7 +108,7 @@ function OrdersPage() {
         onClose={() => setIsExportModalOpen(false)}
         endpointPrefix="Orders"
         fieldOptions={fieldOptions}
-        dataName="Orders" // Pass the name from the file
+        dataName="Orders"
       />
     </div>
   );

@@ -15,6 +15,7 @@ import LowStock from "@/components/svgIcons/LowStock";
 import OutOfStock from "@/components/svgIcons/OutOfStock";
 import PendingDispatch from "@/components/svgIcons/PendingDispatch";
 import ProductsTable from "./_components/ProductsTable";
+import { ExportModal } from "@/components/ExportModal";
 
 interface OverviewMetric {
   id: string;
@@ -27,7 +28,7 @@ interface OverviewMetric {
 }
 
 function ProductsPage() {
-  const [, setIsExportModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   const overviewMetrics: OverviewMetric[] = [
     {
@@ -68,26 +69,18 @@ function ProductsPage() {
     },
   ]
 
-  // const fieldOptions = [
-  //   // ...secondaryMetrics.map((metric) => ({
-  //   //   label: metric.title,
-  //   //   value: metric.id,
-  //   // })),
-  //   { label: "Fixtures Table & Data", value: "Fixtures Table & Data" },
-  //   { label: "Game Week Table & Data", value: "Game Week Table & Data" },
-  //   { label: "Competitions Table & Data", value: "Competitions Table & Data" },
-  //   { label: "Best XI Table & Data", value: "Best XI Table & Data" },
-  // ];
-
-  // const handleExport = (data: {
-  //   dateRangeFrom: string;
-  //   dateRangeTo: string;
-  //   format: string;
-  //   fields: Record<string, boolean>;
-  // }) => {
-  //   console.log("Export data:", data);
-  //   // Placeholder: Integrate with backend to export data as CSV or Excel
-  // };
+  const fieldOptions = [
+    ...overviewMetrics.map((metric) => ({
+      label: metric.title,
+      value: metric.id,
+    })),
+    { label: "Thumbnail", value: "Thumbnail" },
+    { label: "Product Name", value: "Product Name" },
+    { label: "Stock", value: "Stock" },
+    { label: "Remanent", value: "Remanent" },
+    { label: "Sales", value: "Sales" },
+    { label: "Status", value: "Status" },
+  ];
 
   return (
     <div className="min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -113,13 +106,13 @@ function ProductsPage() {
           </CardContent>
         </Card>
       </div>
-      {/* <ExportModal
-        isOpen={isExportModalOpen}
-        onClose={() => setIsExportModalOpen(false)}
-        onExport={handleExport}
-        fieldOptions={fieldOptions}
-        title="Teams & Leagues" // Set the dynamic part of the title 
-      /> */}
+       <ExportModal
+             isOpen={isExportModalOpen}
+             onClose={() => setIsExportModalOpen(false)}
+             endpointPrefix="Products"
+             fieldOptions={fieldOptions}
+             dataName="Products"
+           />
     </div>
   );
 }

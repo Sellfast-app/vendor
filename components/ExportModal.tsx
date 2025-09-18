@@ -24,6 +24,9 @@ export function ExportModal({ isOpen, onClose, endpointPrefix, fieldOptions, dat
   const [format, setFormat] = useState("CSV");
   const [selectedFields, setSelectedFields] = useState<Record<string, boolean>>({});
 
+  // Check if all fields are selected
+  const allSelected = fieldOptions.length > 0 && fieldOptions.every((field) => selectedFields[field.value] === true);
+
   const handleExport = async () => {
     const startDate = dateRangeFrom ? dateRangeFrom.toISOString().split("T")[0] : "";
     const endDate = dateRangeTo ? dateRangeTo.toISOString().split("T")[0] : "";
@@ -80,14 +83,19 @@ export function ExportModal({ isOpen, onClose, endpointPrefix, fieldOptions, dat
     setDateRangeTo(undefined);
   };
 
-  // Clear checkbox selections
-  const handleClearSelections = () => {
-    setSelectedFields({});
+  // Toggle select all or clear selections
+  const handleToggleSelections = () => {
+    if (allSelected) {
+      setSelectedFields({});
+    } else {
+      const newSelectedFields = Object.fromEntries(fieldOptions.map((field) => [field.value, true]));
+      setSelectedFields(newSelectedFields);
+    }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogOverlay className="backdrop-blur-xs bg-[#140000B2] dark:bg-black/50" />
+      <DialogOverlay className="backdrop-blur-xs bg-[#06140033] dark:bg-black/50" />
       <VisuallyHidden>
         <DialogTitle>Export Modal</DialogTitle>
       </VisuallyHidden>
@@ -101,11 +109,12 @@ export function ExportModal({ isOpen, onClose, endpointPrefix, fieldOptions, dat
         <div className="space-y-6">
           {/* Date Range */}
           <div>
-            <div className="flex justify-between items-center"> <p className="text-xs font-light mb-2 text-gray-500">Date Range</p>
-            <Button variant="ghost" onClick={handleResetDates} className="text-xs text-[#4FCA6A]">
-              Reset
-            </Button></div>
-           
+            <div className="flex justify-between items-center">
+              <p className="text-xs font-light mb-2 text-gray-500">Date Range</p>
+              <Button variant="ghost" onClick={handleResetDates} className="text-xs text-[#4FCA6A]">
+                Reset
+              </Button>
+            </div>
             <div className="flex items-center gap-2">
               <DatePicker id="from-date" date={dateRangeFrom} onSelect={setDateRangeFrom} placeholder="Select date" label="From:" />
               <DatePicker id="to-date" date={dateRangeTo} onSelect={setDateRangeTo} placeholder="Select date" label="To:" />
@@ -115,13 +124,12 @@ export function ExportModal({ isOpen, onClose, endpointPrefix, fieldOptions, dat
           {/* Field Options */}
           <div>
             <div className="flex justify-between items-center">
-            <p className="text-xs font-light mb-2 text-gray-500">Fields to Export</p>
-            <Button variant="ghost" onClick={handleClearSelections} className="text-xs text-[#4FCA6A]">
-                Clear Selections
+              <p className="text-xs font-light mb-2 text-gray-500">Fields to Export</p>
+              <Button variant="ghost" onClick={handleToggleSelections} className="text-xs text-[#4FCA6A]">
+                {allSelected ? "Clear Selections" : "Select All"}
               </Button>
             </div>
-          
-            <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
               {fieldOptions.map((field) => (
                 <div key={field.value} className="flex items-center space-x-2">
                   <Checkbox
