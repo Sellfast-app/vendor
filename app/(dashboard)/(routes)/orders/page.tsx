@@ -3,7 +3,6 @@
 import { Button } from "@/components/ui/button";
 import React, { JSX, useState } from "react";
 import { RiShare2Fill } from "react-icons/ri";
-// import { ExportModal } from "../../_components/ExportModal";
 import { Card, CardContent } from "@/components/ui/card";
 import TotalSalesChart from "@/components/svgIcons/TotalSalesChart";
 import TotalOrdersChart from "@/components/svgIcons/TotalOrdersChart";
@@ -15,7 +14,7 @@ import PendingDispatch from "@/components/svgIcons/PendingDispatch";
 import PendingOrdersIcon from "@/components/svgIcons/PendingOrdersIcon";
 import CancelledOrders from "@/components/svgIcons/CancelledOrders";
 import OrdersTable from "./_components/OrdersTable";
-
+import { ExportModal } from "@/components/ExportModal";
 
 interface OverviewMetric {
   id: string;
@@ -28,8 +27,7 @@ interface OverviewMetric {
 }
 
 function OrdersPage() {
-  const [, setIsExportModalOpen] = useState(false);
-
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   const overviewMetrics: OverviewMetric[] = [
     {
@@ -48,7 +46,7 @@ function OrdersPage() {
       value: "0",
       change: 22.7,
       changeType: "positive",
-      icon2: <PendingOrdersChart/>,
+      icon2: <PendingOrdersChart />,
     },
     {
       id: "total-orders",
@@ -68,28 +66,18 @@ function OrdersPage() {
       changeType: "positive",
       icon2: <TotalOrdersChart />,
     },
-  ]
+  ];
 
-  // const fieldOptions = [
-  //   // ...secondaryMetrics.map((metric) => ({
-  //   //   label: metric.title,
-  //   //   value: metric.id,
-  //   // })),
-  //   { label: "Fixtures Table & Data", value: "Fixtures Table & Data" },
-  //   { label: "Game Week Table & Data", value: "Game Week Table & Data" },
-  //   { label: "Competitions Table & Data", value: "Competitions Table & Data" },
-  //   { label: "Best XI Table & Data", value: "Best XI Table & Data" },
-  // ];
-
-  // const handleExport = (data: {
-  //   dateRangeFrom: string;
-  //   dateRangeTo: string;
-  //   format: string;
-  //   fields: Record<string, boolean>;
-  // }) => {
-  //   console.log("Export data:", data);
-  //   // Placeholder: Integrate with backend to export data as CSV or Excel
-  // };
+  const fieldOptions = [
+    ...overviewMetrics.map((metric) => ({
+      label: metric.title,
+      value: metric.id,
+    })),
+    { label: "Customer name", value: "Customer name" },
+    { label: "Price", value: "Price" },
+    { label: "Quantity", value: "Quantity" },
+    { label: "Escrow Log", value: "Escrow Log" },
+  ];
 
   return (
     <div className="min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -115,13 +103,13 @@ function OrdersPage() {
           </CardContent>
         </Card>
       </div>
-      {/* <ExportModal
+      <ExportModal
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
-        onExport={handleExport}
+        endpointPrefix="Orders"
         fieldOptions={fieldOptions}
-        title="Teams & Leagues" // Set the dynamic part of the title 
-      /> */}
+        dataName="Orders" // Pass the name from the file
+      />
     </div>
   );
 }
