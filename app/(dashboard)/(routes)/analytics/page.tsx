@@ -5,10 +5,6 @@ import React, { JSX, useState } from "react";
 import { RiShare2Fill } from "react-icons/ri";
 // import { ExportModal } from "../../_components/ExportModal";
 import { Card, CardContent } from "@/components/ui/card";
-import TotalSalesChart from "@/components/svgIcons/TotalSalesChart";
-import TotalOrdersChart from "@/components/svgIcons/TotalOrdersChart";
-import CancelledOrdersChart from "@/components/svgIcons/CancelledOrdersChart";
-import PendingOrdersChart from "@/components/svgIcons/PendingOrdersChart";
 import ProductsIcon from "@/components/svgIcons/ProductsIcon";
 import LowStock from "@/components/svgIcons/LowStock";
 import OutOfStock from "@/components/svgIcons/OutOfStock";
@@ -22,7 +18,8 @@ interface OverviewMetric {
   value: string | number;
   change: number;
   changeType: "positive" | "negative";
-  icon2: JSX.Element;
+  title2: string;
+  value2: string | number;
 }
 
 export default function AnalyticsPage() {
@@ -32,38 +29,62 @@ export default function AnalyticsPage() {
     {
       id: "total-products",
       icon1: <ProductsIcon />,
-      title: "Total Products",
-      value: "0",
-      change: 22.7,
-      changeType: "positive",
-      icon2: <TotalSalesChart />,
-    },
-    {
-      id: "low-stock",
-      icon1: <LowStock />,
-      title: "Low Stock",
-      value: "0",
-      change: 22.7,
-      changeType: "positive",
-      icon2: <PendingOrdersChart/>,
-    },
-    {
-      id: "total-orders",
-      icon1: <OutOfStock />,
-      title: "Total Orders",
-      value: "0",
-      change: 22.7,
-      changeType: "positive",
-      icon2: <CancelledOrdersChart />,
-    },
-    {
-      id: "total-revenue",
-      icon1: <PendingDispatch />,
       title: "Total Revenue",
       value: "0",
       change: 22.7,
       changeType: "positive",
-      icon2: <TotalOrdersChart />,
+      title2: "Net after refunds:",
+      value2: "17,900,890"
+    },
+    {
+      id: "low-stock",
+      icon1: <LowStock />,
+      title: "Processed Orders",
+      value: "0",
+      change: 22.7,
+      changeType: "positive",
+      title2: "Top category",
+      value2: "Short Cake"
+    },
+    {
+      id: "total-orders",
+      icon1: <OutOfStock />,
+      title: "Out for Delivery",
+      value: "0",
+      change: 22.7,
+      changeType: "positive",
+      title2: "Average time:",
+      value2: "2 days(Kwik:1day)"
+    },
+    {
+      id: "total-revenue",
+      icon1: <PendingDispatch />,
+      title: "Customer Growth",
+      value: "0",
+      change: 22.7,
+      changeType: "positive",
+      title2: "Retention:",
+      value2: "45%(repeat buyers)"
+    },
+    {
+      id: "total-orders",
+      icon1: <OutOfStock />,
+      title: "Avg. Order Value",
+      value: "0",
+      change: 22.7,
+      changeType: "positive",
+      title2: "Total Order Value:",
+      value2: "50,900,890"
+    },
+    {
+      id: "total-revenue",
+      icon1: <PendingDispatch />,
+      title: "Total Sales",
+      value: "0",
+      change: 22.7,
+      changeType: "positive",
+      title2: "Avg.sales/day:",
+      value2: "120(1,000,000)"
     },
   ]
 

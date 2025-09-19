@@ -14,7 +14,8 @@ interface OverviewMetric {
     value: string | number;
     change: number;
     changeType: "positive" | "negative";
-    icon2: JSX.Element;
+    title2: string;
+    value2: string | number;
 }
 
 interface MetricCardProps {
@@ -137,7 +138,7 @@ export function AnalyticsMetric({ metric }: MetricCardProps) {
                     <div className="flex items-center justify-between">
                         <Badge
                             variant={changeType === "positive" ? "default" : "destructive"}
-                            className={`text-sm rounded-full ${changeType === "positive"
+                            className={`text-xs rounded-full ${changeType === "positive"
                                     ? "bg-card text-green-700 "
                                     : "bg-card text-red-700 "
                                 }`}
@@ -151,8 +152,9 @@ export function AnalyticsMetric({ metric }: MetricCardProps) {
                         </Badge>
                     </div>
                 </div>
-                <div className="">
-                    {metric.icon2}
+                <div className="flex flex-col items-end">
+                  <span className="text-xs text-[#A0A0A0]">{metric.title2}</span>  
+                 <span className="text-xs text-[#A0A0A0]"> {metric.value2}</span>  
                 </div>
             </CardContent>
         </Card>
