@@ -4,12 +4,19 @@ import { Button } from "@/components/ui/button";
 import React, { JSX, useState } from "react";
 import { RiShare2Fill } from "react-icons/ri";
 // import { ExportModal } from "../../_components/ExportModal";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import ProductsIcon from "@/components/svgIcons/ProductsIcon";
 import LowStock from "@/components/svgIcons/LowStock";
 import OutOfStock from "@/components/svgIcons/OutOfStock";
 import PendingDispatch from "@/components/svgIcons/PendingDispatch";
 import { AnalyticsMetric } from "./_components/AnalyticsMetric";
+import Map from "@/components/svgIcons/Map";
+import NigerianFlag from "@/components/svgIcons/NigerianFlag";
+import { Progress } from "@/components/ui/progress";
+import UsaFlag from "@/components/svgIcons/UsaFlag";
+import { ArrowRight } from "lucide-react";
+import AnalyticsTabs from "./_components/AnalyticsTabs";
+import StorefrontVisitsChart from "./_components/StoreFrontVisitChart";
 
 interface OverviewMetric {
   id: string;
@@ -20,6 +27,13 @@ interface OverviewMetric {
   changeType: "positive" | "negative";
   title2: string;
   value2: string | number;
+}
+
+interface LocationData {
+  id: string;
+  name: string;
+  percentage: number;
+  flag: JSX.Element;
 }
 
 export default function AnalyticsPage() {
@@ -86,28 +100,29 @@ export default function AnalyticsPage() {
       title2: "Avg.sales/day:",
       value2: "120(1,000,000)"
     },
-  ]
+  ];
 
-  // const fieldOptions = [
-  //   // ...secondaryMetrics.map((metric) => ({
-  //   //   label: metric.title,
-  //   //   value: metric.id,
-  //   // })),
-  //   { label: "Fixtures Table & Data", value: "Fixtures Table & Data" },
-  //   { label: "Game Week Table & Data", value: "Game Week Table & Data" },
-  //   { label: "Competitions Table & Data", value: "Competitions Table & Data" },
-  //   { label: "Best XI Table & Data", value: "Best XI Table & Data" },
-  // ];
-
-  // const handleExport = (data: {
-  //   dateRangeFrom: string;
-  //   dateRangeTo: string;
-  //   format: string;
-  //   fields: Record<string, boolean>;
-  // }) => {
-  //   console.log("Export data:", data);
-  //   // Placeholder: Integrate with backend to export data as CSV or Excel
-  // };
+  // Define location data
+  const locationData: LocationData[] = [
+    {
+      id: "lagos",
+      name: "Lagos",
+      percentage: 62,
+      flag: <NigerianFlag />
+    },
+    {
+      id: "abuja",
+      name: "Abuja",
+      percentage: 48,
+      flag: <NigerianFlag />
+    },
+    {
+      id: "florida",
+      name: "Florida",
+      percentage: 35,
+      flag: <UsaFlag />
+    },
+  ];
 
   return (
     <div className="min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -121,28 +136,99 @@ export default function AnalyticsPage() {
           </Button>
         </div>
       </div>
-      <div className="flex w-full">
-        <div className="w-[35%]"></div>
-        <div className="space-y-8 w-[60%]">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-2">
-          {overviewMetrics.map((metric) => (
-            <AnalyticsMetric key={metric.id} metric={metric} />
-          ))}
+      <div className="flex w-full gap-3">
+        <div className="w-[35%]">
+          <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F] w-full mb-4">
+            <CardContent>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs">Active Customers in Location</span>
+                <Map/>
+              </div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col">
+                  <span className="text-lg font-medium">7,269</span>
+                  <span className="text-[#53DC19] text-xs">-8,72% vs. previous</span>
+                </div>
+                <div className="flex flex-col items-end">
+                  <span className="text-[#A0A0A0] text-xs">Customers Acquired:</span>
+                  <span className="text-[#A0A0A0] text-xs"> <span className="text-black">972</span>(this week)</span>
+                </div>
+              </div>
+              
+              {locationData.map((location) => (
+                <div key={location.id} className="flex items-center gap-4 w-full mb-4">
+                  {location.flag}
+                  <div className="flex flex-col gap-2 w-[90%]">
+                    <div className="flex items-center justify-between text-sm">
+                      <span>{location.name}</span>
+                      <span>{location.percentage}%</span>
+                    </div>
+                    <Progress value={location.percentage} />
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+            <CardFooter className="text-sm flex items-center justify-center gap-1 text-primary border-t">
+              <span>
+                See Details 
+              </span>
+              <ArrowRight className="w-4 h-4"/>
+            </CardFooter>
+          </Card>
+          <Card  className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F] w-full mb-4">
+            <CardHeader  className="border-b">
+            <div className="flex items-center justify-between mb-4">
+                <span className="text-xs">Total View Performance</span>
+                <Map/>
+              </div>
+              <div className="flex flex-col items-center justify-center ">
+                <Progress value={70} className="mb-2" />
+                <Progress value={70} className="mb-2" />
+                <span className="text-center text-lg font-medium">126K</span>
+                <span className="text-[#A0A0A0] text-xs">Since Yesterday</span>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col gap-4 mt-4">
+                <div className="flex items-center justify-between  text-xs">
+                  <span className="flex items-center gap-2">
+                    <span className="w-5 h-2 bg-primary rounded-lg"/>
+                    <p >Total Views per day</p>
+                  </span>
+                  <span>9,008</span>
+                </div>
+                <div className="flex items-center justify-between  text-xs">
+                  <span className="flex items-center gap-2">
+                    <span className="w-5 h-2 bg-primary/20 rounded-lg"/>
+                    <p >Avg. Views per product</p>
+                  </span>
+                  <span>2,990</span>
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter className="text-sm flex items-center justify-center gap-1 text-primary border-t">
+              <span>
+                See Details 
+              </span>
+              <ArrowRight className="w-4 h-4"/>
+            </CardFooter>
+          </Card>
+          <Card><StorefrontVisitsChart />
+          </Card>
         </div>
-        <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
-          <CardContent>
-          </CardContent>
-        </Card>
+        <div className="space-y-8 w-[65%]">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-2">
+            {overviewMetrics.map((metric) => (
+              <AnalyticsMetric key={metric.id} metric={metric} />
+            ))}
+          </div>
+          <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
+            <CardContent>
+              <AnalyticsTabs/>
+            </CardContent>
+          </Card>
+        </div>
       </div>
-      </div>
-      {/* <ExportModal
-        isOpen={isExportModalOpen}
-        onClose={() => setIsExportModalOpen(false)}
-        onExport={handleExport}
-        fieldOptions={fieldOptions}
-        title="Teams & Leagues" // Set the dynamic part of the title 
-      /> */}
     </div>
   );
 }
-

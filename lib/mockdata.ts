@@ -15,3 +15,118 @@ export const mockData = [
     { orderId: "ORD-HPH-005", date: "09/09/2025", customerName: "Robert Brown", payment: "Pending", total: 9000, items: 2, status: "Cancelled" },
     { orderId: "ORD-HPH-006", date: "08/09/2025", customerName: "Emily Davis", payment: "Paid", total: 18000, items: 3, status: "Fulfilled" },
   ];
+
+  // lib/mockdata.ts
+export interface SalesData {
+  id: string;
+  productName: string;
+  thumbnail: string;
+  revenue: number;
+  sales: number;
+  reviews: number;
+  views: number;
+  category: string;
+}
+
+export const salesMockData: SalesData[] = [
+  {
+    id: "PRD-001",
+    productName: "Premium Cake Mix",
+    thumbnail: "/thumbnails/PRD-001.png",
+    revenue: 1250000,
+    sales: 250,
+    reviews: 45,
+    views: 1200,
+    category: "Bakery"
+  },
+  {
+    id: "PRD-002",
+    productName: "Artisan Bread",
+    thumbnail: "/thumbnails/PRD-002.png",
+    revenue: 890000,
+    sales: 178,
+    reviews: 32,
+    views: 980,
+    category: "Bakery"
+  },
+  {
+    id: "PRD-003",
+    productName: "Custom Birthday Cake",
+    thumbnail: "/thumbnails/PRD-003.png",
+    revenue: 2100000,
+    sales: 70,
+    reviews: 28,
+    views: 850,
+    category: "Specialty"
+  },
+  {
+    id: "PRD-004",
+    productName: "Chocolate Cookies",
+    thumbnail: "/thumbnails/PRD-004.png",
+    revenue: 450000,
+    sales: 900,
+    reviews: 67,
+    views: 2100,
+    category: "Snacks"
+  },
+  {
+    id: "PRD-005",
+    productName: "Vegan Pastries",
+    thumbnail: "/thumbnails/PRD-005.png",
+    revenue: 680000,
+    sales: 340,
+    reviews: 41,
+    views: 1100,
+    category: "Specialty"
+  },
+  {
+    id: "PRD-006",
+    productName: "Whole Wheat Bread",
+    thumbnail: "/thumbnails/PRD-006.png",
+    revenue: 720000,
+    sales: 240,
+    reviews: 38,
+    views: 950,
+    category: "Bakery"
+  },
+  {
+    id: "PRD-007",
+    productName: "Cupcake Assortment",
+    thumbnail: "/thumbnails/PRD-007.png",
+    revenue: 950000,
+    sales: 475,
+    reviews: 52,
+    views: 1350,
+    category: "Snacks"
+  },
+  {
+    id: "PRD-008",
+    productName: "Gluten-Free Muffins",
+    thumbnail: "/thumbnails/PRD-008.png",
+    revenue: 580000,
+    sales: 290,
+    reviews: 36,
+    views: 890,
+    category: "Specialty"
+  },
+  {
+    id: "PRD-009",
+    productName: "French Baguette",
+    thumbnail: "/thumbnails/PRD-009.png",
+    revenue: 420000,
+    sales: 280,
+    reviews: 29,
+    views: 760,
+    category: "Bakery"
+  },
+  {
+    id: "PRD-010",
+    productName: "Donut Box",
+    thumbnail: "/thumbnails/PRD-010.png",
+    revenue: 1100000,
+    sales: 550,
+    reviews: 63,
+    views: 1650,
+    category: "Snacks"
+  }
+];
