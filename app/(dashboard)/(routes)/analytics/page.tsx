@@ -17,6 +17,7 @@ import UsaFlag from "@/components/svgIcons/UsaFlag";
 import { ArrowRight } from "lucide-react";
 import AnalyticsTabs from "./_components/AnalyticsTabs";
 import StorefrontVisitsChart from "./_components/StoreFrontVisitChart";
+import { ExportModal } from "@/components/ExportModal";
 
 interface OverviewMetric {
   id: string;
@@ -37,7 +38,7 @@ interface LocationData {
 }
 
 export default function AnalyticsPage() {
-  const [, setIsExportModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   const overviewMetrics: OverviewMetric[] = [
     {
@@ -124,6 +125,15 @@ export default function AnalyticsPage() {
     },
   ];
 
+  const fieldOptions = [
+    ...overviewMetrics.map((metric) => ({
+      label: metric.title,
+      value: metric.id,
+    })),
+    { label: "Payout Reports", value: "Payout Reports" },
+    { label: "Customer Insights", value: "Customer Insights" },
+    { label: "Active Customers in Location", value: "Active Customers in Location" },
+  ];
   return (
     <div className="min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <div className="mb-6 flex items-center justify-between">
@@ -229,6 +239,13 @@ export default function AnalyticsPage() {
           </Card>
         </div>
       </div>
+       <ExportModal
+              isOpen={isExportModalOpen}
+              onClose={() => setIsExportModalOpen(false)}
+              endpointPrefix="Analytics"
+              fieldOptions={fieldOptions}
+              dataName="Analytics"
+            />
     </div>
   );
 }
