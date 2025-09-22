@@ -6,7 +6,7 @@ export function middleware(request: NextRequest) {
   const accessToken = request.cookies.get("accessToken")?.value;
   const pathname = request.nextUrl.pathname;
 
-  const publicRoutes = ["/login", "/signup",  "/reset", "/forgot", "/dashboard","/products","/orders","/analytics"];
+  const publicRoutes = ["/login", "/signup",  "/reset", "/forgot"];
 
   // Allow public routes, API routes, and static assets
   if (
