@@ -130,3 +130,35 @@ export const salesMockData: SalesData[] = [
     category: "Snacks"
   }
 ];
+
+export const mockWithdrawalData = [
+  { id: "W001", bankTo: "First Bank", amount: 5000, status: "Success", timestamp: "2025-09-22T10:30:00Z", receiptUrl: "/receipts/W001.pdf" },
+  { id: "W002", bankTo: "Zenith Bank", amount: 7500, status: "Pending", timestamp: "2025-09-22T11:00:00Z", receiptUrl: "/receipts/W002.pdf" },
+  { id: "W003", bankTo: "GTBank", amount: 3000, status: "Failed", timestamp: "2025-09-22T09:45:00Z", receiptUrl: null },
+  { id: "W004", bankTo: "Access Bank", amount: 10000, status: "Success", timestamp: "2025-09-22T12:00:00Z", receiptUrl: "/receipts/W004.pdf" },
+  { id: "W005", bankTo: "Access Bank", amount: 10000, status: "Success", timestamp: "2025-09-22T12:00:00Z", receiptUrl: "/receipts/W004.pdf" },
+  { id: "W006", bankTo: "Access Bank", amount: 10000, status: "Success", timestamp: "2025-09-22T12:00:00Z", receiptUrl: "/receipts/W004.pdf" },
+  { id: "W007", bankTo: "Access Bank", amount: 10000, status: "Success", timestamp: "2025-09-22T12:00:00Z", receiptUrl: "/receipts/W004.pdf" },
+  // Add more mock data as needed
+];
+
+export const mockSubscriptionBillingData = [
+  { id: "SB001", card: "1234********5678", amount: 2999, plan: "Basic", status: "Success", timestamp: "2025-09-22T09:00:00Z", receiptUrl: "/receipts/SB001.pdf" },
+  { id: "SB002", card: "4321********8765", amount: 4999, plan: "Premium", status: "Pending", timestamp: "2025-09-22T10:15:00Z", receiptUrl: "/receipts/SB002.pdf" },
+  { id: "SB003", card: "5678********1234", amount: 1999, plan: "Free", status: "Failed", timestamp: "2025-09-22T11:30:00Z", receiptUrl: null },
+  { id: "SB004", card: "8765********4321", amount: 5999, plan: "Pro", status: "Success", timestamp: "2025-09-22T13:00:00Z", receiptUrl: "/receipts/SB004.pdf" },
+  { id: "SB005", card: "8765********4321", amount: 5999, plan: "Pro", status: "Success", timestamp: "2025-09-22T13:00:00Z", receiptUrl: "/receipts/SB004.pdf" },
+  { id: "SB006", card: "8765********4321", amount: 5999, plan: "Pro", status: "Success", timestamp: "2025-09-22T13:00:00Z", receiptUrl: "/receipts/SB004.pdf" },
+  { id: "SB007", card: "8765********4321", amount: 5999, plan: "Pro", status: "Success", timestamp: "2025-09-22T13:00:00Z", receiptUrl: "/receipts/SB004.pdf" },
+  // Add more mock data as needed
+];
+
+export const mockEscrowData = [
+  { id: "ORD-HPH-001", amount: 15000, status: "Escrow", timestamp: "2025-09-22T08:00:00Z", orderInfoUrl: "/order/ORD-HPH-001", trackingUrl: "/track/ORD-HPH-001" },
+  { id: "ORD-HPH-002", amount: 25000, status: "Available", timestamp: "2025-09-22T09:15:00Z", orderInfoUrl: "/order/ORD-HPH-002", trackingUrl: "/track/ORD-HPH-002" },
+  { id: "ORD-HPH-003", amount: 8000, status: "Escrow", timestamp: "2025-09-22T10:30:00Z", orderInfoUrl: "/order/ORD-HPH-003", trackingUrl: "/track/ORD-HPH-003" },
+  { id: "ORD-HPH-004", amount: 12000, status: "Available", timestamp: "2025-09-22T11:45:00Z", orderInfoUrl: "/order/ORD-HPH-004", trackingUrl: "/track/ORD-HPH-004" },
+  { id: "ORD-HPH-005", amount: 30000, status: "Escrow", timestamp: "2025-09-22T13:00:00Z", orderInfoUrl: "/order/ORD-HPH-005", trackingUrl: "/track/ORD-HPH-005" },
+  { id: "ORD-HPH-006", amount: 5000, status: "Available", timestamp: "2025-09-22T14:15:00Z", orderInfoUrl: "/order/ORD-HPH-006", trackingUrl: "/track/ORD-HPH-006" },
+  { id: "ORD-HPH-007", amount: 18000, status: "Escrow", timestamp: "2025-09-22T15:30:00Z", orderInfoUrl: "/order/ORD-HPH-007", trackingUrl: "/track/ORD-HPH-007" },
+];
