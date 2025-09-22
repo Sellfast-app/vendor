@@ -1,11 +1,10 @@
 "use client";
 
-
 import { AvatarImage } from "@/components/ui/avatar";
 import { Avatar, AvatarFallback } from "@radix-ui/react-avatar";
 import { LayoutDashboardIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { SVGProps, useState } from "react";
+import { SVGProps, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { SidebarItem } from "../app/(dashboard)/_components/sidebar-item";
 import Products from "./svgIcons/Products";
@@ -15,7 +14,6 @@ import Payouts from "./svgIcons/Payouts";
 import Settings from "./svgIcons/Settings";
 import Logout from "./svgIcons/Logout";
 
-// Define route type
 interface RouteLink {
   label: string;
   href: string;
@@ -26,7 +24,7 @@ interface Route {
   label: string;
   href?: string;
   onClick?: () => Promise<void> | void;
-  links?: RouteLink[]; // 👈 Fix is here
+  links?: RouteLink[];
 }
 
 const adminRoutes: Route[] = [
@@ -43,20 +41,49 @@ const actionRoutes: Route[] = [
 ];
 
 export const SidebarRoutes = () => {
-    const [businessName, ] = useState<string>("Cassie's Kitchen");
+  const [businessName, setBusinessName] = useState<string>("");
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+
+  // Retrieve business name from localStorage on mount
+  useEffect(() => {
+    const storedBusinessName = localStorage.getItem("store_name");
+    if (storedBusinessName) {
+      setBusinessName(storedBusinessName);
+    } else {
+      setBusinessName("My Business"); // Fallback
+    }
+  }, []);
 
   const handleLogout = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/auth/logout");
+      // Retrieve accessToken from cookies
+      const accessToken = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("accessToken="))
+        ?.split("=")[1];
 
-      if (!res.ok) throw new Error("Failed to clear session");
+      const res = await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
+        },
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Failed to clear session");
+      }
+
+      // Clear localStorage and sessionStorage
       localStorage.clear();
       sessionStorage.clear();
 
+      // Redirect to login
       router.push("/login");
+      toast.success("Logged out successfully");
       window.location.reload(); // Critical for state cleanup
     } catch (error) {
       console.error("Logout error:", error);
@@ -71,6 +98,14 @@ export const SidebarRoutes = () => {
       ? { ...route, onClick: handleLogout, href: undefined }
       : route
   );
+
+  // Generate AvatarFallback initials from business name
+  const getInitials = (name: string) => {
+    const words = name.split(" ").filter(Boolean);
+    if (words.length === 0) return "MB";
+    if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+    return (words[0][0] + words[1][0]).toUpperCase();
+  };
 
   return (
     <div className="flex flex-col w-full">
@@ -95,14 +130,14 @@ export const SidebarRoutes = () => {
             />
           ))}
         </div>
-        <div className="flex items-center space-x-3 ml-6 mt-5 ">
+        <div className="flex items-center space-x-3 ml-6 mt-5">
           <Avatar className="w-10 h-10 border rounded-full text-center">
-          <AvatarImage  alt={businessName} />
-            <AvatarFallback>CK</AvatarFallback>
+            <AvatarImage alt={businessName} />
+            <AvatarFallback>{getInitials(businessName)}</AvatarFallback>
           </Avatar>
           <div>
             <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-             Cassie&apos;s Kitchen
+              {businessName}
             </p>
           </div>
         </div>

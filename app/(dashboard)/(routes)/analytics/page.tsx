@@ -213,7 +213,7 @@ export default function AnalyticsPage() {
               <ArrowRight className="w-4 h-4"/>
             </CardFooter>
           </Card>
-          <Card><StorefrontVisitsChart />
+          <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]"><StorefrontVisitsChart />
           </Card>
         </div>
         <div className="space-y-8 w-[65%]">
