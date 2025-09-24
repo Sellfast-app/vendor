@@ -38,7 +38,6 @@ interface OverviewMetric {
 function DashboardPage() {
   const [, setIsExportModalOpen] = useState(false);
 
-
   const overviewMetrics: OverviewMetric[] = [
     {
       id: "total-sales",
@@ -114,27 +113,6 @@ function DashboardPage() {
     },
   ]
 
-  // const fieldOptions = [
-  //   // ...secondaryMetrics.map((metric) => ({
-  //   //   label: metric.title,
-  //   //   value: metric.id,
-  //   // })),
-  //   { label: "Fixtures Table & Data", value: "Fixtures Table & Data" },
-  //   { label: "Game Week Table & Data", value: "Game Week Table & Data" },
-  //   { label: "Competitions Table & Data", value: "Competitions Table & Data" },
-  //   { label: "Best XI Table & Data", value: "Best XI Table & Data" },
-  // ];
-
-  // const handleExport = (data: {
-  //   dateRangeFrom: string;
-  //   dateRangeTo: string;
-  //   format: string;
-  //   fields: Record<string, boolean>;
-  // }) => {
-  //   console.log("Export data:", data);
-  //   // Placeholder: Integrate with backend to export data as CSV or Excel
-  // };
-
   return (
     <div className="min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <div className="mb-6 flex items-center justify-between">
@@ -142,10 +120,18 @@ function DashboardPage() {
           <h3 className="text-sm font-bold">Overview</h3>
         </div>
         <div className="flex gap-2">
-          <Button variant={"outline"} onClick={() => setIsExportModalOpen(true)} className="border-[#F5F5F5] dark:border-[#1F1F1F]">
-            <RiShare2Fill /> Export
+          <Button 
+            variant={"outline"} 
+            onClick={() => setIsExportModalOpen(true)} 
+            className="border-[#F5F5F5] dark:border-[#1F1F1F]"
+          >
+            <RiShare2Fill /> 
+            <span className="hidden sm:inline ml-2">Export</span>
           </Button>
-          <Button > <PlusIcon /> Add Product</Button>
+          <Button>
+            <PlusIcon /> 
+            <span className="hidden sm:inline ml-2">Add Product</span>
+          </Button>
         </div>
       </div>
       <div className="space-y-8">
@@ -159,13 +145,6 @@ function DashboardPage() {
           <BestSellingProducts />
         </div>
       </div>
-      {/* <ExportModal
-        isOpen={isExportModalOpen}
-        onClose={() => setIsExportModalOpen(false)}
-        onExport={handleExport}
-        fieldOptions={fieldOptions}
-        title="Teams & Leagues" // Set the dynamic part of the title 
-      /> */}
     </div>
   );
 }

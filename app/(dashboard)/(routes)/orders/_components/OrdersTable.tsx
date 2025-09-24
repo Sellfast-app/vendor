@@ -120,18 +120,18 @@ export default function OrderTable() {
       {/* Search and Filter Section */}
       <div className="flex justify-between mb-4 space-x-4">
         <div className="relative flex items-center pb-2 ">
-          <Input
+        <Input
             type="text"
             placeholder="Search by Order ID/Customer..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-84 pr-4 py-2 dark:bg-background rounded-lg border-[#F5F5F5] dark:border-[#1F1F1F]"
+            className="w-full sm:w-64 md:w-84 pr-8 py-2 text-xs sm:text-sm dark:bg-background rounded-lg border-[#F5F5F5] dark:border-[#1F1F1F]"
           />
-          <SearchIcon className="absolute right-2 top-2.7 h-4 w-4 text-muted-foreground" />
+          <SearchIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         </div>
         <div className="flex space-x-2">
-          <Button variant="outline" className="border-[#F5F5F5] dark:border-[#1F1F1F] dark:bg-background"><FilterIcon /> Filter</Button>
-          <Button variant="outline" className="border-[#4FCA6A] text-[#4FCA6A] dark:bg-background"><PlusIcon className="text-[#4FCA6A]" /> Add Order</Button>
+          <Button variant="outline" className="border-[#F5F5F5] dark:border-[#1F1F1F] dark:bg-background"><FilterIcon /> <span className="hidden sm:inline ml-2">Filter</span></Button>
+          <Button variant="outline" className="border-[#4FCA6A] text-[#4FCA6A] dark:bg-background"><PlusIcon className="text-[#4FCA6A]" /> <span className="hidden sm:inline ml-2">Add Order</span></Button>
         </div>
       </div>
 
@@ -143,7 +143,7 @@ export default function OrderTable() {
           onClick={() => setActiveTab("all")}
         >
           <Allcon/>
-          All
+          <span className="hidden sm:inline ml-2">All</span>
         </Button>
         <Button
           variant="ghost"
@@ -151,7 +151,7 @@ export default function OrderTable() {
           onClick={() => setActiveTab("pending")}
         >
           <Pending/>
-          Pending
+          <span className="hidden sm:inline ml-2">Pending</span>
         </Button>
         <Button
           variant="ghost"
@@ -159,7 +159,7 @@ export default function OrderTable() {
           onClick={() => setActiveTab("processing")}
         >
           <Processing/>
-          Processing
+          <span className="hidden sm:inline ml-2">Processing</span>
         </Button>
         <Button
           variant="ghost"
@@ -167,7 +167,7 @@ export default function OrderTable() {
           onClick={() => setActiveTab("shipped")}
         >
           <Shipped/>
-          Shipped
+          <span className="hidden sm:inline ml-2">Shipped</span>
         </Button>
         <Button
           variant="ghost"
@@ -175,7 +175,7 @@ export default function OrderTable() {
           onClick={() => setActiveTab("fulfilled")}
         >
           <Fulfilled/>
-          Fulfilled
+          <span className="hidden sm:inline ml-2">Fulfilled</span>
         </Button>
         <Button
           variant="ghost"
@@ -183,7 +183,7 @@ export default function OrderTable() {
           onClick={() => setActiveTab("cancelled")}
         >
           <Cancelled/>
-          Cancelled
+          <span className="hidden sm:inline ml-2">Cancelled</span>
         </Button>
       </div>
           <Table>

@@ -1,5 +1,6 @@
 
 
+import { MobileSidebar } from "./_components/Mobile-sidebar";
 import { Navbar } from "./_components/navbar";
 import { Sidebar } from "./_components/sidebar";
 
@@ -19,7 +20,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
       <main className="md:pl-63 pt-[80px] h-full pb-[80px] md:pb-0 bg-[#FCFCFC] dark:bg-background">
         {children}
       </main>
-      {/* <MobileSidebar /> */}
+      <MobileSidebar />
     </div>
   );
 };

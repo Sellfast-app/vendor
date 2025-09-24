@@ -9,6 +9,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { toast } from "sonner";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RiShare2Fill } from "react-icons/ri";
 
 interface ExportModalProps {
   isOpen: boolean;
@@ -99,14 +100,14 @@ export function ExportModal({ isOpen, onClose, endpointPrefix, fieldOptions, dat
       <VisuallyHidden>
         <DialogTitle>Export Modal</DialogTitle>
       </VisuallyHidden>
-      <DialogContent className="sm:max-w-[571px] rounded-lg">
+      <DialogContent className="max-w-[95vw] w-full mx-auto rounded-lg">
         <DialogHeader className="border-b pb-4">
           <h3 className="text-sm font-semibold">Export {dataName} Data</h3>
           <p className="text-xs font-light text-gray-400 dark:text-gray-100">
             Select the data you&apos;d like to export and the format
           </p>
         </DialogHeader>
-        <div className="space-y-6">
+        <div className="space-y-6 p-1">
           {/* Date Range */}
           <div>
             <div className="flex justify-between items-center">
@@ -115,7 +116,7 @@ export function ExportModal({ isOpen, onClose, endpointPrefix, fieldOptions, dat
                 Reset
               </Button>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center text-xs gap-2">
               <DatePicker id="from-date" date={dateRangeFrom} onSelect={setDateRangeFrom} placeholder="Select date" label="From:" />
               <DatePicker id="to-date" date={dateRangeTo} onSelect={setDateRangeTo} placeholder="Select date" label="To:" />
             </div>
@@ -124,8 +125,8 @@ export function ExportModal({ isOpen, onClose, endpointPrefix, fieldOptions, dat
           {/* Field Options */}
           <div>
             <div className="flex justify-between items-center">
-              <p className="text-xs font-light mb-2 text-gray-500">Fields to Export</p>
-              <Button variant="ghost" onClick={handleToggleSelections} className="text-xs text-[#4FCA6A]">
+              <p className="text-2xs text-xs font-light mb-2 text-gray-500">Fields to Export</p>
+              <Button variant="ghost" onClick={handleToggleSelections} className="text-xs sm:text-xs text-[#4FCA6A]">
                 {allSelected ? "Clear Selections" : "Select All"}
               </Button>
             </div>
@@ -136,8 +137,9 @@ export function ExportModal({ isOpen, onClose, endpointPrefix, fieldOptions, dat
                     id={field.value}
                     checked={selectedFields[field.value] || false}
                     onCheckedChange={() => handleFieldChange(field.value)}
+                    className="h-3 w-3 sm:h-4 sm:w-4"
                   />
-                  <label htmlFor={field.value} className="text-sm text-gray-700 dark:text-gray-200">
+                  <label htmlFor={field.value} className="text-xs sm:text-sm text-gray-700 dark:text-gray-200">
                     {field.label}
                   </label>
                 </div>
@@ -152,7 +154,7 @@ export function ExportModal({ isOpen, onClose, endpointPrefix, fieldOptions, dat
                 <Button
                   key={fmt}
                   variant={format === fmt ? "outline" : "ghost"}
-                  className={`flex-1 rounded-md text-sm ${
+                  className={`flex-1 rounded-md text-2xs sm:text-sm min-w-[60px] h-8 sm:h-9 ${
                     format === fmt ? "border-gray-300 text-gray-700 dark:text-gray-200" : "text-gray-500 hover:bg-transparent"
                   }`}
                   onClick={() => setFormat(fmt)}
@@ -161,8 +163,9 @@ export function ExportModal({ isOpen, onClose, endpointPrefix, fieldOptions, dat
                 </Button>
               ))}
             </div>
-            <Button onClick={handleExport} className="w-[280px] text-white rounded-md">
-              Export
+            <Button onClick={handleExport} className="text-white rounded-md h-8 sm:h-9 text-xs sm:text-sm">
+              <RiShare2Fill className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="ml-2">Export</span>
             </Button>
           </div>
         </div>
@@ -183,15 +186,15 @@ function DatePicker({ id, date, onSelect, placeholder, label }: { id: string; da
 
   return (
     <div className="flex flex-col gap-1 flex-1">
-      <label htmlFor={id} className="text-xs text-gray-400 dark:text-gray-100">{label}</label>
+      <label htmlFor={id} className="text-2xs sm:text-xs text-gray-400 dark:text-gray-100">{label}</label>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button id={id} variant="outline" className="w-full justify-start text-left font-normal pl-3 pr-10 py-2 border rounded-md text-sm">
-            <span>{date ? formatDate(date) : placeholder}</span>
-            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+          <Button id={id} variant="outline" className="w-full justify-start text-left font-normal pl-3 pr-10 py-2 border rounded-md text-xs sm:text-sm h-8 sm:h-9">
+            <span className="truncate">{date ? formatDate(date) : placeholder}</span>
+            <CalendarIcon className="ml-auto h-3 w-3 sm:h-4 sm:w-4 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0 z-30" align="start">
+        <PopoverContent className="w-auto p-0 z-50" align="start">
           <Calendar mode="single" selected={date} onSelect={handleSelect} month={month} className="rounded-md border" />
         </PopoverContent>
       </Popover>
@@ -201,5 +204,5 @@ function DatePicker({ id, date, onSelect, placeholder, label }: { id: string; da
 
 function formatDate(date: Date | undefined) {
   if (!date) return "";
-  return date.toLocaleDateString("en-US", { day: "2-digit", month: "long", year: "numeric" });
+  return date.toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" });
 }

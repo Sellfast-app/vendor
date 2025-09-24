@@ -126,13 +126,13 @@ export default function ProductTable() {
             placeholder="Search by name/SKU..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-84 pr-4 py-2 dark:bg-background rounded-lg border-[#F5F5F5] dark:border-[#1F1F1F]"
+             className="w-full sm:w-64 md:w-84 pr-8 py-2 text-xs sm:text-sm dark:bg-background rounded-lg border-[#F5F5F5] dark:border-[#1F1F1F]"
           />
-          <SearchIcon className="absolute right-2 top-2.7 h-4 w-4 text-muted-foreground" />
-        </div>
+         <SearchIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          </div>
         <div className="flex space-x-2">
-          <Button variant="outline" className="border-[#F5F5F5] dark:border-[#1F1F1F] dark:bg-background"><FilterIcon /> Filter</Button>
-          <Button variant="outline" className="border-[#4FCA6A] text-[#4FCA6A] dark:bg-background" onClick={() => setIsProductModalOpen(true)}><PlusIcon className="text-[#4FCA6A]"/> Add Product</Button>
+          <Button variant="outline" className="border-[#F5F5F5] dark:border-[#1F1F1F] dark:bg-background"><FilterIcon /> <span className="hidden sm:inline ml-2">Filter</span></Button>
+          <Button variant="outline" className="border-[#4FCA6A] text-[#4FCA6A] dark:bg-background" onClick={() => setIsProductModalOpen(true)}><PlusIcon className="text-[#4FCA6A]"/> <span className="hidden sm:inline ml-2">Add Product</span></Button>
         </div>
       </div>
 

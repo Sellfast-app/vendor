@@ -52,10 +52,10 @@ export default function PayoutsPage() {
         </div>
         <div className="flex gap-2">
           <Button variant={"outline"}>
-            Request Withdrawal <Withdrawal/>
+            <span className="hidden sm:inline mr-2"> Request Withdrawal</span> <Withdrawal/>
           </Button> 
           <Button onClick={() => setIsExportModalOpen(true)}>
-            <RiShare2Fill /> Export
+            <RiShare2Fill />  <span className="hidden sm:inline ml-2">Export</span>
           </Button>
         </div>
       </div>

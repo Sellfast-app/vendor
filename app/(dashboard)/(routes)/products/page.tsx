@@ -90,7 +90,7 @@ function ProductsPage() {
         </div>
         <div className="flex gap-2">
           <Button onClick={() => setIsExportModalOpen(true)}>
-            <RiShare2Fill /> Export
+            <RiShare2Fill /> <span className="hidden sm:inline ml-2">Export</span>
           </Button>
         </div>
       </div>
