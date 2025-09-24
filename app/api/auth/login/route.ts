@@ -83,6 +83,14 @@ export async function POST(request: Request) {
         );
       }
 
+      // Extract store name from the first store in the stores array
+      let storeName = email.split('@')[0] + "'s Store"; // Default fallback
+      
+      if (result.data.stores && result.data.stores.length > 0) {
+        const firstStore = result.data.stores[0];
+        storeName = firstStore.name || firstStore.store_name || firstStore.business_name || storeName;
+      }
+
       // Create response with token in cookie
       const nextResponse = NextResponse.json(
         {
@@ -90,7 +98,7 @@ export async function POST(request: Request) {
           message: result.message || "Login successful",
           success: true,
           data: {
-            store_name: result.data.store_name || email.split('@')[0] + "'s Store"
+            store_name: storeName
           }
         },
         { status: 200 }
@@ -105,7 +113,16 @@ export async function POST(request: Request) {
         secure: true,
       });
 
-      console.log("Login successful, token set in cookie");
+      // Set the store name as a cookie (not HTTP-only so it can be read by client-side JS)
+      nextResponse.cookies.set("store_name", storeName, {
+        path: "/",
+        httpOnly: false, // Allow client-side access
+        sameSite: "lax",
+        maxAge: 86400,
+        secure: true,
+      });
+
+      console.log("Login successful, token and store name set in cookies");
       return nextResponse;
 
     }       // eslint-disable-next-line @typescript-eslint/no-explicit-any

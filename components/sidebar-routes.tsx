@@ -41,28 +41,54 @@ const actionRoutes: Route[] = [
 ];
 
 export const SidebarRoutes = () => {
-  const [businessName, setBusinessName] = useState<string>("");
+  const [businessName, setBusinessName] = useState<string>("My Business");
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
-  // Retrieve business name from localStorage on mount
+  // Helper function to get cookie value
+  const getCookieValue = (name: string): string | null => {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) {
+      return parts.pop()?.split(';').shift() || null;
+    }
+    return null;
+  };
+
+  // Retrieve business name from cookies on mount
   useEffect(() => {
-    const storedBusinessName = localStorage.getItem("store_name");
-    if (storedBusinessName) {
-      setBusinessName(storedBusinessName);
+    const storeName = getCookieValue("store_name");
+    if (storeName) {
+      setBusinessName(decodeURIComponent(storeName)); // Decode in case it contains special characters
     } else {
       setBusinessName("My Business"); // Fallback
     }
   }, []);
 
+  // Also listen for cookie changes (e.g., after login)
+  useEffect(() => {
+    const checkForUpdatedStoreName = () => {
+      const storeName = getCookieValue("store_name");
+      if (storeName) {
+        const decodedStoreName = decodeURIComponent(storeName);
+        if (decodedStoreName !== businessName) {
+          setBusinessName(decodedStoreName);
+        }
+      }
+    };
+
+    // Check immediately and then periodically
+    checkForUpdatedStoreName();
+    const interval = setInterval(checkForUpdatedStoreName, 1000);
+
+    return () => clearInterval(interval);
+  }, [businessName]);
+
   const handleLogout = async () => {
     setIsLoading(true);
     try {
       // Retrieve accessToken from cookies
-      const accessToken = document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("accessToken="))
-        ?.split("=")[1];
+      const accessToken = getCookieValue("accessToken");
 
       const res = await fetch("/api/auth/logout", {
         method: "POST",
@@ -80,6 +106,10 @@ export const SidebarRoutes = () => {
       // Clear localStorage and sessionStorage
       localStorage.clear();
       sessionStorage.clear();
+
+      // Clear cookies manually (since logout API should handle this, but as backup)
+      document.cookie = "accessToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+      document.cookie = "store_name=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
 
       // Redirect to login
       router.push("/login");

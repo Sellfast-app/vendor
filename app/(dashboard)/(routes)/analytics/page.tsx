@@ -146,8 +146,8 @@ export default function AnalyticsPage() {
           </Button>
         </div>
       </div>
-      <div className="flex w-full gap-3">
-        <div className="w-[35%]">
+      <div className="flex w-full gap-3 flex-col xl:flex-row">
+        <div className="w-full xl:w-[35%]">
           <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F] w-full mb-4">
             <CardContent>
               <div className="flex items-center justify-between mb-2">
@@ -226,7 +226,7 @@ export default function AnalyticsPage() {
           <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]"><StorefrontVisitsChart />
           </Card>
         </div>
-        <div className="space-y-8 w-[65%]">
+        <div className="space-y-8 w-full xl:w-[65%]">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-2">
             {overviewMetrics.map((metric) => (
               <AnalyticsMetric key={metric.id} metric={metric} />
