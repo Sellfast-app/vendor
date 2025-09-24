@@ -13,6 +13,13 @@ interface ApiError {
   message: string;
 }
 
+const noCacheHeaders = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+  'Pragma': 'no-cache',
+  'Expires': '0',
+  'Surrogate-Control': 'no-store'
+};
+
 export async function POST(request: Request) {
   try {
     const accessToken = request.headers.get("authorization")?.replace("Bearer ", "");
@@ -22,9 +29,16 @@ export async function POST(request: Request) {
       console.log("Using mock response for /auth/logout");
       const response = NextResponse.json(
         { status: "success", message: "Logged out successfully" },
-        { status: 200 }
+        { 
+          status: 200,
+          headers: noCacheHeaders
+        }
       );
+      
+      // Clear both cookies
       response.cookies.delete("accessToken");
+      response.cookies.delete("store_name");
+      
       return response;
     }
 
@@ -37,23 +51,79 @@ export async function POST(request: Request) {
       },
     });
 
-    const result: LogoutResponse | ApiError = await response.json();
-    console.log("External API response:", { status: response.status, result });
+    console.log("External API response status:", response.status);
+    console.log("External API response content-type:", response.headers.get("content-type"));
+
+    // Check if the response is JSON
+    const contentType = response.headers.get("content-type");
+    const isJson = contentType && contentType.includes("application/json");
+
+    if (!isJson) {
+      console.log("External API returned non-JSON response, likely HTML error page");
+      // If it's not JSON, we'll still clear cookies and consider logout successful
+      const nextResponse = NextResponse.json(
+        { status: "success", message: "Logged out successfully (session cleared locally)" },
+        { 
+          status: 200,
+          headers: noCacheHeaders
+        }
+      );
+      
+      nextResponse.cookies.delete("accessToken");
+      nextResponse.cookies.delete("store_name");
+      
+      return nextResponse;
+    }
+
+    let result: LogoutResponse | ApiError;
+    try {
+      result = await response.json();
+      console.log("External API response data:", result);
+    } catch (jsonError) {
+      console.log("Failed to parse JSON response:", jsonError);
+      // If JSON parsing fails, still clear cookies locally
+      const nextResponse = NextResponse.json(
+        { status: "success", message: "Logged out successfully (session cleared locally)" },
+        { 
+          status: 200,
+          headers: noCacheHeaders
+        }
+      );
+      
+      nextResponse.cookies.delete("accessToken");
+      nextResponse.cookies.delete("store_name");
+      
+      return nextResponse;
+    }
 
     if (!response.ok) {
       console.log("External API error:", result);
-      return NextResponse.json(
-        { status: "error", message: (result as ApiError).message || "Failed to log out" },
-        { status: response.status }
+      // Even if the API call fails, we should clear local cookies
+      const nextResponse = NextResponse.json(
+        { status: "success", message: "Logged out successfully (session cleared locally)" },
+        { 
+          status: 200,
+          headers: noCacheHeaders
+        }
       );
+      
+      nextResponse.cookies.delete("accessToken");
+      nextResponse.cookies.delete("store_name");
+      
+      return nextResponse;
     }
 
-    // Clear accessToken cookie
+    // Clear both accessToken and store_name cookies
     const nextResponse = NextResponse.json(
       { status: "success", message: "Logged out successfully" },
-      { status: 200 }
+      { 
+        status: 200,
+        headers: noCacheHeaders
+      }
     );
+    
     nextResponse.cookies.delete("accessToken");
+    nextResponse.cookies.delete("store_name");
 
     return nextResponse;
   } catch (error) {
@@ -69,6 +139,12 @@ export async function POST(request: Request) {
     }
     
     console.error("Logout API error:", errorMessage);
-    return NextResponse.json({ status: "error", message: errorMessage }, { status: 500 });
+    return NextResponse.json(
+      { status: "error", message: errorMessage }, 
+      { 
+        status: 500,
+        headers: noCacheHeaders
+      }
+    );
   }
 }

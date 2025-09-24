@@ -18,7 +18,14 @@ export async function POST(request: Request) {
     if (!email || !password) {
       return NextResponse.json(
         { status: "error", message: "Email and password are required", success: false },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+          }
+        }
       );
     }
 
@@ -27,7 +34,14 @@ export async function POST(request: Request) {
     if (!emailRegex.test(email)) {
       return NextResponse.json(
         { status: "error", message: "Please enter a valid email address", success: false },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+          }
+        }
       );
     }
 
@@ -61,7 +75,14 @@ export async function POST(request: Request) {
             message: result.message || "Invalid email or password. Please check your credentials.", 
             success: false 
           },
-          { status: 401 } // Return 401 (Unauthorized) to frontend
+          { 
+            status: 401,
+            headers: {
+              'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0',
+            }
+          }
         );
       }
 
@@ -70,7 +91,14 @@ export async function POST(request: Request) {
         const errorMessage = result.message || "Login failed. Please try again.";
         return NextResponse.json(
           { status: "error", message: errorMessage, success: false },
-          { status: response.status }
+          { 
+            status: response.status,
+            headers: {
+              'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0',
+            }
+          }
         );
       }
 
@@ -79,7 +107,14 @@ export async function POST(request: Request) {
         console.error("Missing token in successful response:", result);
         return NextResponse.json(
           { status: "error", message: "Invalid response from authentication service", success: false },
-          { status: 502 }
+          { 
+            status: 502,
+            headers: {
+              'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0',
+            }
+          }
         );
       }
 
@@ -91,7 +126,7 @@ export async function POST(request: Request) {
         storeName = firstStore.name || firstStore.store_name || firstStore.business_name || storeName;
       }
 
-      // Create response with token in cookie
+      // Create response with token in cookie and no-cache headers
       const nextResponse = NextResponse.json(
         {
           status: "success",
@@ -101,7 +136,15 @@ export async function POST(request: Request) {
             store_name: storeName
           }
         },
-        { status: 200 }
+        { 
+          status: 200,
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+            'Surrogate-Control': 'no-store'
+          }
+        }
       );
 
       // Set the access token as an HTTP-only cookie
@@ -110,7 +153,7 @@ export async function POST(request: Request) {
         httpOnly: true,
         sameSite: "lax",
         maxAge: 86400,
-        secure: true,
+        secure: process.env.NODE_ENV === 'production',
       });
 
       // Set the store name as a cookie (not HTTP-only so it can be read by client-side JS)
@@ -119,13 +162,13 @@ export async function POST(request: Request) {
         httpOnly: false, // Allow client-side access
         sameSite: "lax",
         maxAge: 86400,
-        secure: true,
+        secure: process.env.NODE_ENV === 'production',
       });
 
       console.log("Login successful, token and store name set in cookies");
       return nextResponse;
 
-    }       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    }    // eslint-disable-next-line @typescript-eslint/no-explicit-any 
     catch (fetchError: any) {
       clearTimeout(timeoutId);
       
@@ -133,7 +176,14 @@ export async function POST(request: Request) {
         console.error("Request timeout:", fetchError);
         return NextResponse.json(
           { status: "error", message: "Authentication service is not responding. Please try again later.", success: false },
-          { status: 408 }
+          { 
+            status: 408,
+            headers: {
+              'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0',
+            }
+          }
         );
       }
       
@@ -141,16 +191,30 @@ export async function POST(request: Request) {
       console.error("API connection error:", fetchError);
       return NextResponse.json(
         { status: "error", message: "Unable to connect to authentication service. Please try again later.", success: false },
-        { status: 503 }
+        { 
+          status: 503,
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+          }
+        }
       );
     }
 
-  }      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  }    // eslint-disable-next-line @typescript-eslint/no-explicit-any 
   catch (error: any) {
     console.error("Unexpected error in login API:", error);
     return NextResponse.json(
       { status: "error", message: "Internal server error", success: false },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        }
+      }
     );
   }
 }

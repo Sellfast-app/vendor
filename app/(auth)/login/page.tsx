@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import {  useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import Logo from "@/components/svgIcons/Logo";
 
@@ -23,7 +23,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
-  const router = useRouter();
+  // const router = useRouter();
   const searchParams = useSearchParams();
   const from = searchParams.get("from") || "/dashboard";
 
@@ -69,7 +69,7 @@ export default function LoginPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
-        credentials: "include", // ADDED: This ensures cookies are sent/received
+        credentials: "include",
       });
 
       const data: LoginResponse = await res.json();
@@ -84,10 +84,13 @@ export default function LoginPage() {
         toast.success("Login successful! Redirecting...");
         console.log("Redirecting to:", from);
         
-        // ADDED: Small delay to ensure cookies are processed
+        // FIXED: Use window.location for PWA compatibility
+        // Wait a bit for cookies to be processed, then hard redirect
         setTimeout(() => {
-          router.push(from);
-        }, 100);
+          console.log("Performing hard redirect to:", from);
+          window.location.href = from;
+          // Alternative: window.location.replace(from) to prevent back navigation
+        }, 300);
       } else {
         console.log("Login failed:", data.message);
         toast.error(data.message || "Login failed");
@@ -133,7 +136,7 @@ export default function LoginPage() {
               onBlur={() => setEmailFocused(false)}
               className="w-full h-11 bg-muted border-0 pr-4 rounded-lg focus:ring-2 transition-all duration-200"
               placeholder="e.g., example@gmail.com"
-              disabled={isLoading} // ADDED: Disable during loading
+              disabled={isLoading}
             />
           </div>
         </div>
@@ -156,7 +159,7 @@ export default function LoginPage() {
               onBlur={() => setPasswordFocused(false)}
               className="w-full h-11 bg-muted border-0 pr-10 rounded-lg focus:ring-2 transition-all duration-200"
               placeholder="e.g., JOHNdoe123#"
-              disabled={isLoading} // ADDED: Disable during loading
+              disabled={isLoading}
             />
             <div
               className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer"
