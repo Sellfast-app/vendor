@@ -1,7 +1,7 @@
 {
-    "name": "SellFast Dashboard",
-    "short_name": "SellFast",
-    "description": "Vendor dashboard for SellFast",
+    "name": "Swiftree - Vendor Dashboard",
+    "short_name": "Swiftree",
+    "description": "Vendor dashboard for Swiftree",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#ffffff",

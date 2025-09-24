@@ -10,8 +10,8 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: 'SellFast Dashboard',
-  description: 'Vendor dashboard for SellFast',
+  title: 'Swiftree',
+  description: 'Vendor dashboard for Swiftree',
   manifest: '/manifest.json',
 };
 
