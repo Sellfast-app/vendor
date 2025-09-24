@@ -64,7 +64,7 @@ export default function SalesBreakdown() {
   return (
     <div className="w-full">
       <Table>
-        <TableHeader className="bg-[#F5F5F5]">
+        <TableHeader className="bg-[#F5F5F5] dark:bg-background">
           <TableRow>
             <TableHead className="w-[50px]">
               <Checkbox

@@ -126,18 +126,18 @@ export default function ProductTable() {
             placeholder="Search by name/SKU..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-84 pr-4 py-2 bg-background rounded-lg border-[#F5F5F5] dark:border-[#1F1F1F]"
+            className="w-84 pr-4 py-2 dark:bg-background rounded-lg border-[#F5F5F5] dark:border-[#1F1F1F]"
           />
           <SearchIcon className="absolute right-2 top-2.7 h-4 w-4 text-muted-foreground" />
         </div>
         <div className="flex space-x-2">
-          <Button variant="outline" className="border-[#F5F5F5] dark:border-[#1F1F1F]"><FilterIcon /> Filter</Button>
-          <Button variant="outline" className="border-[#4FCA6A] text-[#4FCA6A]" onClick={() => setIsProductModalOpen(true)}><PlusIcon className="text-[#4FCA6A]"/> Add Product</Button>
+          <Button variant="outline" className="border-[#F5F5F5] dark:border-[#1F1F1F] dark:bg-background"><FilterIcon /> Filter</Button>
+          <Button variant="outline" className="border-[#4FCA6A] text-[#4FCA6A] dark:bg-background" onClick={() => setIsProductModalOpen(true)}><PlusIcon className="text-[#4FCA6A]"/> Add Product</Button>
         </div>
       </div>
 
       <Table>
-        <TableHeader className="bg-[#F5F5F5]">
+        <TableHeader className="bg-[#F5F5F5] dark:bg-background">
           <TableRow>
             <TableHead className="w-[50px]">
               <Checkbox

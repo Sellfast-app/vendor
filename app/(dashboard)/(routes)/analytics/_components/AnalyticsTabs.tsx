@@ -12,25 +12,25 @@ export default function AnalyticsTabs() {
       <TabsList className="grid grid-cols-4 mb-6 bg-transparent gap-2">
         <TabsTrigger 
           value="sales" 
-          className="bg-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-input"
+          className="bg-transparent data-[state=active]:bg-primary dark:data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-input"
         >
           Sales Breakdown
         </TabsTrigger>
         <TabsTrigger 
           value="payouts" 
-          className="bg-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-input"
+          className="bg-transparent data-[state=active]:bg-primary  dark:data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-input"
         >
           Payouts Revenue
         </TabsTrigger>
         <TabsTrigger 
           value="inventory" 
-          className="bg-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-input"
+          className="bg-transparent data-[state=active]:bg-primary dark:data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-input"
         >
           Inventory Trends
         </TabsTrigger>
         <TabsTrigger 
           value="customer" 
-          className="bg-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-input"
+          className="bg-transparent data-[state=active]:bg-primary dark:data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-input"
         >
           Customer Insights
         </TabsTrigger>

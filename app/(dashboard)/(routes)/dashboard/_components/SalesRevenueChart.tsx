@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const SalesRevenueChart = () => {
@@ -34,7 +34,7 @@ const SalesRevenueChart = () => {
                             An overview of your sales count and revenue growth.
                         </p>
                     </div>
-                    <div className="flex bg-gray-100 rounded-lg p-1">
+                    <div className="flex bg-gray-100 dark:bg-background rounded-lg p-1">
                         {periods.map((period) => (
                             <button
                                 key={period}
@@ -61,7 +61,6 @@ const SalesRevenueChart = () => {
                             }}
                             barCategoryGap="20%"
                         >
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                             <XAxis
                                 dataKey="month"
                                 axisLine={false}

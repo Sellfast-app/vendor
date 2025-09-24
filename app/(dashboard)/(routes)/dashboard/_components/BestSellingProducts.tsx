@@ -58,14 +58,14 @@ const BestSellingProducts = () => {
           <div className="relative">
             <button
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white dark:bg-background  border border-[#F5F5F5] dark:border-[#1F1F1F] rounded-lg"
             >
               {selectedPeriod}
               <ChevronDown className={`w-4 h-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
             
             {isDropdownOpen && (
-              <div className="absolute right-0 mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+              <div className="absolute right-0 mt-1 w-36 bg-white dark:bg-background border border-[#F5F5F5] dark:border-[#1F1F1F] rounded-lg shadow-lg z-10">
                 {periods.map((period) => (
                   <button
                     key={period}
@@ -73,8 +73,8 @@ const BestSellingProducts = () => {
                       setSelectedPeriod(period);
                       setIsDropdownOpen(false);
                     }}
-                    className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg ${
-                      selectedPeriod === period ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
+                    className={`w-full px-3 py-2 text-left text-sm first:rounded-t-lg last:rounded-b-lg ${
+                      selectedPeriod === period ? 'bg-background text-blue-600' : 'text-gray-700'
                     }`}
                   >
                     {period}
@@ -100,7 +100,7 @@ const BestSellingProducts = () => {
                   <div className="w-8 h-8 bg-orange-400 rounded-full"></div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-medium text-gray-900 truncate">
+                  <h4 className="text-sm font-medium truncate">
                     {product.name}
                   </h4>
                   <p className="text-xs text-green-600 font-medium">
@@ -109,7 +109,7 @@ const BestSellingProducts = () => {
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-sm font-semibold text-gray-900">
+                <p className="text-sm font-semibold ">
                   {product.sales}
                 </p>
                 <p className="text-xs text-gray-500">
