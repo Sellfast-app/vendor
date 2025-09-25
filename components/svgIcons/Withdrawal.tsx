@@ -1,6 +1,6 @@
 import * as React from "react";
 
-const Withdrawal: React.FC<React.SVGProps<SVGElement>> = () => (
+const Withdrawal: React.FC<React.SVGProps<SVGSVGElement>> = ({color = "#061400"}) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width="18"
@@ -9,7 +9,7 @@ const Withdrawal: React.FC<React.SVGProps<SVGElement>> = () => (
     viewBox="0 0 18 15"
   >
     <path
-      stroke="#061400"
+      stroke={color}
       strokeLinecap="round"
       strokeLinejoin="round"
       strokeWidth="1.2"
