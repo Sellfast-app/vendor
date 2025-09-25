@@ -5,6 +5,11 @@ import SalesBreakdown from "./SalesBreakdown";
 import PayoutsRevenue from "./PayoutsRevenue";
 import InventoryTrends from "./InventoryTrends";
 import CustomerInsights from "./CustomerInsights";
+import { FaChartLine } from "react-icons/fa";
+import { PiHandCoinsDuotone } from "react-icons/pi";
+import { MdOutlineInventory } from "react-icons/md";
+import { MdInsights } from "react-icons/md";
+
 
 export default function AnalyticsTabs() {
   return (
@@ -14,25 +19,25 @@ export default function AnalyticsTabs() {
           value="sales" 
           className="bg-transparent data-[state=active]:bg-primary dark:data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-input"
         >
-          Sales Breakdown
+        <FaChartLine/><span className="hidden sm:inline ml-2"> Sales Breakdown</span>
         </TabsTrigger>
         <TabsTrigger 
           value="payouts" 
           className="bg-transparent data-[state=active]:bg-primary  dark:data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-input"
         >
-          Payouts Revenue
+         <PiHandCoinsDuotone/> <span className="hidden sm:inline ml-2"> Payouts Revenue</span>
         </TabsTrigger>
         <TabsTrigger 
           value="inventory" 
           className="bg-transparent data-[state=active]:bg-primary dark:data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-input"
         >
-          Inventory Trends
+         < MdOutlineInventory /> <span className="hidden sm:inline ml-2"> Inventory Trends</span>
         </TabsTrigger>
         <TabsTrigger 
           value="customer" 
           className="bg-transparent data-[state=active]:bg-primary dark:data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-input"
         >
-          Customer Insights
+        <MdInsights/> <span className="hidden sm:inline ml-2"> Customer Insights</span>
         </TabsTrigger>
       </TabsList>
       

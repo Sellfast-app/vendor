@@ -178,7 +178,7 @@ export default function ProductTable() {
                 <TableCell>{product.remanent}</TableCell>
                 <TableCell>₦{product.sales.toLocaleString()}</TableCell>
                 <TableCell>
-                  <span className={`flex items-center px-2 py-1 rounded text-sm ${getStatusClass(product.status)}`}>
+                  <span className={`flex items-center px-2 py-1 text-black rounded text-sm ${getStatusClass(product.status)}`}>
                     <span className={`w-2 h-2 rounded-full mr-2 ${product.status === "Ready Stock" ? "bg-[#53DC19]" : 
                       product.status === "Made-to-order" ? "bg-[#FFB347]" : 
                       product.status === "Out of Stock" ? "bg-[#E40101]" : ""

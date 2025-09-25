@@ -227,7 +227,7 @@ export default function OrderTable() {
                     <TableCell>₦{order.total.toLocaleString()}</TableCell>
                     <TableCell>{order.items}</TableCell>
                     <TableCell>
-                      <span className={`flex items-center px-2 py-1 w-[] rounded ${getDeliveryClass(order.status)}`}>
+                      <span className={`flex items-center text-black px-2 py-1 w-[] rounded ${getDeliveryClass(order.status)}`}>
                         <span className={`w-2 h-2 rounded-full mr-2 ${order.status === "Fulfilled" ? "bg-[#53DC19]" : 
                                                                         order.status === "Pending" ? "bg-[#FFB347]" : 
                                                                         order.status === "Shipped" ? "bg-[#C200F8]" : 
