@@ -10,12 +10,11 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import React, { JSX, useState } from 'react'
 import { RiShare2Fill } from 'react-icons/ri';
-import {  PlusIcon } from 'lucide-react';
+import {  PlusIcon, Settings } from 'lucide-react';
 import { Payoutmetrics } from './_components/PayoutMetrics';
 import TransactionInflowChart from './_components/TransactionInflowChart';
 import PayoutsTab from './_components/PayoutsTab';
 import Accessbank from '@/components/svgIcons/Accessbank';
-import Settings from '@/components/svgIcons/Settings';
 import CC1 from '@/public/Card1.png';
 import CC2 from '@/public/Card2.png';
 import Image from 'next/image';
@@ -246,7 +245,7 @@ export default function PayoutsPage() {
                 <p className='text-sm'>Billing Information</p>
                 <Button variant={"outline"}>Edit <Settings/></Button>
               </div>
-              <div className='bg-[#F5F5F5] border rounded-lg p-3 space-y-4 mt-4 '>
+              <div className='bg-[#F5F5F5] dark:bg-background border rounded-lg p-3 space-y-4 mt-4 '>
                 <div className='flex items-center justify-between text-sm'><span>Subscription Plan</span> <p>Premium</p></div>
                 <div className='flex items-center justify-between text-sm'><span>Amount</span><p>5,000</p></div>
                 <div className='flex items-center justify-between text-sm'><span>Duration</span><p>Monthly</p></div>

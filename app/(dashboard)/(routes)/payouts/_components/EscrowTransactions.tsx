@@ -84,19 +84,19 @@ export default function EscrowTable() {
             placeholder="Search by Order ID or Status..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-84 pr-4 py-2 bg-background rounded-lg border-[#F5F5F5] dark:border-[#1F1F1F]"
+            className="w-full sm:w-64 md:w-84 pr-8 py-2 text-xs sm:text-sm dark:bg-background rounded-lg border-[#F5F5F5] dark:border-[#1F1F1F]"
           />
           <SearchIcon className="absolute right-2 top-2.7 h-4 w-4 text-muted-foreground" />
         </div>
         <div className="flex space-x-2">
-          <Button variant="outline" className="border-[#F5F5F5] dark:border-[#1F1F1F]">
-            <FilterIcon /> Filter
+          <Button variant="outline" className="border-[#F5F5F5] dark:border-[#1F1F1F] dark:bg-background">
+            <FilterIcon /> <span className="hidden sm:inline ml-2">Filter</span>
           </Button>
         </div>
       </div>
 
       <Table>
-        <TableHeader className="bg-[#F5F5F5]">
+        <TableHeader className="bg-[#F5F5F5] dark:bg-background">
           <TableRow>
             <TableHead className="w-[50px]">
               <Checkbox

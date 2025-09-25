@@ -13,6 +13,7 @@ import Analytics from "./svgIcons/Analytics";
 import Payouts from "./svgIcons/Payouts";
 import Settings from "./svgIcons/Settings";
 import Logout from "./svgIcons/Logout";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 
 interface RouteLink {
   label: string;
@@ -160,7 +161,9 @@ export const SidebarRoutes = () => {
             />
           ))}
         </div>
-        <div className="flex items-center space-x-3 ml-6 mt-5">
+        <DropdownMenu>
+          <DropdownMenuTrigger className="w-full"> 
+            <div className="flex items-center space-x-3 ml-6 mt-5">
           <Avatar className="w-10 h-10 border rounded-full text-center">
             <AvatarImage alt={businessName} />
             <AvatarFallback>{getInitials(businessName)}</AvatarFallback>
@@ -170,7 +173,14 @@ export const SidebarRoutes = () => {
               {businessName}
             </p>
           </div>
-        </div>
+        </div></DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuItem>
+            Other Stores
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+         </DropdownMenu>
+        
       </div>
     </div>
   );

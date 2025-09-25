@@ -1,5 +1,6 @@
-import React from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer} from 'recharts';
+"use client";
+import React, { useState } from 'react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface ChartData {
   month: string;
@@ -32,22 +33,25 @@ interface CustomTooltipProps {
     color: string;
   }>;
   label?: string;
+  coordinate?: {
+    x: number;
+    y: number;
+  };
 }
 
 const CustomTooltip: React.FC<CustomTooltipProps> = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
-    
     return (
-      <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-4 min-w-[280px]">
-        <p className="text-gray-500 text-sm mb-3">{label}</p>
-        <div className="space-y-2">
+      <div className="bg-card border border-gray-200 rounded-lg shadow-lg p-3 min-w-[200px] max-w-[280px] z-50">
+        <p className="text-gray-500 text-xs mb-2">{label}</p>
+        <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-[#4FCA6A] rounded-full"></div>
-            <span className="text-sm font-medium">120 • ₦2,010,090.00 • Inflow</span>
+            <div className="w-2 h-2 bg-[#4FCA6A] rounded-full flex-shrink-0"></div>
+            <span className="text-xs font-medium truncate">120 • ₦2,010,090.00 • Inflow</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-[#E80000] rounded-full"></div>
-            <span className="text-sm font-medium">17 • ₦998,075.40 • Outflow</span>
+            <div className="w-2 h-2 bg-[#E80000] rounded-full flex-shrink-0"></div>
+            <span className="text-xs font-medium truncate">17 • ₦998,075.40 • Outflow</span>
           </div>
         </div>
       </div>
@@ -65,27 +69,38 @@ const formatYAxisRight = (value: number): string => {
 };
 
 export default function TransactionInflowChart() {
+  const [selectedPeriod, setSelectedPeriod] = useState('Max');
+
+  const periods = ['1D', '1W', '1M', '1Y', 'Max'];
+
   return (
-    <div className="w-full bg-white">
+    <div className="w-full bg-card">
       {/* Header */}
       <div className="px-6 py-4">
         <div className="flex justify-between items-start">
           <div>
-            <h2 className="text-sm font-semibold text-gray-900 mb-1">Transaction Inflow vs Outflow</h2>
+            <h2 className="text-sm font-semibold  mb-1">Transaction Inflow vs Outflow</h2>
             <p className="text-xs text-gray-500">An overview of your sales count and revenue growth.</p>
           </div>
-          <div className="flex gap-2">
-            <button className="px-3 py-1 text-xs text-gray-400 hover:text-gray-600">1D</button>
-            <button className="px-3 py-1 text-xs text-gray-400 hover:text-gray-600">1W</button>
-            <button className="px-3 py-1 text-xs text-gray-400 hover:text-gray-600">1M</button>
-            <button className="px-3 py-1 text-xs text-gray-400 hover:text-gray-600">1Y</button>
-            <button className="px-3 py-1 text-xs text-gray-900 font-medium border-b-2 border-gray-900">Max</button>
+          <div className="flex bg-gray-100 dark:bg-background rounded-lg p-1">
+            {periods.map((period) => (
+              <button
+                key={period}
+                onClick={() => setSelectedPeriod(period)}
+                className={`px-3 py-1 text-xs md:text-sm rounded-md transition-colors ${selectedPeriod === period
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+                  }`}
+              >
+                {period}
+              </button>
+            ))}
           </div>
         </div>
       </div>
 
       {/* Chart */}
-      <div className=" py-4">
+      <div className="py-4">
         <div style={{ width: '100%', height: '400px' }}>
           <ResponsiveContainer>
             <LineChart
@@ -93,22 +108,24 @@ export default function TransactionInflowChart() {
               margin={{
                 top: 20,
                 bottom: 20,
+                left: 10,
+                right: 10,
               }}
             >
-              <CartesianGrid 
-                strokeDasharray="none" 
-                stroke="#f0f0f0" 
+              <CartesianGrid
+                strokeDasharray="none"
+                stroke="#f0f0f0"
                 horizontal={true}
                 vertical={false}
               />
-              <XAxis 
+              <XAxis
                 dataKey="month"
                 axisLine={false}
                 tickLine={false}
                 tick={{ fill: '#9ca3af', fontSize: 12 }}
                 dy={10}
               />
-              <YAxis 
+              <YAxis
                 yAxisId="left"
                 domain={[-60, 80]}
                 axisLine={false}
@@ -116,8 +133,8 @@ export default function TransactionInflowChart() {
                 tick={{ fill: '#9ca3af', fontSize: 12 }}
                 tickFormatter={formatYAxisLeft}
               />
-              <YAxis 
-                yAxisId="right" 
+              <YAxis
+                yAxisId="right"
                 orientation="right"
                 domain={[-60, 80]}
                 axisLine={false}
@@ -125,20 +142,28 @@ export default function TransactionInflowChart() {
                 tick={{ fill: '#9ca3af', fontSize: 12 }}
                 tickFormatter={formatYAxisRight}
               />
-              
+
               {/* Vertical line at April */}
               <Line
                 yAxisId="left"
                 dataKey={() => null}
                 stroke="transparent"
               />
-              
-              <Tooltip 
+
+              <Tooltip
                 content={<CustomTooltip />}
                 cursor={{ stroke: '#6b7280', strokeWidth: 1 }}
-                position={{ x: 400, y: 200 }}
+                wrapperStyle={{ 
+                  outline: 'none',
+                  zIndex: 1000 
+                }}
+                allowEscapeViewBox={{
+                  x: false,
+                  y: false
+                }}
+                offset={10}
               />
-              
+
               <Line
                 yAxisId="left"
                 type="monotone"
@@ -160,15 +185,15 @@ export default function TransactionInflowChart() {
             </LineChart>
           </ResponsiveContainer>
         </div>
-        
+
         {/* Legend */}
         <div className="flex items-center justify-center gap-8 mt-4 text-xs text-gray-400">
           <div className="flex items-center gap-2">
-            <span className="w-3 h-3 bg-[#4FCA6A] rounded-xs"/>
+            <span className="w-3 h-3 bg-[#4FCA6A] rounded-xs" />
             <span>Inflow</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="w-3 h-3 bg-[#E80000] rounded-xs "/>
+            <span className="w-3 h-3 bg-[#E80000] rounded-xs " />
             <span>Outflow</span>
           </div>
         </div>
