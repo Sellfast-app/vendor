@@ -162,7 +162,7 @@ export default function LoginPage() {
               disabled={isLoading}
             />
             <div
-              className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer"
+              className="absolute inset-y-0 right-0 top-1/3 flex items-center pr-3 cursor-pointer"
               onClick={togglePasswordVisibility}
             >
               {showPassword ? (

@@ -1,7 +1,7 @@
 // app/api/auth/logout/route.ts
 import { NextResponse } from "next/server";
 
-const API_BASE_URL = process.env.NODE_ENV === "development" ? "http://localhost:44332" : "https://api.swiftree.app";
+const API_BASE_URL = "https://api.swiftree.app";
 
 interface LogoutResponse {
   status: string;
@@ -23,24 +23,6 @@ const noCacheHeaders = {
 export async function POST(request: Request) {
   try {
     const accessToken = request.headers.get("authorization")?.replace("Bearer ", "");
-
-    // Mock response for development
-    if (process.env.NODE_ENV === "development") {
-      console.log("Using mock response for /auth/logout");
-      const response = NextResponse.json(
-        { status: "success", message: "Logged out successfully" },
-        { 
-          status: 200,
-          headers: noCacheHeaders
-        }
-      );
-      
-      // Clear both cookies
-      response.cookies.delete("accessToken");
-      response.cookies.delete("store_name");
-      
-      return response;
-    }
 
     // Call external API to invalidate session
     const response = await fetch(`${API_BASE_URL}/auth/logout`, {
