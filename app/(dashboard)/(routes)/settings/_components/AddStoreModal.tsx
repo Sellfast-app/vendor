@@ -38,7 +38,7 @@ const businessTypes = [
   "Other",
 ];
 
-export default function AddStoreModal({ isOpen, onClose,  setStores }: {
+export default function AddStoreModal({ isOpen, onClose, setStores }: {
   isOpen: boolean;
   onClose: () => void;
   stores: Store[];
@@ -47,6 +47,7 @@ export default function AddStoreModal({ isOpen, onClose,  setStores }: {
   const [formData, setFormData] = useState({
     name: "",
     whatsappNumber: "",
+    countryCode: "+234",
     type: "",
     bio: "",
     image: null as File | null,
@@ -66,12 +67,12 @@ export default function AddStoreModal({ isOpen, onClose,  setStores }: {
       id: `STORE-${Date.now()}`,
       name: formData.name,
       type: formData.type,
-      whatsappNumber: formData.whatsappNumber,
+      whatsappNumber: `${formData.countryCode} ${formData.whatsappNumber}`,
       bio: formData.bio,
       image: previewImage || "/placeholder-store.jpg",
     };
     setStores((prev) => [...prev, newStore]);
-    setFormData({ name: "", whatsappNumber: "", type: "", bio: "", image: null });
+    setFormData({ name: "", whatsappNumber: "", countryCode: "+234", type: "", bio: "", image: null });
     setPreviewImage(null);
     onClose();
   };
@@ -92,42 +93,57 @@ export default function AddStoreModal({ isOpen, onClose,  setStores }: {
         </DialogHeader>
         <div className="space-y-6">
           <div className="flex flex-col items-center gap-2">
-            <div className="relative"> 
-                <Avatar className="w-20 h-20">
-              <AvatarImage src={previewImage || "/placeholder-store.jpg"} alt="Store Logo" />
-              <AvatarFallback>{formData.name[0] || "S"}</AvatarFallback>
-            </Avatar>
-            <label className="absolute bottom-3 right-3">
-              <Camera className="w-6 h-6 text-gray-500 cursor-pointer absolute -top-2 -right-2 bg-white rounded-full p-1" />
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-              />
-            </label>
-            </div>  
+            <div className="relative">
+              <Avatar className="w-20 h-20">
+                <AvatarImage src={previewImage || "/placeholder-store.jpg"} alt="Store Logo" />
+                <AvatarFallback>{formData.name[0] || "S"}</AvatarFallback>
+              </Avatar>
+              <label className="absolute bottom-3 right-3">
+                <Camera className="w-6 h-6 text-gray-500 cursor-pointer absolute -top-2 -right-2 bg-white rounded-full p-1" />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+              </label>
+            </div>
             <p className="text-xs text-center text-gray-400 dark:text-gray-100">Upload your store logo or image</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
+          <div className="flex justify-between items-center gap-4">
+            <div className="space-y-2 md:col-span-2 w-full md:w-[50%]">
               <Label htmlFor="storeName" className="text-xs">Store Name *</Label>
               <Input
                 id="storeName"
                 value={formData.name}
                 onChange={(e) => handleInputChange("name", e.target.value)}
-                className="dark:bg-background"
+                className="dark:bg-background "
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 md:col-span-2 w-full md:w-[50%]">
               <Label htmlFor="whatsappNumber" className="text-xs">WhatsApp Business Number *</Label>
-              <Input
-                id="whatsappNumber"
-                value={formData.whatsappNumber}
-                onChange={(e) => handleInputChange("whatsappNumber", e.target.value)}
-                className="dark:bg-background"
-              />
+              <div className="flex gap-1">
+                <Select
+                  value={formData.countryCode}
+                  onValueChange={(value) => handleInputChange("countryCode", value)}
+                >
+                  <SelectTrigger className="max-w-[85px] dark:bg-background">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="+234">+234</SelectItem>
+                    <SelectItem value="+1">+1</SelectItem>
+                    <SelectItem value="+44">+44</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input
+                  id="whatsappNumber"
+                  value={formData.whatsappNumber}
+                  onChange={(e) => handleInputChange("whatsappNumber", e.target.value)}
+                  className="flex-1 dark:bg-background"
+                />
+              </div>
             </div>
           </div>
 
