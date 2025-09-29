@@ -1,122 +1,130 @@
-"use client"
+"use client";
 
-import React, { useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Camera, Trash2 } from 'lucide-react'
-import EditIcon from '@/components/svgIcons/Edit'
-import SaveIcon from '@/components/svgIcons/SaveIcon'
-import { Card, CardContent } from '@/components/ui/card'
-import StoreIcon from '@/components/svgIcons/StoreIcon'
-import Image from '@/components/svgIcons/Image2'
+} from "@/components/ui/select";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Camera, Trash2 } from "lucide-react";
+import EditIcon from "@/components/svgIcons/Edit";
+import SaveIcon from "@/components/svgIcons/SaveIcon";
+import { Card, CardContent } from "@/components/ui/card";
+import StoreIcon from "@/components/svgIcons/StoreIcon";
+import Image from "@/components/svgIcons/Image2";
+import AddStoreModal from "./AddStoreModal";
 
 interface Store {
-  id: string
-  name: string
-  type: string
-  location: string
-  status: 'current' | 'inactive'
-  image: string
+  id: string;
+  name: string;
+  type: string;
+  whatsappNumber: string;
+  bio: string;
+  image: string | null;
 }
 
 function AccountInformation() {
-  const [isEditingProfile, setIsEditingProfile] = useState(false)
-  const [isEditingBusiness, setIsEditingBusiness] = useState(false)
-  const [showDeleteSection, setShowDeleteSection] = useState(false)
-  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isEditingBusiness, setIsEditingBusiness] = useState(false);
+  const [showDeleteSection, setShowDeleteSection] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [formData, setFormData] = useState({
-    firstName: 'Cassandra',
-    lastName: 'Kayla',
-    email: 'cassandrakayla@gmail.com',
-    whatsappNumber: '809 789 7891',
-    countryCode: '+234',
-    country: 'Nigeria',
-    state: 'Rivers',
-    city: 'Port Harcourt',
-    lga: 'Obio-Akpor',
-    cacNumber: 'RC123456',
-    taxId: 'NNNNNNNN-NNN',
-    documentType: '',
-  })
+    firstName: "Cassandra",
+    lastName: "Kayla",
+    email: "cassandrakayla@gmail.com",
+    whatsappNumber: "809 789 7891",
+    countryCode: "+234",
+    country: "Nigeria",
+    state: "Rivers",
+    city: "Port Harcourt",
+    lga: "Obio-Akpor",
+    cacNumber: "RC123456",
+    taxId: "NNNNNNNN-NNN",
+    documentType: "",
+  });
 
-  const [stores, ] = useState<Store[]>([
+  const [stores, setStores] = useState<Store[]>([
     {
-      id: '1',
+      id: "1",
       name: "Cassie's Kitchen",
-      type: 'Bakery • Lagos • Active',
-      location: 'Lagos',
-      status: 'current',
-      image: '/placeholder-store1.jpg'
+      type: "Bakery • Lagos • Active",
+      whatsappNumber: "809 123 4567",
+      bio: "A cozy bakery serving fresh pastries.",
+      image: "/placeholder-store1.jpg",
     },
     {
-      id: '2',
-      name: 'Burger Shack',
-      type: 'Restaurant • Lagos • Inactive',
-      location: 'Lagos',
-      status: 'inactive',
-      image: '/placeholder-store2.jpg'
+      id: "2",
+      name: "Burger Shack",
+      type: "Restaurant • Lagos • Inactive",
+      whatsappNumber: "809 234 5678",
+      bio: "Serving delicious burgers and fries.",
+      image: "/placeholder-store2.jpg",
     },
     {
-      id: '3',
-      name: 'Pizza Cafe',
-      type: 'Bakery • Lagos • Inactive',
-      location: 'Lagos',
-      status: 'inactive',
-      image: '/placeholder-store3.jpg'
+      id: "3",
+      name: "Pizza Cafe",
+      type: "Bakery • Lagos • Inactive",
+      whatsappNumber: "809 345 6789",
+      bio: "Your go-to spot for authentic pizza.",
+      image: "/placeholder-store3.jpg",
     },
-  ])
+  ]);
+
+  const [isAddStoreModalOpen, setIsAddStoreModalOpen] = useState(false);
 
   const handleEditProfile = () => {
-    setIsEditingProfile(true)
-  }
+    setIsEditingProfile(true);
+  };
 
   const handleCancelProfile = () => {
-    setIsEditingProfile(false)
-  }
+    setIsEditingProfile(false);
+  };
 
   const handleSaveProfile = () => {
-    setIsEditingProfile(false)
+    setIsEditingProfile(false);
     // Save changes logic here
-  }
+  };
 
   const handleEditBusiness = () => {
-    setIsEditingBusiness(true)
-  }
+    setIsEditingBusiness(true);
+  };
 
   const handleCancelBusiness = () => {
-    setIsEditingBusiness(false)
-  }
+    setIsEditingBusiness(false);
+  };
 
   const handleSaveBusiness = () => {
-    setIsEditingBusiness(false)
+    setIsEditingBusiness(false);
     // Save changes logic here
-  }
+  };
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-  }
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
 
   return (
     <div className="w-full space-y-6">
       {/* Profile Section */}
-      <Card className='shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]'>
+      <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
         <CardContent>
           <div className="space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-medium">Profile</h2>
               {!isEditingProfile ? (
-                <Button onClick={handleEditProfile} variant="outline" size="sm" className='dark:bg-background'>
-                 <span className="hidden sm:inline mr-2">Edit</span>
+                <Button
+                  onClick={handleEditProfile}
+                  variant="outline"
+                  size="sm"
+                  className="dark:bg-background"
+                >
+                  <span className="hidden sm:inline mr-2">Edit</span>
                   <EditIcon />
                 </Button>
               ) : (
@@ -151,48 +159,58 @@ function AccountInformation() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* First Name */}
               <div className="space-y-2">
-                <Label htmlFor="firstName" className='text-xs'>First Name *</Label>
+                <Label htmlFor="firstName" className="text-xs">
+                  First Name *
+                </Label>
                 <Input
                   id="firstName"
                   value={formData.firstName}
-                  onChange={(e) => handleInputChange('firstName', e.target.value)}
+                  onChange={(e) => handleInputChange("firstName", e.target.value)}
                   disabled={!isEditingProfile}
-                  className='dark:bg-background'
+                  className="dark:bg-background"
                 />
               </div>
 
               {/* Last Name */}
               <div className="space-y-2">
-                <Label htmlFor="lastName" className='text-xs'>Last Name *</Label>
+                <Label htmlFor="lastName" className="text-xs">
+                  Last Name *
+                </Label>
                 <Input
                   id="lastName"
                   value={formData.lastName}
-                  onChange={(e) => handleInputChange('lastName', e.target.value)}
+                  onChange={(e) => handleInputChange("lastName", e.target.value)}
                   disabled={!isEditingProfile}
-                  className='dark:bg-background'
+                  className="dark:bg-background"
                 />
               </div>
             </div>
 
-            <div className='flex flex-col md:flex-row justify-between items-center gap-4'>
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <div className="space-y-2 md:col-span-2 w-full md:w-[50%]">
-                <Label htmlFor="email" className='text-xs'>Email *</Label>
+                <Label htmlFor="email" className="text-xs">
+                  Email *
+                </Label>
                 <Input
                   id="email"
                   type="email"
                   value={formData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
+                  onChange={(e) => handleInputChange("email", e.target.value)}
                   disabled={!isEditingProfile}
-                  className='dark:bg-background'
+                  className="dark:bg-background"
                 />
               </div>
               {/* WhatsApp Number */}
               <div className="space-y-2 md:col-span-2 w-full md:w-[50%]">
-                <Label htmlFor="whatsapp" className='text-xs'>WhatsApp Business Number *</Label>
+                <Label htmlFor="whatsapp" className="text-xs">
+                  WhatsApp Business Number *
+                </Label>
                 <div className="flex gap-2">
                   <Select
                     value={formData.countryCode}
-                    onValueChange={(value) => handleInputChange('countryCode', value)}
+                    onValueChange={(value) =>
+                      handleInputChange("countryCode", value)
+                    }
                     disabled={!isEditingProfile}
                   >
                     <SelectTrigger className="max-w-[120px] dark:bg-background">
@@ -207,7 +225,9 @@ function AccountInformation() {
                   <Input
                     id="whatsapp"
                     value={formData.whatsappNumber}
-                    onChange={(e) => handleInputChange('whatsappNumber', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("whatsappNumber", e.target.value)
+                    }
                     disabled={!isEditingProfile}
                     className="flex-1 dark:bg-background"
                   />
@@ -215,13 +235,15 @@ function AccountInformation() {
               </div>
             </div>
 
-            <div className='flex flex-col md:flex-row justify-between items-center gap-4'>
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               {/* Country */}
               <div className="space-y-2 w-full">
-                <Label htmlFor="country" className='text-xs'>Country *</Label>
+                <Label htmlFor="country" className="text-xs">
+                  Country *
+                </Label>
                 <Select
                   value={formData.country}
-                  onValueChange={(value) => handleInputChange('country', value)}
+                  onValueChange={(value) => handleInputChange("country", value)}
                   disabled={!isEditingProfile}
                 >
                   <SelectTrigger className="w-full dark:bg-background">
@@ -236,10 +258,12 @@ function AccountInformation() {
               </div>
               {/* State */}
               <div className="space-y-2 w-full">
-                <Label htmlFor="state" className='text-xs'>State *</Label>
+                <Label htmlFor="state" className="text-xs">
+                  State *
+                </Label>
                 <Select
                   value={formData.state}
-                  onValueChange={(value) => handleInputChange('state', value)}
+                  onValueChange={(value) => handleInputChange("state", value)}
                   disabled={!isEditingProfile}
                 >
                   <SelectTrigger className="w-full dark:bg-background">
@@ -254,15 +278,17 @@ function AccountInformation() {
               </div>
             </div>
 
-            <div className='flex flex-col md:flex-row justify-between items-center gap-4'>
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <div className="space-y-2 w-full">
-                <Label htmlFor="city" className='text-xs'>City *</Label>
+                <Label htmlFor="city" className="text-xs">
+                  City *
+                </Label>
                 <Select
                   value={formData.city}
-                  onValueChange={(value) => handleInputChange('city', value)}
+                  onValueChange={(value) => handleInputChange("city", value)}
                   disabled={!isEditingProfile}
                 >
-                  <SelectTrigger className='w-full dark:bg-background'>
+                  <SelectTrigger className="w-full dark:bg-background">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -274,13 +300,15 @@ function AccountInformation() {
               </div>
               {/* LGA */}
               <div className="space-y-2 w-full">
-                <Label htmlFor="lga" className='text-xs'>L.G.A *</Label>
+                <Label htmlFor="lga" className="text-xs">
+                  L.G.A *
+                </Label>
                 <Select
                   value={formData.lga}
-                  onValueChange={(value) => handleInputChange('lga', value)}
+                  onValueChange={(value) => handleInputChange("lga", value)}
                   disabled={!isEditingProfile}
                 >
-                  <SelectTrigger className='w-full dark:bg-background'>
+                  <SelectTrigger className="w-full dark:bg-background">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -295,14 +323,19 @@ function AccountInformation() {
         </CardContent>
       </Card>
 
-      {/* Linked Stores - Always shows action buttons */}
-      <Card className='shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]'>
+      {/* Linked Stores */}
+      <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
         <CardContent>
           <div className="space-y-4 pt-6">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium">Linked Stores</h3>
-              <Button variant="default" size="sm">
-                <StoreIcon /> Add Store
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setIsAddStoreModalOpen(true)}
+              >
+                <StoreIcon />
+                <span className="ml-2 hidden sm:inline">Add Store</span>
               </Button>
             </div>
 
@@ -314,7 +347,7 @@ function AccountInformation() {
                 >
                   <div className="flex items-center gap-3">
                     <Avatar className="w-12 h-12 rounded-md">
-                      <AvatarImage src={store.image} alt={store.name} />
+                      <AvatarImage src={store.image || ""} alt={store.name} />
                       <AvatarFallback>{store.name[0]}</AvatarFallback>
                     </Avatar>
                     <div>
@@ -323,22 +356,22 @@ function AccountInformation() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {store.status === 'current' && (
+                    {store.type.includes("Active") && (
                       <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded">
                         Current
                       </span>
                     )}
-                    {store.status === 'inactive' && (
-                      <Button variant="outline" size="sm" className='dark:bg-background'>
+                    {store.type.includes("Inactive") && (
+                      <Button variant="outline" size="sm" className="dark:bg-background">
                         Switch
                       </Button>
                     )}
-                    <Button variant="outline" size="sm" className='dark:bg-background'>
-                    <span className="hidden sm:inline mr-2">Edit</span>
+                    <Button variant="outline" size="sm" className="dark:bg-background">
+                      <span className="hidden sm:inline mr-2">Edit</span>
                       <EditIcon />
                     </Button>
                     <Button variant="outline" size="sm" className="text-destructive dark:bg-background">
-                    <span className="hidden sm:inline mr-2">Delete</span>
+                      <span className="hidden sm:inline mr-2">Delete</span>
                       <Trash2 className="w-4 h-4" />
                     </Button>
                     <Button variant="ghost" size="icon">
@@ -364,14 +397,18 @@ function AccountInformation() {
         </CardContent>
       </Card>
 
-      <Card className='shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]'>
+      <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
         <CardContent>
-          {/* Business Information - Separate edit state */}
+          {/* Business Information */}
           <div className="space-y-4 pt-6">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium">Business Information</h3>
               {!isEditingBusiness ? (
-                <Button onClick={handleEditBusiness} variant="outline" size="sm">
+                <Button
+                  onClick={handleEditBusiness}
+                  variant="outline"
+                  size="sm"
+                >
                   <span className="hidden sm:inline mr-2">Edit</span>
                   <EditIcon />
                 </Button>
@@ -391,37 +428,45 @@ function AccountInformation() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* CAC Number */}
               <div className="space-y-2">
-                <Label htmlFor="cacNumber" className='text-xs'>CAC Number *</Label>
+                <Label htmlFor="cacNumber" className="text-xs">
+                  CAC Number *
+                </Label>
                 <Input
                   id="cacNumber"
                   value={formData.cacNumber}
-                  onChange={(e) => handleInputChange('cacNumber', e.target.value)}
+                  onChange={(e) => handleInputChange("cacNumber", e.target.value)}
                   disabled={!isEditingBusiness}
-                  className='dark:bg-background'
+                  className="dark:bg-background"
                 />
               </div>
 
               {/* Tax ID */}
               <div className="space-y-2">
-                <Label htmlFor="taxId" className='text-xs'>Tax Identification Number *</Label>
+                <Label htmlFor="taxId" className="text-xs">
+                  Tax Identification Number *
+                </Label>
                 <Input
                   id="taxId"
                   value={formData.taxId}
-                  onChange={(e) => handleInputChange('taxId', e.target.value)}
+                  onChange={(e) => handleInputChange("taxId", e.target.value)}
                   disabled={!isEditingBusiness}
-                  className='dark:bg-background'
+                  className="dark:bg-background"
                 />
               </div>
 
               {/* Document Type */}
               <div className="space-y-2">
-                <Label htmlFor="documentType" className='text-xs'>Document Type *</Label>
+                <Label htmlFor="documentType" className="text-xs">
+                  Document Type *
+                </Label>
                 <Select
                   value={formData.documentType}
-                  onValueChange={(value) => handleInputChange('documentType', value)}
+                  onValueChange={(value) =>
+                    handleInputChange("documentType", value)
+                  }
                   disabled={!isEditingBusiness}
                 >
-                  <SelectTrigger className='w-full dark:bg-background'>
+                  <SelectTrigger className="w-full dark:bg-background">
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
@@ -437,32 +482,33 @@ function AccountInformation() {
             <div className="border-1 border-dashed border-primary rounded-2xl p-8 text-center">
               <div className="flex flex-col items-center gap-2">
                 <div className="flex items-center justify-center">
-                  <Image/>
+                  <Image />
                 </div>
-                <p className="text-sm font-medium">Upload document and business certificate</p>
-                <p className="text-xs text-muted-foreground">
-                  Max 10MB, JPEG, PNG, PDF
+                <p className="text-sm font-medium">
+                  Upload document and business certificate
                 </p>
+                <p className="text-xs text-muted-foreground">Max 10MB, JPEG, PNG, PDF</p>
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-
       {/* Danger Zone */}
-      <Card className='shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]'>
+      <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
         <CardContent>
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <h3 className="text-sm font-medium text-destructive">Danger Zone</h3>
+                <h3 className="text-sm font-medium text-destructive">
+                  Danger Zone
+                </h3>
                 <p className="text-xs text-muted-foreground">
                   Permanently delete your account and all associated data
                 </p>
               </div>
-              <Button 
-                variant="destructive" 
+              <Button
+                variant="destructive"
                 size="sm"
                 onClick={() => setShowDeleteSection(!showDeleteSection)}
               >
@@ -475,24 +521,31 @@ function AccountInformation() {
             {showDeleteSection && (
               <div className="space-y-4 pt-4">
                 {/* Warning Alert */}
-                <div className="bg-[#FFEFEF] border border-[#E40101]  rounded-full p-4">
+                <div className="bg-[#FFEFEF] border border-[#E40101] rounded-full p-4">
                   <div className="flex gap-2">
                     <div className="w-2 h-2 rounded-full bg-red-500 mt-1.5 flex-shrink-0" />
-                    <p className="text-sm ">
-                      After making a deletion request, you will have <span className="font-semibold">&quot;6 months&quot;</span> to maintain this account.
+                    <p className="text-sm">
+                      After making a deletion request, you will have{" "}
+                      <span className="font-semibold">&quot;6 months&quot;</span>{" "}
+                      to maintain this account.
                     </p>
                   </div>
                 </div>
 
                 {/* Description */}
                 <p className="text-sm text-center text-muted-foreground px-4">
-                  To permanently erase your whole Swiftree account, click the button below. This implies that you won&apos;t have access to your stores created, products listed, orders and any information related to this account. This action is irreversible.
+                  To permanently erase your whole Swiftree account, click the
+                  button below. This implies that you won&apos;t have access to
+                  your stores created, products listed, orders and any
+                  information related to this account. This action is
+                  irreversible.
                 </p>
 
                 {/* Confirmation Input */}
                 <div className="space-y-2">
                   <Label htmlFor="deleteConfirm" className="text-sm text-center block">
-                    To delete account, enter <span className="font-semibold">&quot;delete_my_account&quot;</span>
+                    To delete account, enter{" "}
+                    <span className="font-semibold">&quot;delete_my_account&quot;</span>
                   </Label>
                   <Input
                     id="deleteConfirm"
@@ -505,20 +558,20 @@ function AccountInformation() {
 
                 {/* Action Buttons */}
                 <div className="flex gap-2 justify-end pt-2">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     onClick={() => {
-                      setShowDeleteSection(false)
-                      setDeleteConfirmText('')
+                      setShowDeleteSection(false);
+                      setDeleteConfirmText("");
                     }}
                   >
                     Cancel
                   </Button>
-                  <Button 
-                    variant="destructive" 
+                  <Button
+                    variant="destructive"
                     size="sm"
-                    disabled={deleteConfirmText !== 'delete_my_account'}
+                    disabled={deleteConfirmText !== "delete_my_account"}
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
                     Delete Account
@@ -529,9 +582,15 @@ function AccountInformation() {
           </div>
         </CardContent>
       </Card>
-    
+
+      <AddStoreModal
+        isOpen={isAddStoreModalOpen}
+        onClose={() => setIsAddStoreModalOpen(false)}
+        stores={stores}
+        setStores={setStores}
+      />
     </div>
-  )
+  );
 }
 
-export default AccountInformation
+export default AccountInformation;
