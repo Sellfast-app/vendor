@@ -1,9 +1,10 @@
-// app/layout.tsx
+
 import type { Metadata, Viewport } from 'next';
 import { Space_Grotesk } from 'next/font/google';
 import './globals.css';
 import { Suspense } from 'react';
 import { ThemeProvider } from '@/components/theme-provider';
+import { Toaster } from 'sonner';
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -42,6 +43,12 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <Suspense fallback={null}>{children}</Suspense>
+          <Toaster 
+            position="top-right"
+            richColors
+            closeButton
+            theme="system"
+          />
         </ThemeProvider>
       </body>
     </html>
