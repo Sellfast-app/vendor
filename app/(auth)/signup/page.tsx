@@ -67,11 +67,11 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => {
   ];
 
   return (
-    <div className="flex items-center justify-center mb-8 space-x-2 sm:space-x-4">
+    <div className="flex items-center justify-center mb-8 space-x-4">
       {steps.map((step, index) => (
         <div key={step.number} className="flex items-center">
           <div
-            className={`flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full transition-all duration-200 ${
+            className={`flex items-center justify-center w-12 h-12 rounded-full transition-all duration-200 ${
               step.number === currentStep
                 ? 'bg-primary border-primary text-primary-foreground'
                 : step.number < currentStep
