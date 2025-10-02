@@ -67,11 +67,11 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => {
   ];
 
   return (
-    <div className="flex items-center justify-center mb-8 space-x-4">
+    <div className="flex items-center justify-center mb-8 space-x-2 sm:space-x-4">
       {steps.map((step, index) => (
         <div key={step.number} className="flex items-center">
           <div
-            className={`flex items-center justify-center w-12 h-12 rounded-full transition-all duration-200 ${
+            className={`flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full transition-all duration-200 ${
               step.number === currentStep
                 ? 'bg-primary border-primary text-primary-foreground'
                 : step.number < currentStep
@@ -97,7 +97,7 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => {
             </p>
           </div>
           {index < steps.length - 1 && (
-            <ChevronDown className="w-4 h-4 mx-4 transform rotate-[-90deg]" />
+            <ChevronDown className="w-4 h-4 mx-1 sm:mx-4 transform rotate-[-90deg]" />
           )}
         </div>
       ))}
@@ -114,7 +114,7 @@ const CountryCodeSelect = ({ value, onValueChange }: { value: string; onValueCha
 
   return (
     <Select value={value} onValueChange={onValueChange}>
-      <SelectTrigger className="w-24 h-11 bg-muted border-0 border-r border-gray-200">
+      <SelectTrigger className="bg-muted border-0 ">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -142,8 +142,8 @@ const ColorSchemeSelector = ({ selectedScheme, onSchemeSelect }: { selectedSchem
       {colorSchemes.map((scheme) => (
         <div
           key={scheme.value}
-          className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
-            selectedScheme === scheme.value ? 'border-primary bg-primary/10' : 'border-gray-200 bg-white hover:border-gray-300'
+          className={`p-4 rounded-lg dark:bg-background border-2 cursor-pointer transition-all duration-200 ${
+            selectedScheme === scheme.value ? 'border-primary bg-primary/10' : 'border-gray-200 bg-white dark:border-[#1F1F1F] hover:border-gray-300'
           }`}
           onClick={() => onSchemeSelect(scheme.value)}
         >
@@ -612,7 +612,7 @@ export default function MultiStepSignupPage() {
           <Label htmlFor="phoneNumber" className="text-sm font-medium">
             WhatsApp Business Number <span className="text-destructive">*</span>
           </Label>
-          <div className="flex">
+          <div className="flex gap-1">
             <CountryCodeSelect
               value={formData.countryCode}
               onValueChange={(value) => handleInputChange('countryCode', value)}
