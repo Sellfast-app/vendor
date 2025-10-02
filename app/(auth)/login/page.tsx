@@ -111,8 +111,9 @@ export default function LoginPage() {
 
   return (
     <div className="w-full max-w-lg space-y-6">
-      <Logo />
-      <div className="flex flex-col">
+      <div className="flex justify-center md:justify-start"> <Logo /></div>
+     
+      <div className="flex flex-col items-center md:items-start">
         <h1 className="text-2xl font-semibold text-primary">Welcome back</h1>
         <p className="text-xs text-muted-foreground">Let&apos;s help you get stuff done today</p>
       </div>
