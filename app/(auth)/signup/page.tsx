@@ -92,7 +92,7 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => {
                 step.number <= currentStep ? 'text-foreground' : 'text-gray-400'
               }`}
             >
-              {step.title}
+              <span className="hidden sm:inline ml-2">{step.title}</span> 
             </p>
           </div>
           {index < steps.length - 1 && (
