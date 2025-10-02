@@ -67,7 +67,8 @@ export async function POST(request: Request) {
         { status: response.status }
       );
 
-    } catch (fetchError: any) {
+    }  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    catch (fetchError: any) {
       clearTimeout(timeoutId);
       
       if (fetchError.name === "AbortError") {
@@ -94,7 +95,8 @@ export async function POST(request: Request) {
       );
     }
 
-  } catch (error: any) {
+  }  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  catch (error: any) {
     console.error("Unexpected error in reset password request API:", error);
     return NextResponse.json(
       { status: "error", message: "Internal server error", success: false },

@@ -19,6 +19,7 @@ import { LuBriefcaseBusiness } from 'react-icons/lu';
 import { PiPlugs } from 'react-icons/pi';
 import StoreFrontIcon from '@/components/svgIcons/StoreFrontIcon';
 import { ThemeName, themes } from '@/lib/themes';
+import Image from 'next/image';
 
 // Inline TypeScript interfaces
 interface UserDetails {
@@ -670,7 +671,17 @@ export default function MultiStepSignupPage() {
         <p className="text-muted-foreground text-xs">
           We&apos;ve created your awesome <span className="text-primary">{formData.business_details.store_name}</span> storefront with WhatsApp integration
         </p>
-        {successData?.data.qrCode && <img src={successData.data.qrCode} alt="QR Code" className="w-32 h-32" />}
+        {successData?.data.qrCode && (
+          <div className="relative w-32 h-32">
+            <Image
+              src={successData.data.qrCode}
+              alt="QR Code"
+              fill
+              className="object-contain"
+              sizes="128px"
+            />
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <Button
             variant="outline"

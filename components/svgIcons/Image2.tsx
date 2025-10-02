@@ -1,6 +1,6 @@
 import * as React from "react";
 
-const Image
+const Imag
 : React.FC<React.SVGProps<SVGElement>> = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -28,5 +28,5 @@ const Image
   </svg>
 );
 
-export default Image
+export default Imag
 ;

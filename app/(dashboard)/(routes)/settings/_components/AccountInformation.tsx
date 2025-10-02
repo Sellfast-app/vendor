@@ -17,7 +17,7 @@ import EditIcon from "@/components/svgIcons/Edit";
 import SaveIcon from "@/components/svgIcons/SaveIcon";
 import { Card, CardContent } from "@/components/ui/card";
 import StoreIcon from "@/components/svgIcons/StoreIcon";
-import Image from "@/components/svgIcons/Image2";
+import Imag from "@/components/svgIcons/Image2";
 import AddStoreModal from "./AddStoreModal";
 
 interface Store {
@@ -482,7 +482,7 @@ function AccountInformation() {
             <div className="border-1 border-dashed border-primary rounded-2xl p-8 text-center">
               <div className="flex flex-col items-center gap-2">
                 <div className="flex items-center justify-center">
-                  <Image />
+                  <Imag />
                 </div>
                 <p className="text-sm font-medium">
                   Upload document and business certificate

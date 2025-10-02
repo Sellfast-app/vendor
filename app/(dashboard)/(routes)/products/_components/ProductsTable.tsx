@@ -18,6 +18,7 @@ import DeleteIcon from "@/components/svgIcons/DeleteIcon";
 import ActionModal from "@/components/ActionModal";
 import ArchiveIcon2 from "@/components/svgIcons/ArchiveIcon2";
 import DeleteIcon2 from "@/components/svgIcons/DeleteIcon2";
+import Image from "next/image";
 
 export default function ProductTable() {
   const [currentPage, setCurrentPage] = useState(0);
@@ -167,11 +168,15 @@ export default function ProductTable() {
                 </TableCell>
                 <TableCell className="text-[#4FCA6A] underline">{product.sku}</TableCell>
                 <TableCell>
-                  <img
-                    src={`/thumbnails/${product.sku}.png`}
-                    alt={product.productName}
-                    className="w-12 h-12 rounded object-cover"
-                  />
+                  <div className="relative w-12 h-12 rounded overflow-hidden">
+                    <Image
+                      src={`/thumbnails/${product.sku}.png`}
+                      alt={product.productName}
+                      fill
+                      className="object-cover"
+                      sizes="48px"
+                    />
+                  </div>
                 </TableCell>
                 <TableCell>{product.productName}</TableCell>
                 <TableCell>{product.stock}</TableCell>

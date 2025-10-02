@@ -6,7 +6,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent,  SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, X } from 'lucide-react';
-import React, {  useState } from 'react'
+import React, {  useState } from 'react';
+import Image from 'next/image';
 
 interface AddProductModalProps {
     isOpen: boolean;
@@ -193,7 +194,6 @@ export default function AddProductModal({ isOpen, onClose }: AddProductModalProp
                                     className="flex items-center justify-center border rounded-lg p-2 cursor-pointer hover:bg-accent"
                                 >
                                     <div className="flex flex-col items-center gap-2">
-                                        {/* <Upload className="w-8 h-8 text-muted-foreground" /> */}
                                         <span className="text-sm text-muted-foreground">
                                             Upload Picture
                                         </span>
@@ -214,11 +214,15 @@ export default function AddProductModal({ isOpen, onClose }: AddProductModalProp
                                     <div className="flex flex-wrap gap-2">
                                         {uploadedImages.map((image) => (
                                             <div key={image.id} className="relative w-10 h-10">
-                                                <img
-                                                    src={URL.createObjectURL(image.file)}
-                                                    alt="Uploaded product"
-                                                    className="w-full h-full object-cover rounded border"
-                                                />
+                                                <div className="relative w-full h-full rounded border overflow-hidden">
+                                                    <Image
+                                                        src={URL.createObjectURL(image.file)}
+                                                        alt="Uploaded product"
+                                                        fill
+                                                        className="object-cover"
+                                                        sizes="40px"
+                                                    />
+                                                </div>
                                                 {image.isUploading && (
                                                     <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded">
                                                         <Loader2 className="w-4 h-4 text-green-500 animate-spin" />

@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogOverlay, DialogTitle } from "@/components/
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
 
 interface ActionModalProps {
   isOpen: boolean;
@@ -37,7 +38,7 @@ export default function ActionModal({
   productPrice,
   productStock,
   cancelText,
-  confirmText ,
+  confirmText,
   confirmButtonColor = "#E40101",
   className = "",
 }: ActionModalProps) {
@@ -61,15 +62,18 @@ export default function ActionModal({
             {icon}
           </div>
           <div className="text-center">
-           
             <p className="text-xs text-gray-500">{description}</p>
           </div>
           <div className="flex items-center justify-between w-full mt-4 p-4 bg-gray-50 rounded-lg">
-            <img
-              src={productImage}
-              alt={productName}
-              className="w-10 h-10 rounded object-cover mr-4"
-            />
+            <div className="relative w-10 h-10 rounded overflow-hidden mr-4">
+              <Image
+                src={productImage}
+                alt={productName}
+                fill
+                className="object-cover"
+                sizes="40px"
+              />
+            </div>
             <div className="flex-1">
               <h4 className="text-sm font-medium">{productName}</h4>
               <p className="text-xs text-gray-500">ID: {productId}</p>
