@@ -24,6 +24,8 @@ import Rating from "@/components/svgIcons/Rating";
 import RatingChart from "@/components/svgIcons/RatingChart";
 import SalesRevenueChart from "./_components/SalesRevenueChart";
 import BestSellingProducts from "./_components/BestSellingProducts";
+import { ExportModal } from "@/components/ExportModal";
+import AddProductModal from "../products/_components/AddProductModal";
 
 interface OverviewMetric {
   id: string;
@@ -36,7 +38,8 @@ interface OverviewMetric {
 }
 
 function DashboardPage() {
-  const [, setIsExportModalOpen] = useState(false);
+    const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+    const [isProductModalOpen, setIsProductModalOpen] = useState(false);
 
   const overviewMetrics: OverviewMetric[] = [
     {
@@ -113,6 +116,16 @@ function DashboardPage() {
     },
   ]
 
+  const fieldOptions = [
+    ...overviewMetrics.map((metric) => ({
+      label: metric.title,
+      value: metric.id,
+    })),
+    { label: "Sales Count vs Revenue Growth", value: "Sales Count vs Revenue Growth" },
+    { label: "Best Selling Products", value: "Best Selling Products" },
+    { label: "Recent Orders", value: "Recent Orders" },
+  ];
+
   return (
     <div className="min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <div className="mb-6 flex items-center justify-between">
@@ -128,7 +141,7 @@ function DashboardPage() {
             <RiShare2Fill /> 
             <span className="hidden sm:inline ml-2">Export</span>
           </Button>
-          <Button>
+          <Button onClick={() => setIsProductModalOpen(true)}>
             <PlusIcon /> 
             <span className="hidden sm:inline ml-2">Add Product</span>
           </Button>
@@ -145,6 +158,14 @@ function DashboardPage() {
           <BestSellingProducts />
         </div>
       </div>
+            <AddProductModal isOpen={isProductModalOpen} onClose={() => setIsProductModalOpen(false)} />
+          <ExportModal
+                   isOpen={isExportModalOpen}
+                   onClose={() => setIsExportModalOpen(false)}
+                   endpointPrefix="Products"
+                   fieldOptions={fieldOptions}
+                   dataName="Products"
+                 />
     </div>
   );
 }
