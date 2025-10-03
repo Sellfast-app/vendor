@@ -1,11 +1,11 @@
 export const mockData = [
-    { sku: "SKU-HPH-001", productName: "Creamy Milkshake Fruit Parfait", stock: 156, remanent: 150, sales: 5000, status: "Ready Stock" },
-    { sku: "SKU-HPH-002", productName: "Milky Doughnut Pack", stock: 156, remanent: 150, sales: 3500, status: "Made-to-order" },
-    { sku: "SKU-HPH-003", productName: "Coconut Bread", stock: 156, remanent: 150, sales: 7000, status: "Ready Stock" },
-    { sku: "SKU-HPH-004", productName: "Chocolate Chip Cookies", stock: 156, remanent: 150, sales: 3500, status: "Ready Stock" },
-    { sku: "SKU-HPH-005", productName: "Frosted Cake Biscuit", stock: 156, remanent: 150, sales: 2500, status: "Made-to-order" },
-    { sku: "SKU-HPH-006", productName: "Pineapple Smoothie", stock: 0, remanent: 0, sales: 12340, status: "Out of Stock" },
-  ];
+  { sku: "SKU-HPH-001", productName: "Creamy Milkshake Fruit Parfait", stock: 156, remanent: 150, sales: 5000, status: "Ready Stock", createdAt: "2025-10-03T17:38:00Z" },
+  { sku: "SKU-HPH-002", productName: "Milky Doughnut Pack", stock: 156, remanent: 150, sales: 3500, status: "Made-to-order", createdAt: "2025-09-28T14:20:00Z" },
+  { sku: "SKU-HPH-003", productName: "Coconut Bread", stock: 156, remanent: 150, sales: 7000, status: "Ready Stock", createdAt: "2025-10-01T09:15:00Z" },
+  { sku: "SKU-HPH-004", productName: "Chocolate Chip Cookies", stock: 156, remanent: 150, sales: 3500, status: "Ready Stock", createdAt: "2025-09-25T11:30:00Z" },
+  { sku: "SKU-HPH-005", productName: "Frosted Cake Biscuit", stock: 156, remanent: 150, sales: 2500, status: "Made-to-order", createdAt: "2025-10-02T16:45:00Z" },
+  { sku: "SKU-HPH-006", productName: "Pineapple Smoothie", stock: 0, remanent: 0, sales: 12340, status: "Out of Stock", createdAt: "2025-09-30T13:10:00Z" },
+];
 
   export const orderData = [
     { orderId: "ORD-HPH-001", date: "13/09/2025", customerName: "John Doe", payment: "Paid", total: 15000, items: 3, status: "Fulfilled" },

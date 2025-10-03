@@ -19,6 +19,23 @@ import ActionModal from "@/components/ActionModal";
 import ArchiveIcon2 from "@/components/svgIcons/ArchiveIcon2";
 import DeleteIcon2 from "@/components/svgIcons/DeleteIcon2";
 import Image from "next/image";
+import { CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { Label } from "@/components/ui/label";
 
 export default function ProductTable() {
   const [currentPage, setCurrentPage] = useState(0);
@@ -29,8 +46,13 @@ export default function ProductTable() {
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
-       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [filterDateRange, setFilterDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined });
+  const [filterStatus, setFilterStatus] = useState<string>("");
+  const [filterStockRange, setFilterStockRange] = useState<{ min: number; max: number }>({ min: 0, max: Infinity });
+  const [sortBy, setSortBy] = useState<string>("default");
 
   useEffect(() => {
     let filteredProducts = [...mockData];
@@ -41,9 +63,44 @@ export default function ProductTable() {
           product.productName.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
+    if (filterDateRange.from && filterDateRange.to) {
+      filteredProducts = filteredProducts.filter(
+        (product) => {
+          const productDate = new Date(product.createdAt);
+          return productDate >= filterDateRange.from! && productDate <= filterDateRange.to!;
+        }
+      );
+    }
+    if (filterStatus) {
+      filteredProducts = filteredProducts.filter(
+        (product) => product.status === filterStatus
+      );
+    }
+    if (filterStockRange.min !== 0 || filterStockRange.max !== Infinity) {
+      filteredProducts = filteredProducts.filter(
+        (product) => product.stock >= filterStockRange.min && product.stock <= filterStockRange.max
+      );
+    }
+
+    // Sorting
+    filteredProducts.sort((a, b) => {
+      switch (sortBy) {
+        case "product name (A-Z)":
+          return a.productName.localeCompare(b.productName);
+        case "product name (Z-A)":
+          return b.productName.localeCompare(a.productName);
+        case "stock (High-Low)":
+          return b.stock - a.stock;
+        case "stock (Low-High)":
+          return a.stock - b.stock;
+        default:
+          return 0;
+      }
+    });
+
     setProducts(filteredProducts);
     setSelectedProducts([]);
-  }, [searchTerm]);
+  }, [searchTerm, filterDateRange, filterStatus, filterStockRange, sortBy]);
 
   const totalPages = Math.ceil(products.length / pageSize);
   const displayedProducts = products.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
@@ -101,41 +158,153 @@ export default function ProductTable() {
 
   const handleArchiveConfirm = () => {
     if (selectedProduct) {
-      // Add archive logic here (e.g., update product status)
       console.log(`Archiving product: ${selectedProduct.sku}`);
       setIsArchiveModalOpen(false);
       setSelectedProduct(null);
     }
   };
-     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const openDeleteModal = (product: any) => {
     setSelectedProduct(product);
     setIsDeleteModalOpen(true);
   };
-     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const openArchiveModal = (product: any) => {
     setSelectedProduct(product);
     setIsArchiveModalOpen(true);
   };
 
+  const clearFilters = () => {
+    setFilterDateRange({ from: undefined, to: undefined });
+    setFilterStatus("");
+    setFilterStockRange({ min: 0, max: Infinity });
+    setSortBy("default");
+    setIsFilterOpen(false);
+  };
+
   return (
     <div className="w-full">
       <div className="flex justify-between mb-4 space-x-4">
-        <div className="relative flex items-center pb-2 ">
+        <div className="relative flex items-center pb-2">
           <Input
             type="text"
             placeholder="Search by name/SKU..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-             className="w-full sm:w-64 md:w-84 pr-8 py-2 text-xs sm:text-sm dark:bg-background rounded-lg border-[#F5F5F5] dark:border-[#1F1F1F]"
+            className="w-full sm:w-64 md:w-84 pr-8 py-2 text-xs sm:text-sm dark:bg-background rounded-lg border-[#F5F5F5] dark:border-[#1F1F1F]"
           />
-         <SearchIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          </div>
+          <SearchIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        </div>
         <div className="flex space-x-2">
-          <Button variant="outline" className="border-[#F5F5F5] dark:border-[#1F1F1F] dark:bg-background"><FilterIcon /> <span className="hidden sm:inline ml-2">Filter</span></Button>
-          <Button variant="outline" className="border-[#4FCA6A] text-[#4FCA6A] dark:bg-background" onClick={() => setIsProductModalOpen(true)}><PlusIcon className="text-[#4FCA6A]"/> <span className="hidden sm:inline ml-2">Add Product</span></Button>
+          <Button
+            variant="outline"
+            className="border-[#F5F5F5] dark:border-[#1F1F1F] dark:bg-background"
+            onClick={() => {
+              setIsFilterOpen(!isFilterOpen);
+              if (isFilterOpen) clearFilters();
+            }}
+          >
+            <FilterIcon />
+            <span className="hidden sm:inline ml-2">
+              {isFilterOpen ? "Clear Filter" : "Filter"}
+            </span>
+          </Button>
+          <Button
+            variant="outline"
+            className="border-[#4FCA6A] text-[#4FCA6A] dark:bg-background"
+            onClick={() => setIsProductModalOpen(true)}
+          >
+            <PlusIcon className="text-[#4FCA6A]" />
+            <span className="hidden sm:inline ml-2">Add Product</span>
+          </Button>
         </div>
       </div>
+
+      {isFilterOpen && (
+        <div className="mb-4 p-4 bg-white dark:bg-[#1F1F1F] rounded-lg border border-[#F5F5F5] dark:border-[#2D2D2D]">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="dateFilter">Date Range</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      (!filterDateRange.from || !filterDateRange.to) && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {filterDateRange.from && filterDateRange.to
+                      ? `${format(filterDateRange.from, "dd-MM-yyyy")} to ${format(filterDateRange.to, "dd-MM-yyyy")}`
+                      : <span>Pick a date range</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="range"
+                    selected={{
+                      from: filterDateRange.from,
+                      to: filterDateRange.to,
+                    }}
+                    onSelect={(range) => setFilterDateRange({ from: range?.from, to: range?.to })}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="stockFilter">Stock</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  id="stockMin"
+                  value={filterStockRange.min === 0 ? "" : filterStockRange.min}
+                  onChange={(e) => setFilterStockRange((prev) => ({ ...prev, min: e.target.value ? parseInt(e.target.value) : 0 }))}
+                  placeholder="From"
+                  className="dark:bg-background"
+                />
+                <Input
+                  type="number"
+                  id="stockMax"
+                  value={filterStockRange.max === Infinity ? "" : filterStockRange.max}
+                  onChange={(e) => setFilterStockRange((prev) => ({ ...prev, max: e.target.value ? parseInt(e.target.value) : Infinity }))}
+                  placeholder="To"
+                  className="dark:bg-background"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="statusFilter">Status</Label>
+              <Select onValueChange={setFilterStatus} value={filterStatus}>
+                <SelectTrigger className="w-full dark:bg-background">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Ready Stock">Ready Stock</SelectItem>
+                  <SelectItem value="Made-to-order">Made-to-order</SelectItem>
+                  <SelectItem value="Out of Stock">Out of Stock</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sortFilter">Sort By</Label>
+              <Select onValueChange={setSortBy} value={sortBy}>
+                <SelectTrigger className="w-full dark:bg-background">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">Default</SelectItem>
+                  <SelectItem value="product name (A-Z)">Product Name (A-Z)</SelectItem>
+                  <SelectItem value="product name (Z-A)">Product Name (Z-A)</SelectItem>
+                  <SelectItem value="stock (High-Low)">Stock (High-Low)</SelectItem>
+                  <SelectItem value="stock (Low-High)">Stock (Low-High)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Table>
         <TableHeader className="bg-[#F5F5F5] dark:bg-background">
@@ -282,7 +451,7 @@ export default function ProductTable() {
         productStock={selectedProduct?.stock.toString() || "0"}
         confirmButtonColor="#E40101"
         confirmText="Delete"
-         cancelText="Cancel"
+        cancelText="Cancel"
       />
       <ActionModal
         isOpen={isArchiveModalOpen}

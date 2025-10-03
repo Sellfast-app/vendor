@@ -115,7 +115,7 @@ export function AnalyticsMetric({ metric }: MetricCardProps) {
     //   }, [metric.id, period]);
 
     return (
-        <Card className="relative shadow-none hover:border-[#4FCA6A] hover:shadow-lg hover:shadow-[#005B1414] border-[#F5F5F5] dark:border-[#1F1F1F]">
+        <Card className="relative shadow-none hover:border-[#4FCA6A] dark:hover:border-[#4FCA6A] hover:shadow-lg hover:shadow-[#005B1414] border-[#F5F5F5] dark:border-[#1F1F1F]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-xs font-medium flex justify-between items-center gap-1 w-full">
                     <p> {metric.title}</p>

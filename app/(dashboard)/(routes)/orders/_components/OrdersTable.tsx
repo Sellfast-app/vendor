@@ -247,7 +247,7 @@ export default function OrderTable() {
                                 <DropdownMenuItem> <EyeIcon /> View Details</DropdownMenuItem>
                                 <DropdownMenuItem> <MarkIcon/> Mark as Ready</DropdownMenuItem>
                                 <DropdownMenuItem>   <MessageIcon/> Message Customer</DropdownMenuItem>
-                                <DropdownMenuItem><Cancelcon/> Cancel Order</DropdownMenuItem>
+                                <DropdownMenuItem className="text-[#E40101]"><Cancelcon className="text-[#E40101]"/> Cancel Order</DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
                         </TableCell>

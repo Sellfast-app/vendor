@@ -14,7 +14,7 @@ export default function PayoutsTab() {
       <TabsList className="grid grid-cols-4 mb-6 bg-transparent gap-2">
         <TabsTrigger 
           value="withdraw" 
-          className="bg-transparent data-[state=active]:bg-primary dark:data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-input"
+          className="bg-transparent data-[state=active]:bg-primary dark:data-[state=active]:bg-primary data-[state=active]:text-white border border-input"
         >
         <PiHandWithdraw className="md:hidden"/> <span className="hidden sm:inline ml-2"> Withdrawals</span>
         </TabsTrigger>
