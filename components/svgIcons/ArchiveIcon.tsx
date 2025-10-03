@@ -1,15 +1,16 @@
 import * as React from "react";
 
-const ArchiveIcon: React.FC<React.SVGProps<SVGElement>> = () => (
+const ArchiveIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width="18"
     height="18"
     fill="none"
     viewBox="0 0 18 18"
+    {...props}
   >
     <path
-      stroke="#061400"
+      stroke="currentColor"
       strokeLinecap="round"
       strokeLinejoin="round"
       strokeWidth="1.2"

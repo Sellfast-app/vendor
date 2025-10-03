@@ -64,7 +64,7 @@ export default function ActionModal({
           <div className="text-center">
             <p className="text-xs text-gray-500">{description}</p>
           </div>
-          <div className="flex items-center justify-between w-full mt-4 p-4 bg-gray-50 rounded-lg">
+          <div className="flex items-center justify-between w-full mt-4 p-4 bg-gray-50 dark:bg-background rounded-lg">
             <div className="relative w-10 h-10 rounded overflow-hidden mr-4">
               <Image
                 src={productImage}
