@@ -3,7 +3,6 @@
 import { Button } from "@/components/ui/button";
 import React, { JSX, useState } from "react";
 import { RiShare2Fill } from "react-icons/ri";
-// import { ExportModal } from "../../_components/ExportModal";
 import { OverviewMetric } from "./_components/OverviewMetric";
 import TotalSales from "@/components/svgIcons/TotalSales";
 import TotalSalesChart from "@/components/svgIcons/TotalSalesChart";
@@ -37,9 +36,22 @@ interface OverviewMetric {
   icon2: JSX.Element;
 }
 
+interface Product {
+  sku: string;
+  productName: string;
+  description?: string;
+  stock: number;
+  remanent: number;
+  sales: number;
+  status: string;
+  createdAt: string;
+  thumbnail: string;
+  variants?: { id: string; size: string | number; color: string; price: number; quantity: number }[];
+}
+
 function DashboardPage() {
-    const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-    const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
 
   const overviewMetrics: OverviewMetric[] = [
     {
@@ -114,7 +126,7 @@ function DashboardPage() {
       changeType: "negative",
       icon2: <RatingChart />,
     },
-  ]
+  ];
 
   const fieldOptions = [
     ...overviewMetrics.map((metric) => ({
@@ -126,6 +138,12 @@ function DashboardPage() {
     { label: "Recent Orders", value: "Recent Orders" },
   ];
 
+  const handleAddProduct = (newProduct: Product) => {
+    // Dispatch custom event to notify other components (e.g., ProductTable)
+    window.dispatchEvent(new CustomEvent("productAdded", { detail: newProduct }));
+    setIsProductModalOpen(false); // Close the modal after adding
+  };
+
   return (
     <div className="min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <div className="mb-6 flex items-center justify-between">
@@ -133,16 +151,16 @@ function DashboardPage() {
           <h3 className="text-sm font-bold">Overview</h3>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant={"outline"} 
-            onClick={() => setIsExportModalOpen(true)} 
+          <Button
+            variant={"outline"}
+            onClick={() => setIsExportModalOpen(true)}
             className="border-[#F5F5F5] dark:border-[#1F1F1F]"
           >
-            <RiShare2Fill /> 
+            <RiShare2Fill />
             <span className="hidden sm:inline ml-2">Export</span>
           </Button>
           <Button onClick={() => setIsProductModalOpen(true)}>
-            <PlusIcon /> 
+            <PlusIcon />
             <span className="hidden sm:inline ml-2">Add Product</span>
           </Button>
         </div>
@@ -158,14 +176,18 @@ function DashboardPage() {
           <BestSellingProducts />
         </div>
       </div>
-            <AddProductModal isOpen={isProductModalOpen} onClose={() => setIsProductModalOpen(false)} />
-          <ExportModal
-                   isOpen={isExportModalOpen}
-                   onClose={() => setIsExportModalOpen(false)}
-                   endpointPrefix="Products"
-                   fieldOptions={fieldOptions}
-                   dataName="Products"
-                 />
+      <AddProductModal
+        isOpen={isProductModalOpen}
+        onClose={() => setIsProductModalOpen(false)}
+        onAddProduct={handleAddProduct}
+      />
+      <ExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        endpointPrefix="Products"
+        fieldOptions={fieldOptions}
+        dataName="Products"
+      />
     </div>
   );
 }

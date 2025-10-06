@@ -13,7 +13,6 @@ import EyeIcon from "@/components/svgIcons/EyeIcon";
 import AddProductModal from "./AddProductModal";
 import EditIcon from "@/components/svgIcons/EditIcon";
 import ArchiveIcon from "@/components/svgIcons/ArchiveIcon";
-import PreviewIcon from "@/components/svgIcons/PreviewIcon";
 import DeleteIcon from "@/components/svgIcons/DeleteIcon";
 import ActionModal from "@/components/ActionModal";
 import ArchiveIcon2 from "@/components/svgIcons/ArchiveIcon2";
@@ -36,26 +35,41 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { Label } from "@/components/ui/label";
+import ProductDetailsModal from "./ProductDetailsModal";
+
+interface Product {
+  sku: string;
+  productName: string;
+  description?: string;
+  stock: number;
+  remanent: number;
+  sales: number;
+  status: string;
+  createdAt: string;
+  thumbnail: string | string[]; // Can be string or array of strings
+  variants?: { id: string; size: string | number; color: string; price: number; quantity: number }[];
+}
 
 export default function ProductTable() {
   const [currentPage, setCurrentPage] = useState(0);
-  const pageSize = 10;
+  const pageSize = 6;
   const [searchTerm, setSearchTerm] = useState("");
-  const [products, setProducts] = useState(mockData);
+  const [products, setProducts] = useState<Product[]>(mockData as Product[]);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [filterDateRange, setFilterDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined });
   const [filterStatus, setFilterStatus] = useState<string>("");
   const [filterStockRange, setFilterStockRange] = useState<{ min: number; max: number }>({ min: 0, max: Infinity });
   const [sortBy, setSortBy] = useState<string>("default");
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   useEffect(() => {
-    let filteredProducts = [...mockData];
+    let filteredProducts = [...mockData] as Product[];
     if (searchTerm) {
       filteredProducts = filteredProducts.filter(
         (product) =>
@@ -82,7 +96,6 @@ export default function ProductTable() {
       );
     }
 
-    // Sorting
     filteredProducts.sort((a, b) => {
       switch (sortBy) {
         case "product name (A-Z)":
@@ -101,6 +114,35 @@ export default function ProductTable() {
     setProducts(filteredProducts);
     setSelectedProducts([]);
   }, [searchTerm, filterDateRange, filterStatus, filterStockRange, sortBy]);
+
+  // Add event listener for product addition
+  useEffect(() => {
+    const handleProductAdded = (event: CustomEvent<Product>) => {
+      setProducts((prev) => {
+        // Check if product with the same SKU already exists
+        const existingProduct = prev.find(p => p.sku === event.detail.sku);
+        if (!existingProduct) {
+          return [...prev, event.detail];
+        }
+        return prev; // Do not add if SKU exists
+      });
+      setCurrentPage(0); // Reset to first page
+    };
+
+    window.addEventListener("productAdded", handleProductAdded as EventListener);
+
+    return () => {
+      window.removeEventListener("productAdded", handleProductAdded as EventListener);
+    };
+  }, []);
+
+  // Helper function to get the first thumbnail URL
+  const getFirstThumbnail = (thumbnail: string | string[]): string => {
+    if (Array.isArray(thumbnail)) {
+      return thumbnail[0] || '/thumbnails/default.png';
+    }
+    return thumbnail || '/thumbnails/default.png';
+  };
 
   const totalPages = Math.ceil(products.length / pageSize);
   const displayedProducts = products.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
@@ -163,13 +205,13 @@ export default function ProductTable() {
       setSelectedProduct(null);
     }
   };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const openDeleteModal = (product: any) => {
+
+  const openDeleteModal = (product: Product) => {
     setSelectedProduct(product);
     setIsDeleteModalOpen(true);
   };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const openArchiveModal = (product: any) => {
+
+  const openArchiveModal = (product: Product) => {
     setSelectedProduct(product);
     setIsArchiveModalOpen(true);
   };
@@ -180,6 +222,36 @@ export default function ProductTable() {
     setFilterStockRange({ min: 0, max: Infinity });
     setSortBy("default");
     setIsFilterOpen(false);
+  };
+
+  const handleAddProduct = (newProduct: Product) => {
+    // Dispatch custom event to notify other components (no direct state update here)
+    window.dispatchEvent(new CustomEvent("productAdded", { detail: newProduct }));
+    setCurrentPage(0); // Reset to first page
+  };
+
+  const openDetailsModal = (product: Product) => {
+    console.log("Opening details modal for:", product);
+    setSelectedProduct(product);
+    setIsEditMode(false); // View mode
+    setIsDetailsModalOpen(true);
+  };
+
+  const openEditModal = (product: Product) => {
+    console.log("Opening edit modal for:", product);
+    setSelectedProduct(product);
+    setIsEditMode(true); // Edit mode
+    setIsDetailsModalOpen(true);
+  };
+
+  const handleEdit = (product: Product) => {
+    setProducts((prev) => prev.map((p) => (p.sku === product.sku ? product : p)));
+    setIsDetailsModalOpen(false);
+  };
+
+  const handleDelete = (sku: string) => {
+    setProducts((prev) => prev.filter((p) => p.sku !== sku));
+    setIsDetailsModalOpen(false);
   };
 
   return (
@@ -339,11 +411,12 @@ export default function ProductTable() {
                 <TableCell>
                   <div className="relative w-12 h-12 rounded overflow-hidden">
                     <Image
-                      src={`/thumbnails/${product.sku}.png`}
+                      src={getFirstThumbnail(product.thumbnail)}
                       alt={product.productName}
                       fill
                       className="object-cover"
                       sizes="48px"
+                      onError={(e) => { (e.target as HTMLImageElement).src = '/thumbnails/default.png'; }}
                     />
                   </div>
                 </TableCell>
@@ -353,29 +426,26 @@ export default function ProductTable() {
                 <TableCell>₦{product.sales.toLocaleString()}</TableCell>
                 <TableCell>
                   <span className={`flex items-center px-2 py-1 text-black rounded text-sm ${getStatusClass(product.status)}`}>
-                    <span className={`w-2 h-2 rounded-full mr-2 ${product.status === "Ready Stock" ? "bg-[#53DC19]" : 
-                      product.status === "Made-to-order" ? "bg-[#FFB347]" : 
-                      product.status === "Out of Stock" ? "bg-[#E40101]" : ""
-                    }`}/>
+                    <span className={`w-2 h-2 rounded-full mr-2 ${product.status === "Ready Stock" ? "bg-[#53DC19]" :
+                      product.status === "Made-to-order" ? "bg-[#FFB347]" :
+                        product.status === "Out of Stock" ? "bg-[#E40101]" : ""
+                      }`} />
                     {product.status}
                   </span>
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>
-                    <DropdownMenuTrigger>
+                    <DropdownMenuTrigger asChild>
                       <Button variant="ghost" className="p-0">
                         <BsThreeDots className="w-4 h-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      <DropdownMenuItem>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => openDetailsModal(product)}>
                         <EyeIcon /> View Details
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => openEditModal(product)}>
                         <EditIcon /> Edit Product
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <PreviewIcon /> Preview Product
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => openDeleteModal(product)}>
                         <DeleteIcon /> <span className="text-[#E40101]">Delete Product</span>
@@ -435,7 +505,22 @@ export default function ProductTable() {
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
-      <AddProductModal isOpen={isProductModalOpen} onClose={() => setIsProductModalOpen(false)} />
+      <AddProductModal
+        isOpen={isProductModalOpen}
+        onClose={() => setIsProductModalOpen(false)}
+        onAddProduct={handleAddProduct}
+      />
+      <ProductDetailsModal
+        isOpen={isDetailsModalOpen}
+        onClose={() => {
+          setIsDetailsModalOpen(false);
+          setIsEditMode(false);
+        }}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        product={selectedProduct}
+        isEditMode={isEditMode}
+      />
       <ActionModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
@@ -444,7 +529,7 @@ export default function ProductTable() {
         icon={<DeleteIcon2 />}
         heading="Delete Product"
         description="Are you sure you want to delete this product? This action cannot be undone."
-        productImage={`/thumbnails/${selectedProduct?.sku}.png`}
+        productImage={selectedProduct ? getFirstThumbnail(selectedProduct.thumbnail) : '/thumbnails/default.png'}
         productName={selectedProduct?.productName || ""}
         productId={selectedProduct?.sku || ""}
         productPrice={selectedProduct?.sales.toLocaleString() || "0"}
@@ -461,7 +546,7 @@ export default function ProductTable() {
         icon={<ArchiveIcon2 />}
         heading="Archive Product"
         description="Are you sure you want to archive this product?"
-        productImage={`/thumbnails/${selectedProduct?.sku}.png`}
+        productImage={selectedProduct ? getFirstThumbnail(selectedProduct.thumbnail) : '/thumbnails/default.png'}
         productName={selectedProduct?.productName || ""}
         productId={selectedProduct?.sku || ""}
         productPrice={selectedProduct?.sales.toLocaleString() || "0"}
