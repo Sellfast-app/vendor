@@ -49,6 +49,21 @@ const withPWA = require('next-pwa')({
 
 const nextConfig: NextConfig = {
   /* config options here */
+  images: {
+    domains: [
+      'res.cloudinary.com',
+      // Add other domains if needed
+    ],
+    // Or use remotePatterns for more control (recommended):
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+        port: '',
+        pathname: '/**',
+      },
+    ],
+  },
 };
 
 export default withPWA(nextConfig);

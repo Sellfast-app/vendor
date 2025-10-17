@@ -4,9 +4,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChevronLeft, ChevronRight, FilterIcon, PlusIcon, SearchIcon } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { BsThreeDots } from "react-icons/bs";
-import { mockData } from "@/lib/mockdata";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import EyeIcon from "@/components/svgIcons/EyeIcon";
@@ -38,6 +37,35 @@ import { Label } from "@/components/ui/label";
 import ProductDetailsModal from "./ProductDetailsModal";
 
 interface Product {
+  id: string;
+  store_id: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any 
+  variants: any[];
+  created_at: string;
+  updated_at: string;
+  product_sku: string;
+  product_name: string;
+  product_type: string;
+  product_price: number;
+  product_images: string[];
+  product_status: string;
+  est_prod_days_to: number;
+  product_quantity: number;
+  est_prod_days_from: number;
+  product_description: string;
+}
+
+interface ApiResponse {
+  status: string;
+  message: string;
+  data: {
+    items: Product[];
+    total: number;
+    totalPages: number;
+  };
+}
+
+interface FrontendProduct {
   sku: string;
   productName: string;
   description?: string;
@@ -46,20 +74,52 @@ interface Product {
   sales: number;
   status: string;
   createdAt: string;
-  thumbnail: string | string[]; // Can be string or array of strings
+  thumbnail: string | string[];
   variants?: { id: string; size: string | number; color: string; price: number; quantity: number }[];
 }
+
+// Transform API product to frontend format
+const transformProduct = (product: Product): FrontendProduct => ({
+  sku: product.product_sku,
+  productName: product.product_name,
+  description: product.product_description,
+  stock: product.product_quantity,
+  remanent: product.product_quantity, // Using same as stock for now
+  sales: product.product_price,
+  status: mapStatusFromApi(product.product_status),
+  createdAt: product.created_at,
+  thumbnail: product.product_images?.[0] || '/thumbnails/default.png',
+  variants: Array.isArray(product.variants) ? product.variants : [],
+});
+
+const mapStatusFromApi = (status: string): string => {
+  const statusMap: { [key: string]: string } = {
+    'ready': 'Ready Stock',
+    'made-to-order': 'Made-to-order',
+    'out-of-stock': 'Out of Stock'
+  };
+  return statusMap[status] || 'Ready Stock';
+};
+
+const mapStatusToApi = (status: string): string => {
+  const statusMap: { [key: string]: string } = {
+    'Ready Stock': 'ready',
+    'Made-to-order': 'made-to-order',
+    'Out of Stock': 'out-of-stock'
+  };
+  return statusMap[status] || 'ready';
+};
 
 export default function ProductTable() {
   const [currentPage, setCurrentPage] = useState(0);
   const pageSize = 6;
   const [searchTerm, setSearchTerm] = useState("");
-  const [products, setProducts] = useState<Product[]>(mockData as Product[]);
+  const [products, setProducts] = useState<FrontendProduct[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<FrontendProduct | null>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [filterDateRange, setFilterDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined });
   const [filterStatus, setFilterStatus] = useState<string>("");
@@ -67,74 +127,69 @@ export default function ProductTable() {
   const [sortBy, setSortBy] = useState<string>("default");
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [totalProducts, setTotalProducts] = useState(0);
 
-  useEffect(() => {
-    let filteredProducts = [...mockData] as Product[];
-    if (searchTerm) {
-      filteredProducts = filteredProducts.filter(
-        (product) =>
-          product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          product.productName.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    if (filterDateRange.from && filterDateRange.to) {
-      filteredProducts = filteredProducts.filter(
-        (product) => {
-          const productDate = new Date(product.createdAt);
-          return productDate >= filterDateRange.from! && productDate <= filterDateRange.to!;
-        }
-      );
-    }
-    if (filterStatus) {
-      filteredProducts = filteredProducts.filter(
-        (product) => product.status === filterStatus
-      );
-    }
-    if (filterStockRange.min !== 0 || filterStockRange.max !== Infinity) {
-      filteredProducts = filteredProducts.filter(
-        (product) => product.stock >= filterStockRange.min && product.stock <= filterStockRange.max
-      );
-    }
+  // Fetch products from API - wrapped in useCallback to prevent unnecessary recreations
+  const fetchProducts = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      
+      // Build query parameters
+      const queryParams = new URLSearchParams({
+        page: (currentPage + 1).toString(),
+        pageSize: pageSize.toString(),
+        ...(searchTerm && { search: searchTerm }),
+        ...(filterStatus && { status: mapStatusToApi(filterStatus) }),
+        ...(sortBy !== "default" && { 
+          sort: sortBy.includes("product name") ? "product_name" : "product_quantity",
+          dir: sortBy.includes("(A-Z)") || sortBy.includes("(Low-High)") ? "asc" : "desc"
+        }),
+        ...(filterStockRange.min > 0 && { minPrice: filterStockRange.min.toString() }),
+        ...(filterStockRange.max < Infinity && { maxPrice: filterStockRange.max.toString() }),
+      });
 
-    filteredProducts.sort((a, b) => {
-      switch (sortBy) {
-        case "product name (A-Z)":
-          return a.productName.localeCompare(b.productName);
-        case "product name (Z-A)":
-          return b.productName.localeCompare(a.productName);
-        case "stock (High-Low)":
-          return b.stock - a.stock;
-        case "stock (Low-High)":
-          return a.stock - b.stock;
-        default:
-          return 0;
+      const response = await fetch(`/api/products?${queryParams}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch products');
       }
-    });
 
-    setProducts(filteredProducts);
-    setSelectedProducts([]);
-  }, [searchTerm, filterDateRange, filterStatus, filterStockRange, sortBy]);
+      const result: ApiResponse = await response.json();
+      
+      if (result.status === 'success') {
+        const transformedProducts = result.data.items.map(transformProduct);
+        setProducts(transformedProducts);
+        setTotalProducts(result.data.total);
+      } else {
+        throw new Error(result.message || 'Failed to fetch products');
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      setProducts([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentPage, searchTerm, filterStatus, filterStockRange, sortBy, pageSize]);
+
+  // Fetch products when filters or page changes
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   // Add event listener for product addition
   useEffect(() => {
-    const handleProductAdded = (event: CustomEvent<Product>) => {
-      setProducts((prev) => {
-        // Check if product with the same SKU already exists
-        const existingProduct = prev.find(p => p.sku === event.detail.sku);
-        if (!existingProduct) {
-          return [...prev, event.detail];
-        }
-        return prev; // Do not add if SKU exists
-      });
+    const handleProductAdded = () => {
+      fetchProducts(); // Refresh the list
       setCurrentPage(0); // Reset to first page
     };
 
-    window.addEventListener("productAdded", handleProductAdded as EventListener);
+    window.addEventListener("productAdded", handleProductAdded);
 
     return () => {
-      window.removeEventListener("productAdded", handleProductAdded as EventListener);
+      window.removeEventListener("productAdded", handleProductAdded);
     };
-  }, []);
+  }, [fetchProducts]);
 
   // Helper function to get the first thumbnail URL
   const getFirstThumbnail = (thumbnail: string | string[]): string => {
@@ -144,8 +199,8 @@ export default function ProductTable() {
     return thumbnail || '/thumbnails/default.png';
   };
 
-  const totalPages = Math.ceil(products.length / pageSize);
-  const displayedProducts = products.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
+  const totalPages = Math.ceil(totalProducts / pageSize);
+  const displayedProducts = products;
 
   const getPageNumbers = () => {
     const pages = [];
@@ -206,12 +261,12 @@ export default function ProductTable() {
     }
   };
 
-  const openDeleteModal = (product: Product) => {
+  const openDeleteModal = (product: FrontendProduct) => {
     setSelectedProduct(product);
     setIsDeleteModalOpen(true);
   };
 
-  const openArchiveModal = (product: Product) => {
+  const openArchiveModal = (product: FrontendProduct) => {
     setSelectedProduct(product);
     setIsArchiveModalOpen(true);
   };
@@ -222,29 +277,27 @@ export default function ProductTable() {
     setFilterStockRange({ min: 0, max: Infinity });
     setSortBy("default");
     setIsFilterOpen(false);
+    setSearchTerm("");
   };
 
-  const handleAddProduct = (newProduct: Product) => {
-    // Dispatch custom event to notify other components (no direct state update here)
+  const handleAddProduct = (newProduct: FrontendProduct) => {
     window.dispatchEvent(new CustomEvent("productAdded", { detail: newProduct }));
-    setCurrentPage(0); // Reset to first page
+    setCurrentPage(0);
   };
 
-  const openDetailsModal = (product: Product) => {
-    console.log("Opening details modal for:", product);
+  const openDetailsModal = (product: FrontendProduct) => {
     setSelectedProduct(product);
-    setIsEditMode(false); // View mode
+    setIsEditMode(false);
     setIsDetailsModalOpen(true);
   };
 
-  const openEditModal = (product: Product) => {
-    console.log("Opening edit modal for:", product);
+  const openEditModal = (product: FrontendProduct) => {
     setSelectedProduct(product);
-    setIsEditMode(true); // Edit mode
+    setIsEditMode(true);
     setIsDetailsModalOpen(true);
   };
 
-  const handleEdit = (product: Product) => {
+  const handleEdit = (product: FrontendProduct) => {
     setProducts((prev) => prev.map((p) => (p.sku === product.sku ? product : p)));
     setIsDetailsModalOpen(false);
   };
@@ -398,7 +451,13 @@ export default function ProductTable() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {displayedProducts.length > 0 ? (
+          {isLoading ? (
+            <TableRow>
+              <TableCell colSpan={9} className="text-center py-8">
+                Loading products...
+              </TableCell>
+            </TableRow>
+          ) : displayedProducts.length > 0 ? (
             displayedProducts.map((product) => (
               <TableRow key={product.sku}>
                 <TableCell>
@@ -460,7 +519,7 @@ export default function ProductTable() {
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={9} className="text-center">
+              <TableCell colSpan={9} className="text-center py-8">
                 No products found
               </TableCell>
             </TableRow>
@@ -470,7 +529,7 @@ export default function ProductTable() {
 
       <div className="flex justify-center mt-4 space-x-2">
         <span className="text-sm">
-          {`${(currentPage * pageSize) + 1}-${Math.min((currentPage + 1) * pageSize, products.length)} of ${products.length}`}
+          {`${(currentPage * pageSize) + 1}-${Math.min((currentPage + 1) * pageSize, totalProducts)} of ${totalProducts}`}
         </span>
         <Button
           variant="outline"
@@ -505,6 +564,7 @@ export default function ProductTable() {
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
+
       <AddProductModal
         isOpen={isProductModalOpen}
         onClose={() => setIsProductModalOpen(false)}

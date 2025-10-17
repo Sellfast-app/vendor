@@ -64,7 +64,11 @@ export async function POST(request: Request) {
       console.log("External API response status:", response.status);
 
       const result = await response.json();
-      console.log("External API response data:", result);
+      
+      // Detailed logging with JSON.stringify
+      console.log("=== EXTERNAL API RESPONSE DATA ===");
+      console.log("Full response:", JSON.stringify(result, null, 2));
+      console.log("=== END EXTERNAL API RESPONSE ===");
 
       // Handle the specific API response format
       if (response.status === 500 && result.status === 'fail') {
@@ -104,7 +108,7 @@ export async function POST(request: Request) {
 
       // Successful login - check if response has expected structure
       if (!result.data?.token) {
-        console.error("Missing token in successful response:", result);
+        console.error("Missing token in successful response:", JSON.stringify(result, null, 2));
         return NextResponse.json(
           { status: "error", message: "Invalid response from authentication service", success: false },
           { 
@@ -118,12 +122,22 @@ export async function POST(request: Request) {
         );
       }
 
-      // Extract store name from the first store in the stores array
+      // Extract store name and store ID from the first store in the stores array
       let storeName = email.split('@')[0] + "'s Store"; // Default fallback
+      let storeId = null;
       
       if (result.data.stores && result.data.stores.length > 0) {
+        console.log("=== STORES ARRAY DETAILS ===");
+        console.log("Number of stores:", result.data.stores.length);
+        console.log("Full stores array:", JSON.stringify(result.data.stores, null, 2));
+        
         const firstStore = result.data.stores[0];
+        
         storeName = firstStore.name || firstStore.store_name || firstStore.business_name || storeName;
+        storeId = firstStore.id || firstStore.store_id || null;
+        
+      } else {
+        console.log("No stores found in response");
       }
 
       // Create response with token in cookie and no-cache headers
@@ -133,7 +147,8 @@ export async function POST(request: Request) {
           message: result.message || "Login successful",
           success: true,
           data: {
-            store_name: storeName
+            store_name: storeName,
+            store_id: storeId
           }
         },
         { 
@@ -165,7 +180,18 @@ export async function POST(request: Request) {
         secure: process.env.NODE_ENV === 'production',
       });
 
-      console.log("Login successful, token and store name set in cookies");
+      // Set the store ID as a cookie (not HTTP-only so it can be read by client-side JS)
+      if (storeId) {
+        nextResponse.cookies.set("store_id", storeId, {
+          path: "/",
+          httpOnly: false, // Allow client-side access
+          sameSite: "lax",
+          maxAge: 86400,
+          secure: process.env.NODE_ENV === 'production',
+        });
+      }
+
+      console.log("Login successful, token, store name, and store ID set in cookies");
       return nextResponse;
 
     }    // eslint-disable-next-line @typescript-eslint/no-explicit-any 

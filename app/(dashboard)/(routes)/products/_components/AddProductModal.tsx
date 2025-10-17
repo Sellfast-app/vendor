@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 interface AddProductModalProps {
     isOpen: boolean;
     onClose: () => void;
-     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any 
     onAddProduct: (product: any) => void;
 }
 
@@ -29,8 +29,6 @@ interface UploadedImage {
 interface Variant {
     id: string;
     size: string | number;
-    color: string;
-    price: number;
     quantity: number;
 }
 
@@ -39,10 +37,20 @@ interface ApiVariant {
     quantity: number;
 }
 
+// Cookie utility function
+const getCookie = (name: string): string | null => {
+    if (typeof document === 'undefined') return null;
+    
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+    return null;
+};
+
 export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddProductModalProps) {
     const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
     const [productType, setProductType] = useState<'single' | 'variant'>('single');
-    const [variants, setVariants] = useState<Variant[]>([{ id: Math.random().toString(36).substr(2, 9), size: '', color: '', price: 0, quantity: 0 }]);
+    const [variants, setVariants] = useState<Variant[]>([{ id: Math.random().toString(36).substr(2, 9), size: '', quantity: 0 }]);
     const [productName, setProductName] = useState('');
     const [description, setDescription] = useState('');
     const [price, setPrice] = useState('');
@@ -109,7 +117,7 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
     };
 
     const handleAddVariant = () => {
-        setVariants(prev => [...prev, { id: Math.random().toString(36).substr(2, 9), size: '', color: '', price: 0, quantity: 0 }]);
+        setVariants(prev => [...prev, { id: Math.random().toString(36).substr(2, 9), size: '', quantity: 0 }]);
         toast.info("New variant added");
     };
 
@@ -164,37 +172,49 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
         }
 
         setIsLoading(true);
-        
-        // Show loading toast
         const loadingToast = toast.loading('Adding product...');
 
         try {
-            // Get store_id from localStorage or use default
-            const storeId = localStorage.getItem('store_id') || 'f43f2389-290a-45e3-ada5-266552348e88';
+            // Get store_id from cookies
+            const storeId = getCookie('store_id');
+            
+            if (!storeId) {
+                throw new Error('Store ID not found. Please login again.');
+            }
 
-            // Prepare form data
+            // Prepare form data - ALL VALUES AS STRINGS
             const formData = new FormData();
             formData.append('name', productName);
             formData.append('description', description);
             formData.append('price', price);
             formData.append('type', productType);
             formData.append('status', mapStatusToApi(status));
-            formData.append('quantity', productType === 'single' ? quantity : variants.reduce((sum, v) => sum + v.quantity, 0).toString());
+            
+            // Calculate total quantity for variant products
+            const totalQuantity = productType === 'single' 
+                ? parseInt(quantity).toString() 
+                : variants.reduce((sum, v) => sum + v.quantity, 0).toString();
+            
+            formData.append('quantity', totalQuantity);
             formData.append('est_prod_days_from', prodFrom);
             formData.append('est_prod_days_to', prodTo);
             formData.append('store_id', storeId);
 
-            // Add variants if product type is variant
+            // Handle variants
+            let variantsData: ApiVariant[] = [];
             if (productType === 'variant') {
-                const apiVariants: ApiVariant[] = variants.map(variant => ({
-                    size: typeof variant.size === 'string' ? variant.size : variant.size.toString(),
-                    quantity: variant.quantity
+                variantsData = variants.map(variant => ({
+                    size: variant.size.toString(), // Ensure size is string
+                    quantity: variant.quantity      // Keep as number in the object
                 }));
-                formData.append('variants', JSON.stringify(apiVariants));
-                toast.info(`Adding ${apiVariants.length} variant(s)`);
+                toast.info(`Adding ${variantsData.length} variant(s)`);
             } else {
-                formData.append('variants', JSON.stringify([]));
+                variantsData = [];
             }
+            
+            // Stringify the variants array exactly as shown in API docs
+            formData.append('variants', JSON.stringify(variantsData));
+            console.log('Variants being sent:', JSON.stringify(variantsData));
 
             // Add images
             uploadedImages.forEach(image => {
@@ -205,18 +225,35 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                 toast.info(`Uploading ${uploadedImages.length} image(s)`);
             }
 
-            // API call - cookies will be automatically sent by the browser
+            // Add SKU if provided
+            if (sku) {
+                formData.append('sku', sku);
+            }
+
+            // Debug: Log all form data
+            console.log('=== FORM DATA ===');
+            for (const [key, value] of formData.entries()) {
+                if (key === 'files') {
+                    console.log(`${key}: [File object]`);
+                } else if (key === 'variants') {
+                    console.log(`${key}:`, value);
+                } else {
+                    console.log(`${key}: ${value}`);
+                }
+            }
+
+            // API call
             toast.info('Sending request to server...');
             const response = await fetch('/api/products', {
                 method: 'POST',
                 body: formData,
-                // credentials: 'include' is default and will send cookies automatically
             });
 
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.message || 'Failed to add product');
+                console.error('API Error Response:', result);
+                throw new Error(result.message || `Failed to add product: ${response.status}`);
             }
 
             if (result.status === 'success') {
@@ -231,7 +268,9 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                     status: mapStatusFromApi(result.product.product_status),
                     createdAt: result.product.created_at,
                     thumbnail: result.product.product_images?.[0] || '/thumbnails/default.png',
-                    variants: result.product.variants || [],
+                    variants: typeof result.product.variants === 'string' 
+                        ? JSON.parse(result.product.variants || '[]')
+                        : result.product.variants || [],
                 };
 
                 onAddProduct(newProduct);
@@ -257,7 +296,7 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
     const resetForm = () => {
         setUploadedImages([]);
         setProductType('single');
-        setVariants([{ id: Math.random().toString(36).substr(2, 9), size: '', color: '', price: 0, quantity: 0 }]);
+        setVariants([{ id: Math.random().toString(36).substr(2, 9), size: '', quantity: 0 }]);
         setProductName('');
         setDescription('');
         setPrice('');
@@ -266,7 +305,6 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
         setProdFrom('');
         setProdTo('');
         setStatus('ready');
-        toast.info('Form reset');
     };
 
     const handleClose = () => {
