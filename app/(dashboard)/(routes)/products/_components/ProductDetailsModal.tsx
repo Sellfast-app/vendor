@@ -182,11 +182,11 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                 <div className="grid grid-cols-2 gap-4 text-sm">
                                     <div>
                                         <Label className="text-muted-foreground">Total Sales</Label>
-                                        <p className="font-semibold">{localProduct.sales.toLocaleString()}</p>
+                                        <p className="font-semibold">0</p>
                                     </div>
                                     <div>
                                         <Label className="text-muted-foreground">Total Revenue</Label>
-                                        <p className="font-semibold">₦{(localProduct.sales * 0.9).toLocaleString()}</p>
+                                        <p className="font-semibold">₦0</p>
                                     </div>
                                     <div>
                                         <Label className="text-muted-foreground">Total Ratings</Label>
