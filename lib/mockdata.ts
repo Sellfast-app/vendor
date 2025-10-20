@@ -7,16 +7,83 @@ export const mockData = [
   { sku: "SKU-HPH-006", productName: "Pineapple Smoothie", stock: 0, remanent: 0, sales: 12340, status: "Out of Stock", createdAt: "2025-09-30T13:10:00Z", thumbnail: "/default.png" },
 ];
 
+
 export const orderData = [
-  { orderId: "ORD-HPH-001", date: "2025-09-13T00:00:00Z", customerName: "John Doe", payment: "Paid", total: 15000, items: 3, status: "Fulfilled", deliveryPartner: "Kwik", escrow: "Released" },
-  { orderId: "ORD-HPH-002", date: "2025-09-12T00:00:00Z", customerName: "Jane Smith", payment: "Pending", total: 7500, items: 1, status: "Processing", deliveryPartner: "GIG", escrow: "Held" },
-  { orderId: "ORD-HPH-003", date: "2025-09-11T00:00:00Z", customerName: "Mike Johnson", payment: "Failed", total: 20000, items: 4, status: "Shipped", deliveryPartner: "Sendnow", escrow: "Released" },
-  { orderId: "ORD-HPH-004", date: "2025-09-10T00:00:00Z", customerName: "Sarah Williams", payment: "Paid", total: 12000, items: 2, status: "Pending", deliveryPartner: "Kwik", escrow: "Held" },
-  { orderId: "ORD-HPH-005", date: "2025-09-09T00:00:00Z", customerName: "Robert Brown", payment: "Pending", total: 9000, items: 2, status: "Cancelled", deliveryPartner: "GIG", escrow: "Released" },
-  { orderId: "ORD-HPH-006", date: "2025-09-08T00:00:00Z", customerName: "Emily Davis", payment: "Paid", total: 18000, items: 3, status: "Fulfilled", deliveryPartner: "Sendnow", escrow: "Held" },
+  {
+    orderId: "ORD-HPH-001",
+    date: "2025-09-13T12:30:00Z",
+    customerName: "John Doe",
+    payment: "Paid",
+    total: 15000,
+    items: 3,
+    status: "Fulfilled",
+    deliveryPartner: "Kwik",
+    escrow: "Released",
+    shippingStatus: "delivered",
+  },
+  {
+    orderId: "ORD-HPH-002",
+    date: "2025-09-12T14:45:00Z",
+    customerName: "Jane Smith",
+    payment: "Pending",
+    total: 7500,
+    items: 1,
+    status: "Processing",
+    deliveryPartner: "GIG",
+    escrow: "Held",
+    shippingStatus: "pending",
+  },
+  {
+    orderId: "ORD-HPH-003",
+    date: "2025-09-11T09:15:00Z",
+    customerName: "Mike Johnson",
+    payment: "Failed",
+    total: 20000,
+    items: 4,
+    status: "Shipped",
+    deliveryPartner: "Sendnow",
+    escrow: "Released",
+    shippingStatus: "shipped",
+  },
+  {
+    orderId: "ORD-HPH-004",
+    date: "2025-09-10T16:20:00Z",
+    customerName: "Sarah Williams",
+    payment: "Paid",
+    total: 12000,
+    items: 2,
+    status: "Pending",
+    deliveryPartner: "Kwik",
+    escrow: "Held",
+    shippingStatus: "pending",
+  },
+  {
+    orderId: "ORD-HPH-005",
+    date: "2025-09-09T11:00:00Z",
+    customerName: "Robert Brown",
+    payment: "Pending",
+    total: 9000,
+    items: 2,
+    status: "Cancelled",
+    deliveryPartner: "GIG",
+    escrow: "Released",
+    shippingStatus: "cancelled",
+  },
+  {
+    orderId: "ORD-HPH-006",
+    date: "2025-09-08T13:50:00Z",
+    customerName: "Emily Davis",
+    payment: "Paid",
+    total: 18000,
+    items: 3,
+    status: "Fulfilled",
+    deliveryPartner: "Sendnow",
+    escrow: "Held",
+    shippingStatus: "delivered",
+  },
 ];
 
-  // lib/mockdata.ts
+// lib/mockdata.ts
 export interface SalesData {
   id: string;
   productName: string;

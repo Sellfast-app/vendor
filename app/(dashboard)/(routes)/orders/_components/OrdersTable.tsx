@@ -34,8 +34,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
-import {  format } from "date-fns";
+import { format } from "date-fns";
 import { Label } from "@/components/ui/label";
+import { useRouter } from "next/navigation";
 
 export default function OrderTable() {
   const [currentPage, setCurrentPage] = useState(0);
@@ -50,6 +51,7 @@ export default function OrderTable() {
   const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>("all");
   const [filterDeliveryPartner, setFilterDeliveryPartner] = useState<string>("all");
   const [filterEscrow, setFilterEscrow] = useState<string>("all");
+  const router = useRouter();
 
   useEffect(() => {
     let filteredOrders = [...orderData];
@@ -423,7 +425,12 @@ export default function OrderTable() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
-                      <DropdownMenuItem><EyeIcon /> View Details</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => {
+                        localStorage.setItem('selectedOrder', JSON.stringify(order));
+                        router.push(`/orders/${order.orderId}`);
+                      }}>
+                        <EyeIcon /> View Details
+                      </DropdownMenuItem>
                       <DropdownMenuItem><MarkIcon /> Mark as Ready</DropdownMenuItem>
                       <DropdownMenuItem><MessageIcon /> Message Customer</DropdownMenuItem>
                       <DropdownMenuItem className="text-[#E40101]"><Cancelcon className="text-[#E40101]" /> Cancel Order</DropdownMenuItem>
