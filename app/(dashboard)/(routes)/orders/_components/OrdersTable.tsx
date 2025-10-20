@@ -37,6 +37,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
+import CreateOrderModal from "./CreateOrderModal";
 
 export default function OrderTable() {
   const [currentPage, setCurrentPage] = useState(0);
@@ -52,6 +53,7 @@ export default function OrderTable() {
   const [filterDeliveryPartner, setFilterDeliveryPartner] = useState<string>("all");
   const [filterEscrow, setFilterEscrow] = useState<string>("all");
   const router = useRouter();
+  const [isCreateOrderModalOpen, setIsCreateOrderModalOpen] = useState(false);
 
   useEffect(() => {
     let filteredOrders = [...orderData];
@@ -177,6 +179,10 @@ export default function OrderTable() {
         return "";
     }
   };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any 
+  const handleCreateOrder = (order: any) => {
+    console.log("Creating order:", order);
+  };
 
   const clearFilters = () => {
     setFilterDateRange({ from: undefined, to: undefined });
@@ -215,7 +221,8 @@ export default function OrderTable() {
               {isFilterOpen ? "Clear Filter" : "Filter"}
             </span>
           </Button>
-          <Button variant="outline" className="border-[#4FCA6A] text-[#4FCA6A] dark:bg-background">
+          <Button variant="outline" className="border-[#4FCA6A] text-[#4FCA6A] dark:bg-background"
+            onClick={() => setIsCreateOrderModalOpen(true)}>
             <PlusIcon className="text-[#4FCA6A]" />
             <span className="hidden sm:inline ml-2">Add Order</span>
           </Button>
@@ -486,6 +493,11 @@ export default function OrderTable() {
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
+      <CreateOrderModal
+        isOpen={isCreateOrderModalOpen}
+        onClose={() => setIsCreateOrderModalOpen(false)}
+        onCreateOrder={handleCreateOrder}
+      />
     </div>
   );
 }
