@@ -18,6 +18,7 @@ import { ArrowRight } from "lucide-react";
 import AnalyticsTabs from "./_components/AnalyticsTabs";
 import StorefrontVisitsChart from "./_components/StoreFrontVisitChart";
 import { ExportModal } from "@/components/ExportModal";
+import CustomerInsightsModal from './_components/CustomerInsightsModal';
 
 interface OverviewMetric {
   id: string;
@@ -35,10 +36,13 @@ interface LocationData {
   name: string;
   percentage: number;
   flag: JSX.Element;
+  count: number;
+  coordinates: [number, number]
 }
 
 export default function AnalyticsPage() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isCustomerInsightsOpen, setIsCustomerInsightsOpen] = useState(false);
 
   const overviewMetrics: OverviewMetric[] = [
     {
@@ -108,20 +112,26 @@ export default function AnalyticsPage() {
     {
       id: "lagos",
       name: "Lagos",
-      percentage: 62,
-      flag: <NigerianFlag />
+      count: 244,
+      percentage: 72,
+      flag: <NigerianFlag />,
+      coordinates: [6.5244, 3.3792] as [number, number]
     },
     {
-      id: "abuja",
-      name: "Abuja",
-      percentage: 48,
-      flag: <NigerianFlag />
+      id: "rivers",
+      name: "Rivers",
+      count: 239,
+      percentage: 66,
+      flag: <NigerianFlag />,
+      coordinates: [4.8156, 7.0498] as [number, number]
     },
     {
       id: "florida",
       name: "Florida",
-      percentage: 35,
-      flag: <UsaFlag />
+      count: 225,
+      percentage: 60,
+      flag: <UsaFlag />,
+      coordinates: [27.6648, -81.5158] as [number, number]
     },
   ];
 
@@ -152,7 +162,7 @@ export default function AnalyticsPage() {
             <CardContent>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs">Active Customers in Location</span>
-                <Map/>
+                <Map />
               </div>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex flex-col">
@@ -164,7 +174,7 @@ export default function AnalyticsPage() {
                   <span className="text-[#A0A0A0] text-xs"> <span className="text-black">972</span>(this week)</span>
                 </div>
               </div>
-              
+
               {locationData.map((location) => (
                 <div key={location.id} className="flex items-center gap-4 w-full mb-4">
                   {location.flag}
@@ -178,18 +188,19 @@ export default function AnalyticsPage() {
                 </div>
               ))}
             </CardContent>
-            <CardFooter className="text-sm flex items-center justify-center gap-1 text-primary border-t">
+            <CardFooter className="text-sm flex items-center justify-center gap-1 text-primary border-t"
+            onClick={() => setIsCustomerInsightsOpen(true)}>
               <span>
-                See Details 
+                See Details
               </span>
-              <ArrowRight className="w-4 h-4"/>
+              <ArrowRight className="w-4 h-4" />
             </CardFooter>
           </Card>
-          <Card  className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F] w-full mb-4">
-            <CardHeader  className="border-b">
-            <div className="flex items-center justify-between mb-4">
+          <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F] w-full mb-4">
+            <CardHeader className="border-b">
+              <div className="flex items-center justify-between mb-4">
                 <span className="text-xs">Total View Performance</span>
-                <Map/>
+                <Map />
               </div>
               <div className="flex flex-col items-center justify-center ">
                 <Progress value={70} className="mb-2" />
@@ -202,14 +213,14 @@ export default function AnalyticsPage() {
               <div className="flex flex-col gap-4 mt-4">
                 <div className="flex items-center justify-between  text-xs">
                   <span className="flex items-center gap-2">
-                    <span className="w-5 h-2 bg-primary rounded-lg"/>
+                    <span className="w-5 h-2 bg-primary rounded-lg" />
                     <p >Total Views per day</p>
                   </span>
                   <span>9,008</span>
                 </div>
                 <div className="flex items-center justify-between  text-xs">
                   <span className="flex items-center gap-2">
-                    <span className="w-5 h-2 bg-primary/20 rounded-lg"/>
+                    <span className="w-5 h-2 bg-primary/20 rounded-lg" />
                     <p >Avg. Views per product</p>
                   </span>
                   <span>2,990</span>
@@ -218,9 +229,9 @@ export default function AnalyticsPage() {
             </CardContent>
             <CardFooter className="text-sm flex items-center justify-center gap-1 text-primary border-t">
               <span>
-                See Details 
+                See Details
               </span>
-              <ArrowRight className="w-4 h-4"/>
+              <ArrowRight className="w-4 h-4" />
             </CardFooter>
           </Card>
           <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]"><StorefrontVisitsChart />
@@ -234,18 +245,24 @@ export default function AnalyticsPage() {
           </div>
           <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
             <CardContent>
-              <AnalyticsTabs/>
+              <AnalyticsTabs />
             </CardContent>
           </Card>
         </div>
       </div>
-       <ExportModal
-              isOpen={isExportModalOpen}
-              onClose={() => setIsExportModalOpen(false)}
-              endpointPrefix="Analytics"
-              fieldOptions={fieldOptions}
-              dataName="Analytics"
-            />
+      <ExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        endpointPrefix="Analytics"
+        fieldOptions={fieldOptions}
+        dataName="Analytics"
+      />
+      <CustomerInsightsModal
+        isOpen={isCustomerInsightsOpen}
+        onClose={() => setIsCustomerInsightsOpen(false)}
+        locationData={locationData}
+      />
+
     </div>
   );
 }

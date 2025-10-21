@@ -127,3 +127,13 @@
     @apply bg-background text-foreground;
   }
 }
+
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  min-height: 400px;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 8px;
+}
