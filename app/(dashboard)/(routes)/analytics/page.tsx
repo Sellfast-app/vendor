@@ -20,6 +20,7 @@ import StorefrontVisitsChart from "./_components/StoreFrontVisitChart";
 import { ExportModal } from "@/components/ExportModal";
 import CustomerInsightsModal from './_components/CustomerInsightsModal';
 import ViewPerformanceModal from './_components/ViewPerformanceModal';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface OverviewMetric {
   id: string;
@@ -153,6 +154,15 @@ export default function AnalyticsPage() {
           <h3 className="text-sm font-bold">Analytics</h3>
         </div>
         <div className="flex gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">Last 30 Days</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem>Last Week</DropdownMenuItem>
+              <DropdownMenuItem>Custom</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button onClick={() => setIsExportModalOpen(true)}>
             <RiShare2Fill /> <span className="hidden sm:inline ml-2">Export</span>
           </Button>
