@@ -260,7 +260,7 @@ export default function CustomerInsightsModal({ isOpen, onClose, locationData }:
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
-                  <Button size="sm" className="bg-green-500 hover:bg-green-600 text-white">
+                  <Button size="sm" >
                     Download Data
                   </Button>
                 </div>

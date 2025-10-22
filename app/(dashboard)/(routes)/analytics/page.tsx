@@ -19,6 +19,7 @@ import AnalyticsTabs from "./_components/AnalyticsTabs";
 import StorefrontVisitsChart from "./_components/StoreFrontVisitChart";
 import { ExportModal } from "@/components/ExportModal";
 import CustomerInsightsModal from './_components/CustomerInsightsModal';
+import ViewPerformanceModal from './_components/ViewPerformanceModal';
 
 interface OverviewMetric {
   id: string;
@@ -43,6 +44,7 @@ interface LocationData {
 export default function AnalyticsPage() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isCustomerInsightsOpen, setIsCustomerInsightsOpen] = useState(false);
+  const [isViewPerformanceOpen, setIsViewPerformanceOpen] = useState(false);
 
   const overviewMetrics: OverviewMetric[] = [
     {
@@ -189,7 +191,7 @@ export default function AnalyticsPage() {
               ))}
             </CardContent>
             <CardFooter className="text-sm flex items-center justify-center gap-1 text-primary border-t"
-            onClick={() => setIsCustomerInsightsOpen(true)}>
+              onClick={() => setIsCustomerInsightsOpen(true)}>
               <span>
                 See Details
               </span>
@@ -227,7 +229,8 @@ export default function AnalyticsPage() {
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="text-sm flex items-center justify-center gap-1 text-primary border-t">
+            <CardFooter className="text-sm flex items-center justify-center gap-1 text-primary border-t"
+              onClick={() => setIsViewPerformanceOpen(true)}>
               <span>
                 See Details
               </span>
@@ -261,6 +264,10 @@ export default function AnalyticsPage() {
         isOpen={isCustomerInsightsOpen}
         onClose={() => setIsCustomerInsightsOpen(false)}
         locationData={locationData}
+      />
+      <ViewPerformanceModal
+        isOpen={isViewPerformanceOpen}
+        onClose={() => setIsViewPerformanceOpen(false)}
       />
 
     </div>
