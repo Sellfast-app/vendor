@@ -1,9 +1,8 @@
 "use client";
 
-import React, { JSX, useEffect } from 'react';
+import React, { JSX, useEffect, useState } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
 
 interface Location {
   id: string;
@@ -19,16 +18,36 @@ interface MapViewProps {
 }
 
 export default function MapView({ locations }: MapViewProps) {
+  const [isClient, setIsClient] = useState(false);
+
   useEffect(() => {
-    // Fix for default marker icon
-     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    delete (L.Icon.Default.prototype as any)._getIconUrl;
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-      iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-    });
+    setIsClient(true);
+    
+    // Dynamically import Leaflet only on client side
+    const initializeMap = async () => {
+      const L = await import('leaflet');
+      
+      // Fix for default marker icon
+       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (L.Icon.Default.prototype as any)._getIconUrl;
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+      });
+    };
+
+    initializeMap();
   }, []);
+
+  // Don't render map on server side
+  if (!isClient) {
+    return (
+      <div className="flex items-center justify-center h-full bg-gray-100">
+        <div>Loading map...</div>
+      </div>
+    );
+  }
 
   return (
     <MapContainer

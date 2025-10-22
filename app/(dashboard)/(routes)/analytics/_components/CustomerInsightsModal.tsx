@@ -6,7 +6,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { ArrowLeft } from 'lucide-react';
-import MapView from '@/components/MapView';
+
+const MapView = lazy(() => import('@/components/MapView'));
 
 interface ChartData {
   month: string;
@@ -319,4 +320,9 @@ export default function CustomerInsightsModal({ isOpen, onClose, locationData }:
       </DialogContent>
     </Dialog>
   );
+}
+import { lazy as reactLazy } from 'react';
+     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+function lazy(factory: () => Promise<{ default: React.ComponentType<any> }>) {
+  return reactLazy(factory);
 }
