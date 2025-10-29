@@ -24,6 +24,7 @@ import { LuEyeClosed } from "react-icons/lu";
 import AddCardModal from './_components/AddCardModal';
 import DepositModal from './_components/DepositModal';
 import WithdrawalModal from './_components/WithdrawalModal';
+import UpdateBillingModal from './_components/UpdateBillingModal';
 
 // Import Swiper React components
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -65,6 +66,7 @@ export default function PayoutsPage() {
   const [selectedBankAccount, setSelectedBankAccount] = useState<string>("access-bank-1");
   const [showCardNumber, setShowCardNumber] = useState<boolean>(false);
   const [isAddCardModalOpen, setIsAddCardModalOpen] = useState(false);
+  const [isUpdateBillingModalOpen, setIsUpdateBillingModalOpen] = useState(false);
   const [creditCards, setCreditCards] = useState<CreditCard[]>([
     {
       id: "card-1",
@@ -89,7 +91,8 @@ export default function PayoutsPage() {
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const [isWithdrawalModalOpen, setIsWithdrawalModalOpen] = useState(false);
-
+  const [subscriptionPlan, setSubscriptionPlan] = useState('premium');
+  const [billingCardId, setBillingCardId] = useState('card-1');
 
   const overviewMetrics: OverviewMetric[] = [
     {
@@ -157,7 +160,6 @@ export default function PayoutsPage() {
     }
   ];
 
-
   const toggleCardNumberVisibility = () => {
     setShowCardNumber(!showCardNumber);
   };
@@ -166,7 +168,6 @@ export default function PayoutsPage() {
     if (showCardNumber) {
       return cardNumber;
     }
-    // Show first 4 and last 4 digits, hide middle 8 digits
     return `${cardNumber.slice(0, 4)} **** **** ${cardNumber.slice(-4)}`;
   };
 
@@ -178,7 +179,7 @@ export default function PayoutsPage() {
   }) => {
     const newCard: CreditCard = {
       id: `card-${creditCards.length + 1}`,
-      image: creditCards.length % 2 === 0 ? CC1 : CC2, // Alternate between card designs
+      image: creditCards.length % 2 === 0 ? CC1 : CC2,
       cardNumber: cardData.cardNumber,
       cardHolder: cardData.cardholderName,
       expiryDate: cardData.expiryDate,
@@ -213,16 +214,30 @@ export default function PayoutsPage() {
     setEditingCard(null);
   };
 
-  const handleDeposit = (amount: number, paymentMethod: string, selectedId: string) => {
+  const handleDeposit = async (amount: number, paymentMethod: string, selectedId: string) => {
     console.log('Deposit:', { amount, paymentMethod, selectedId });
     // Add your deposit logic here
-    // You might want to call an API or update the balance
   };
 
-  const handleWithdraw = (amount: number, paymentMethod: string, selectedId: string) => {
-    console.log('Withdraw:', { amount, paymentMethod, selectedId });
+  const handleWithdraw = (amount: number, paymentMethod: string, selectedId: string, otp: string) => {
+    console.log('Withdraw:', { amount, paymentMethod, selectedId, otp });
     // Add your withdrawal logic here
   };
+
+  const handleUpdateBilling = async (plan: string, cardId: string) => {
+    console.log('Update Billing:', { plan, cardId });
+    setSubscriptionPlan(plan);
+    setBillingCardId(cardId);
+    // Add your update billing logic here (API call)
+  };
+
+  const handleAddCardFromBilling = () => {
+    setIsAddCardModalOpen(true);
+  };
+
+  // Get billing card details
+  const billingCard = creditCards.find(card => card.id === billingCardId);
+
   return (
     <div className="min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <div className="mb-6 flex items-center justify-between">
@@ -305,14 +320,31 @@ export default function PayoutsPage() {
             <CardContent className='border-b pb-3'>
               <div className='flex justify-between items-center'>
                 <p className='text-sm'>Billing Information</p>
-                <Button variant={"outline"}>Edit <Settings /></Button>
+                <Button variant={"outline"} onClick={() => setIsUpdateBillingModalOpen(true)}>
+                  Edit <Settings />
+                </Button>
               </div>
               <div className='bg-[#F5F5F5] dark:bg-background border rounded-lg p-3 space-y-4 mt-4 '>
-                <div className='flex items-center justify-between text-sm'><span>Subscription Plan</span> <p>Premium</p></div>
-                <div className='flex items-center justify-between text-sm'><span>Amount</span><p>5,000</p></div>
-                <div className='flex items-center justify-between text-sm'><span>Duration</span><p>Monthly</p></div>
-                <div className='flex items-center justify-between text-sm'><span>Due Date</span> <p>30/09/2025</p></div>
-                <div className='flex items-center justify-between text-sm text-primary w-full border-t pt-2'><span>Card</span><p>4664 ****678</p></div>
+                <div className='flex items-center justify-between text-sm'>
+                  <span>Subscription Plan</span> 
+                  <p className="capitalize">{subscriptionPlan}</p>
+                </div>
+                <div className='flex items-center justify-between text-sm'>
+                  <span>Amount</span>
+                  <p>5,000</p>
+                </div>
+                <div className='flex items-center justify-between text-sm'>
+                  <span>Duration</span>
+                  <p>Monthly</p>
+                </div>
+                <div className='flex items-center justify-between text-sm'>
+                  <span>Due Date</span> 
+                  <p>30/09/2025</p>
+                </div>
+                <div className='flex items-center justify-between text-sm text-primary w-full border-t pt-2'>
+                  <span>Card</span>
+                  <p>{billingCard?.cardNumber.slice(0, 4)} ****{billingCard?.cardNumber.slice(-3)}</p>
+                </div>
               </div>
             </CardContent>
             <CardContent>
@@ -367,11 +399,15 @@ export default function PayoutsPage() {
                   </SwiperSlide>
                 ))}
               </Swiper>
-              <Button variant={"outline"} className="w-full" onClick={() => setIsAddCardModalOpen(true)}>Add Card <PlusIcon /></Button>
+              <Button variant={"outline"} className="w-full" onClick={() => setIsAddCardModalOpen(true)}>
+                Add Card <PlusIcon />
+              </Button>
             </CardContent>
           </Card>
         </div>
       </div>
+
+      {/* Modals */}
       <AddCardModal
         isOpen={isAddCardModalOpen}
         onClose={() => {
@@ -384,6 +420,7 @@ export default function PayoutsPage() {
         editCard={editingCard}
         isEditMode={!!editingCard}
       />
+      
       <DepositModal
         isOpen={isDepositModalOpen}
         onClose={() => setIsDepositModalOpen(false)}
@@ -391,13 +428,24 @@ export default function PayoutsPage() {
         bankAccounts={bankAccounts}
         creditCards={creditCards}
       />
+      
       <WithdrawalModal
         isOpen={isWithdrawalModalOpen}
         onClose={() => setIsWithdrawalModalOpen(false)}
         onWithdraw={handleWithdraw}
         bankAccounts={bankAccounts}
         creditCards={creditCards}
-        userEmail="user@example.com" // Replace with the actual user email
+        userEmail="user@example.com"
+      />
+      
+      <UpdateBillingModal
+        isOpen={isUpdateBillingModalOpen}
+        onClose={() => setIsUpdateBillingModalOpen(false)}
+        onSave={handleUpdateBilling}
+        onAddCard={handleAddCardFromBilling}
+        creditCards={creditCards}
+        currentPlan={subscriptionPlan}
+        currentCardId={billingCardId}
       />
     </div>
   )
