@@ -7,19 +7,81 @@ import { ChevronLeft, ChevronRight, DownloadIcon, FilterIcon, SearchIcon } from 
 import { useState, useEffect } from "react";
 import { BsThreeDots } from "react-icons/bs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import EyeIcon from "@/components/svgIcons/EyeIcon";
 import { mockWithdrawalData } from "@/lib/mockdata";
+import { Popover, PopoverContent, PopoverTrigger } from "@radix-ui/react-popover";
+import { Calendar } from "@/components/ui/calendar";
+import { CalendarIcon } from "lucide-react";
+
+function DatePicker({
+  id,
+  date,
+  onSelect,
+  placeholder,
+}: {
+  id: string;
+  date: string;
+  onSelect: (date: string) => void;
+  placeholder: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [month, setMonth] = useState<Date | undefined>(date ? new Date(date) : undefined);
+
+  const handleSelect = (selectedDate: Date | undefined) => {
+    onSelect(selectedDate ? selectedDate.toISOString().split("T")[0] : "");
+    if (selectedDate) setMonth(selectedDate);
+    setOpen(false);
+  };
+
+  return (
+    <div className="flex flex-col gap-1">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            id={id}
+            variant="outline"
+            className="w-full justify-start text-left font-normal pl-3 pr-10 py-2 border rounded-md text-sm bg-[#F8F8F8] dark:bg-gray-700"
+          >
+            <span>
+              {date
+                ? new Date(date).toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" })
+                : placeholder}
+            </span>
+            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0 z-30" align="start">
+          <Calendar
+            mode="single"
+            selected={date ? new Date(date) : undefined}
+            onSelect={handleSelect}
+            month={month}
+            className="rounded-md border"
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
 
 export default function WithdrawalTable() {
   const [currentPage, setCurrentPage] = useState(0);
   const pageSize = 6;
   const [searchTerm, setSearchTerm] = useState("");
+  const [filter, setFilter] = useState({
+    bank: "",
+    status: "",
+    startDate: "",
+    endDate: "",
+  });
   const [withdrawals, setWithdrawals] = useState(mockWithdrawalData);
   const [selectedWithdrawals, setSelectedWithdrawals] = useState<string[]>([]);
 
   useEffect(() => {
     let filteredWithdrawals = [...mockWithdrawalData];
+
+    // Search filter
     if (searchTerm) {
       filteredWithdrawals = filteredWithdrawals.filter(
         (withdrawal) =>
@@ -27,9 +89,41 @@ export default function WithdrawalTable() {
           withdrawal.bankTo.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
+
+    // Bank filter
+    if (filter.bank) {
+      filteredWithdrawals = filteredWithdrawals.filter((withdrawal) =>
+        withdrawal.bankTo.toLowerCase().includes(filter.bank.toLowerCase())
+      );
+    }
+
+    // Status filter
+    if (filter.status) {
+      filteredWithdrawals = filteredWithdrawals.filter((withdrawal) => 
+        withdrawal.status.toLowerCase() === filter.status.toLowerCase()
+      );
+    }
+
+    // Date range filter
+    if (filter.startDate && filter.endDate) {
+      filteredWithdrawals = filteredWithdrawals.filter(
+        (withdrawal) =>
+          new Date(withdrawal.timestamp) >= new Date(filter.startDate) &&
+          new Date(withdrawal.timestamp) <= new Date(filter.endDate)
+      );
+    } else if (filter.startDate) {
+      filteredWithdrawals = filteredWithdrawals.filter(
+        (withdrawal) => new Date(withdrawal.timestamp) >= new Date(filter.startDate)
+      );
+    } else if (filter.endDate) {
+      filteredWithdrawals = filteredWithdrawals.filter(
+        (withdrawal) => new Date(withdrawal.timestamp) <= new Date(filter.endDate)
+      );
+    }
+
     setWithdrawals(filteredWithdrawals);
     setSelectedWithdrawals([]);
-  }, [searchTerm]);
+  }, [searchTerm, filter.bank, filter.status, filter.startDate, filter.endDate]);
 
   const totalPages = Math.ceil(withdrawals.length / pageSize);
   const displayedWithdrawals = withdrawals.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
@@ -46,6 +140,19 @@ export default function WithdrawalTable() {
       pages.push(totalPages - 1);
     }
     return pages;
+  };
+
+  const handleResetFilters = () => {
+    setFilter({
+      bank: "",
+      status: "",
+      startDate: "",
+      endDate: "",
+    });
+  };
+
+  const handleApplyFilters = () => {
+    // Filters are applied automatically in useEffect
   };
 
   const handleSelectAll = (checked: boolean) => {
@@ -104,9 +211,85 @@ export default function WithdrawalTable() {
           <SearchIcon className="absolute right-2 top-2.7 h-4 w-4 text-muted-foreground" />
         </div>
         <div className="flex space-x-2">
-          <Button variant="outline" className="border-[#F5F5F5] dark:border-[#1F1F1F] dark:bg-background">
-            <FilterIcon /> <span className="hidden sm:inline ml-2">Filter</span>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="border-[#F5F5F5] dark:border-[#1F1F1F] dark:bg-background flex items-center space-x-2">
+                <FilterIcon />
+                <span className="hidden sm:inline">Filter</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-84 bg-white border rounded-lg shadow-lg p-4">
+              <div className="flex justify-between items-center mb-2">
+                <DropdownMenuLabel>Filter </DropdownMenuLabel>
+                <div className="flex space-x-2">
+                  <Button variant="ghost" onClick={handleResetFilters} className="text-xs">
+                    Reset
+                  </Button>
+                  <Button variant="default" onClick={handleApplyFilters} className="text-xs">
+                    Apply Filter
+                  </Button>
+                </div>
+              </div>
+              <DropdownMenuSeparator />
+              <div className="space-y-4">
+                <div className="flex flex-col space-y-2">
+                  <div className="flex justify-between">
+                    <label className="text-sm">Date Range</label>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <label htmlFor="start-date" className="text-xs text-gray-400 dark:text-gray-100">
+                        From:
+                      </label>
+                      <DatePicker
+                        id="start-date"
+                        date={filter.startDate}
+                        onSelect={(date) => setFilter((prev) => ({ ...prev, startDate: date }))}
+                        placeholder="DD/MM/YY"
+                      />
+                    </div>
+                    <div className="relative flex-1">
+                      <label htmlFor="end-date" className="text-xs text-gray-400 dark:text-gray-100">
+                        To:
+                      </label>
+                      <DatePicker
+                        id="end-date"
+                        date={filter.endDate}
+                        onSelect={(date) => setFilter((prev) => ({ ...prev, endDate: date }))}
+                        placeholder="DD/MM/YY"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-col space-y-2">
+                  <div className="flex justify-between">
+                    <label className="text-sm">Bank Name</label>
+                  </div>
+                  <Input
+                    value={filter.bank}
+                    onChange={(e) => setFilter((prev) => ({ ...prev, bank: e.target.value }))}
+                    placeholder="Bank Name"
+                    className="w-full bg-[#F8F8F8] border-0 rounded"
+                  />
+                </div>
+                <div className="flex flex-col space-y-2">
+                  <div className="flex justify-between">
+                    <label className="text-sm">Status</label>
+                  </div>
+                  <select
+                    value={filter.status}
+                    onChange={(e) => setFilter((prev) => ({ ...prev, status: e.target.value }))}
+                    className="w-full bg-[#F8F8F8] border-0 rounded p-2"
+                  >
+                    <option value="">All Status</option>
+                    <option value="Success">Success</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Failed">Failed</option>
+                  </select>
+                </div>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
