@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Eye, EyeOff, Check } from 'lucide-react';
 import Image from 'next/image';
-import DepositConfirmationModal from './DepositConfirmationModal';
+import WithdrawalConfirmationModal from './WithdrawalConfirmationModal';
 
 interface BankAccount {
   id: string;
@@ -30,21 +30,25 @@ interface CreditCard {
   icon: JSX.Element;
 }
 
-interface DepositModalProps {
+interface WithdrawalModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onDeposit: (amount: number, paymentMethod: string, selectedId: string) => Promise<void> | void;
+  onWithdraw: (amount: number, paymentMethod: string, selectedId: string, otp: string) => void;
   bankAccounts: BankAccount[];
   creditCards: CreditCard[];
+  userEmail: string;
+  onResendOTP?: () => void;
 }
 
-export default function DepositModal({ 
+export default function WithdrawalModal({ 
   isOpen, 
   onClose, 
-  onDeposit, 
+  onWithdraw, 
   bankAccounts, 
-  creditCards 
-}: DepositModalProps) {
+  creditCards,
+  userEmail,
+  onResendOTP
+}: WithdrawalModalProps) {
   const [amount, setAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'bank' | 'card' | ''>('');
   const [selectedBankAccount, setSelectedBankAccount] = useState('');
@@ -76,16 +80,16 @@ export default function DepositModal({
       return;
     }
 
-    // Show confirmation modal
+    // Show confirmation modal with OTP
     setShowConfirmModal(true);
   };
 
-  const handleConfirmDeposit = async () => {
+  const handleConfirmWithdrawal = (otp: string) => {
     const selectedId = paymentMethod === 'bank' 
       ? selectedBankAccount 
       : creditCards[selectedCard]?.id || '';
 
-    await onDeposit(parseFloat(amount), paymentMethod, selectedId);
+    onWithdraw(parseFloat(amount), paymentMethod, selectedId, otp);
     setShowConfirmModal(false);
     handleCancel();
   };
@@ -143,7 +147,7 @@ export default function DepositModal({
         <DialogOverlay className="backdrop-blur-xs bg-[#06140033] dark:bg-black/50" />
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle className="text-sm font-semibold">Deposit to Balance</DialogTitle>
+            <DialogTitle className="text-sm font-semibold">Withdrawal from Balance</DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
               Specify the details about this order
             </DialogDescription>
@@ -212,7 +216,7 @@ export default function DepositModal({
                       className="flex items-center justify-between gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors"
                     >
                       <Label
-                        htmlFor={`deposit-${bank.id}`}
+                        htmlFor={`withdraw-${bank.id}`}
                         className="flex items-center gap-3 flex-1 cursor-pointer"
                       >
                         {bank.icon}
@@ -224,7 +228,7 @@ export default function DepositModal({
                       <div className="relative">
                         <RadioGroupItem
                           value={bank.id}
-                          id={`deposit-${bank.id}`}
+                          id={`withdraw-${bank.id}`}
                           className="flex-shrink-0"
                         />
                         {selectedBankAccount === bank.id && (
@@ -298,23 +302,26 @@ export default function DepositModal({
             </Button>
             <Button 
               onClick={handleSubmit}
+              className="bg-green-500 hover:bg-green-600 text-white"
             >
-              Deposit
+              Withdraw
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Confirmation Modal */}
-      <DepositConfirmationModal
+      {/* Confirmation Modal with OTP */}
+      <WithdrawalConfirmationModal
         isOpen={showConfirmModal}
         onClose={() => setShowConfirmModal(false)}
-        onConfirm={handleConfirmDeposit}
+        onConfirm={handleConfirmWithdrawal}
         accountIcon={selectedDetails.icon}
         accountNumber={selectedDetails.accountNumber}
         bankName={selectedDetails.bankName}
         accountHolder={selectedDetails.accountHolder}
         amount={formatAmount(amount)}
+        email={userEmail}
+        onResendOTP={onResendOTP}
       />
     </>
   );

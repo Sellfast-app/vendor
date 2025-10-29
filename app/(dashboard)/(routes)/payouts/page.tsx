@@ -23,6 +23,7 @@ import { LuEye } from "react-icons/lu";
 import { LuEyeClosed } from "react-icons/lu";
 import AddCardModal from './_components/AddCardModal';
 import DepositModal from './_components/DepositModal';
+import WithdrawalModal from './_components/WithdrawalModal';
 
 // Import Swiper React components
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -87,6 +88,7 @@ export default function PayoutsPage() {
   const [editingCard, setEditingCard] = useState<CreditCard | null>(null);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+  const [isWithdrawalModalOpen, setIsWithdrawalModalOpen] = useState(false);
 
 
   const overviewMetrics: OverviewMetric[] = [
@@ -216,6 +218,11 @@ export default function PayoutsPage() {
     // Add your deposit logic here
     // You might want to call an API or update the balance
   };
+
+  const handleWithdraw = (amount: number, paymentMethod: string, selectedId: string) => {
+    console.log('Withdraw:', { amount, paymentMethod, selectedId });
+    // Add your withdrawal logic here
+  };
   return (
     <div className="min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <div className="mb-6 flex items-center justify-between">
@@ -223,7 +230,7 @@ export default function PayoutsPage() {
           <h3 className="text-sm font-bold">Payouts</h3>
         </div>
         <div className="flex gap-2">
-          <Button variant={"outline"}>
+          <Button variant={"outline"} onClick={() => setIsWithdrawalModalOpen(true)}>
             <span className="hidden sm:inline mr-2"> Request Withdrawal</span> <Withdrawal />
           </Button>
           <Button onClick={() => setIsExportModalOpen(true)}>
@@ -260,7 +267,7 @@ export default function PayoutsPage() {
               <span className="text-xs">+15% from last payout • Last updated 2 minutes ago</span>
               <div className='flex items-center justify-between mt-2 gap-3'>
                 <Button className='w-[50%]' onClick={() => setIsDepositModalOpen(true)}> Deposit <Withdrawal color='white' /></Button>
-                <Button className='bg-[#5BA3F8] hover:bg-[#5BA3F8]/90 w-[50%]'> Withdraw <Withdrawal color='white' /></Button>
+                <Button className='bg-[#5BA3F8] hover:bg-[#5BA3F8]/90 w-[50%]' onClick={() => setIsWithdrawalModalOpen(true)}> Withdraw <Withdrawal color='white' /></Button>
               </div>
             </CardHeader>
             <CardContent className="px-0  border-b">
@@ -383,6 +390,14 @@ export default function PayoutsPage() {
         onDeposit={handleDeposit}
         bankAccounts={bankAccounts}
         creditCards={creditCards}
+      />
+      <WithdrawalModal
+        isOpen={isWithdrawalModalOpen}
+        onClose={() => setIsWithdrawalModalOpen(false)}
+        onWithdraw={handleWithdraw}
+        bankAccounts={bankAccounts}
+        creditCards={creditCards}
+        userEmail="user@example.com" // Replace with the actual user email
       />
     </div>
   )
