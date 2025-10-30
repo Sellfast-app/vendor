@@ -25,6 +25,8 @@ import AddCardModal from './_components/AddCardModal';
 import DepositModal from './_components/DepositModal';
 import WithdrawalModal from './_components/WithdrawalModal';
 import UpdateBillingModal from './_components/UpdateBillingModal';
+import AddBankModal from './_components/AddBankModal';
+import { ExportModal } from "@/components/ExportModal";
 
 // Import Swiper React components
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -62,11 +64,12 @@ interface CreditCard {
 }
 
 export default function PayoutsPage() {
-  const [, setIsExportModalOpen] = useState(false);
+   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [selectedBankAccount, setSelectedBankAccount] = useState<string>("access-bank-1");
   const [showCardNumber, setShowCardNumber] = useState<boolean>(false);
   const [isAddCardModalOpen, setIsAddCardModalOpen] = useState(false);
   const [isUpdateBillingModalOpen, setIsUpdateBillingModalOpen] = useState(false);
+  const [isAddBankModalOpen, setIsAddBankModalOpen] = useState(false);
   const [creditCards, setCreditCards] = useState<CreditCard[]>([
     {
       id: "card-1",
@@ -87,35 +90,7 @@ export default function PayoutsPage() {
       icon: <MastersCardIcon />
     }
   ]);
-  const [editingCard, setEditingCard] = useState<CreditCard | null>(null);
-  const [currentCardIndex, setCurrentCardIndex] = useState(0);
-  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
-  const [isWithdrawalModalOpen, setIsWithdrawalModalOpen] = useState(false);
-  const [subscriptionPlan, setSubscriptionPlan] = useState('premium');
-  const [billingCardId, setBillingCardId] = useState('card-1');
-
-  const overviewMetrics: OverviewMetric[] = [
-    {
-      id: "escrow-balance",
-      icon1: <EscrowIcon />,
-      title: "Escrow Balance",
-      value: "0",
-    },
-    {
-      id: "total-earnings",
-      icon1: <EarningsIcon />,
-      title: "Total Earnings",
-      value: "0",
-    },
-    {
-      id: "subscription-billing",
-      icon1: <BillingIcon />,
-      title: "Subscription Billing",
-      value: "0",
-    },
-  ];
-
-  const bankAccounts: BankAccount[] = [
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([
     {
       id: "access-bank-1",
       icon: <Accessbank />,
@@ -158,6 +133,33 @@ export default function PayoutsPage() {
       bankName: "Sterling Bank",
       accountHolder: "Akpomughe Caleb.O."
     }
+  ]);
+  const [editingCard, setEditingCard] = useState<CreditCard | null>(null);
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
+  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+  const [isWithdrawalModalOpen, setIsWithdrawalModalOpen] = useState(false);
+  const [subscriptionPlan, setSubscriptionPlan] = useState('premium');
+  const [billingCardId, setBillingCardId] = useState('card-1');
+
+  const overviewMetrics: OverviewMetric[] = [
+    {
+      id: "escrow-balance",
+      icon1: <EscrowIcon />,
+      title: "Escrow Balance",
+      value: "0",
+    },
+    {
+      id: "total-earnings",
+      icon1: <EarningsIcon />,
+      title: "Total Earnings",
+      value: "0",
+    },
+    {
+      id: "subscription-billing",
+      icon1: <BillingIcon />,
+      title: "Subscription Billing",
+      value: "0",
+    },
   ];
 
   const toggleCardNumberVisibility = () => {
@@ -235,8 +237,69 @@ export default function PayoutsPage() {
     setIsAddCardModalOpen(true);
   };
 
+  const handleAddBank = (bankData: {
+    bankName: string;
+    accountNumber: string;
+    accountHolder: string;
+  }) => {
+    // Generate bank icon based on bank name
+    const getBankIcon = (bankName: string) => {
+      if (bankName === 'Access Bank') {
+        return <Accessbank />;
+      }
+      // For other banks, use colored circles with abbreviations
+      const colors: { [key: string]: string } = {
+        'GTBank': 'bg-orange-500',
+        'Zenith Bank': 'bg-red-600',
+        'UBA': 'bg-red-700',
+        'First Bank': 'bg-blue-800',
+        'Fidelity Bank': 'bg-purple-600',
+        'Sterling Bank': 'bg-blue-700',
+        'Union Bank': 'bg-blue-600',
+        'Wema Bank': 'bg-purple-700',
+        'Unity Bank': 'bg-green-600',
+        'Polaris Bank': 'bg-indigo-600',
+        'Stanbic IBTC': 'bg-blue-500',
+        'Ecobank': 'bg-red-500',
+        'FCMB': 'bg-yellow-600',
+        'Keystone Bank': 'bg-teal-600',
+      };
+
+      const abbreviation = bankName.split(' ').map(word => word[0]).join('').slice(0, 3).toUpperCase();
+      const color = colors[bankName] || 'bg-gray-500';
+
+      return (
+        <div className={`w-8 h-8 ${color} rounded-full flex items-center justify-center text-white text-xs font-bold`}>
+          {abbreviation}
+        </div>
+      );
+    };
+
+    const newBank: BankAccount = {
+      id: `bank-${bankAccounts.length + 1}`,
+      icon: getBankIcon(bankData.bankName),
+      accountNumber: bankData.accountNumber,
+      bankName: bankData.bankName,
+      accountHolder: bankData.accountHolder
+    };
+
+    setBankAccounts([...bankAccounts, newBank]);
+  };
+
   // Get billing card details
   const billingCard = creditCards.find(card => card.id === billingCardId);
+
+  const fieldOptions = [
+    ...overviewMetrics.map((metric) => ({
+      label: metric.title,
+      value: metric.id,
+    })),
+    { label: "Available Balance", value: "Available Balance" },
+    { label: "Transaction inflow Vs Outflow", value: "Transaction inflow Vs Outflow" },
+    { label: "Withdrawals", value: "Withdrawals" },
+    { label: "Connected Bank Accounts", value: "Connected Bank Accounts" },
+    { label: "Billing Information", value: "Billing Information" },
+  ];
 
   return (
     <div className="min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -276,7 +339,9 @@ export default function PayoutsPage() {
             <CardHeader className='border-b'>
               <div className='flex justify-between items-center'>
                 <p className='text-sm'>Available Balance</p>
-                <Button variant={"outline"}>Connect Account <Withdrawal /></Button>
+                <Button variant={"outline"} onClick={() => setIsAddBankModalOpen(true)}>
+                  Connect Account <Withdrawal />
+                </Button>
               </div>
               <h3 className='text-2xl font-bold mt-2'>₦2,945,090.50</h3>
               <span className="text-xs">+15% from last payout • Last updated 2 minutes ago</span>
@@ -447,6 +512,19 @@ export default function PayoutsPage() {
         currentPlan={subscriptionPlan}
         currentCardId={billingCardId}
       />
+
+      <AddBankModal
+        isOpen={isAddBankModalOpen}
+        onClose={() => setIsAddBankModalOpen(false)}
+        onAddBank={handleAddBank}
+      />
+       <ExportModal
+              isOpen={isExportModalOpen}
+              onClose={() => setIsExportModalOpen(false)}
+              endpointPrefix="Payouts"
+              fieldOptions={fieldOptions}
+              dataName="Payouts"
+            />
     </div>
   )
 }
