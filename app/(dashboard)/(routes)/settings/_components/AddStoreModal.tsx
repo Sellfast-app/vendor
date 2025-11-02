@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogOverlay, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,12 +38,23 @@ const businessTypes = [
   "Other",
 ];
 
-export default function AddStoreModal({ isOpen, onClose, setStores }: {
+interface AddStoreModalProps {
   isOpen: boolean;
   onClose: () => void;
   stores: Store[];
   setStores: React.Dispatch<React.SetStateAction<Store[]>>;
-}) {
+  editStore?: Store | null;
+  isEditMode?: boolean;
+}
+
+export default function AddStoreModal({ 
+  isOpen, 
+  onClose, 
+  stores,
+  setStores,
+  editStore = null,
+  isEditMode = false
+}: AddStoreModalProps) {
   const [formData, setFormData] = useState({
     name: "",
     whatsappNumber: "",
@@ -54,6 +65,36 @@ export default function AddStoreModal({ isOpen, onClose, setStores }: {
   });
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
+  // Pre-fill form data when editing
+  useEffect(() => {
+    if (isEditMode && editStore) {
+      // Extract country code and number from whatsappNumber
+      const [code, ...numberParts] = editStore.whatsappNumber.split(' ');
+      const number = numberParts.join(' ');
+      
+      setFormData({
+        name: editStore.name,
+        whatsappNumber: number,
+        countryCode: code || "+234",
+        type: editStore.type.split('•')[0].trim(), // Extract type from "Bakery • Lagos • Active"
+        bio: editStore.bio,
+        image: null,
+      });
+      setPreviewImage(editStore.image);
+    } else {
+      // Reset form for add mode
+      setFormData({
+        name: "",
+        whatsappNumber: "",
+        countryCode: "+234",
+        type: "",
+        bio: "",
+        image: null,
+      });
+      setPreviewImage(null);
+    }
+  }, [isEditMode, editStore, isOpen]);
+
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -63,16 +104,44 @@ export default function AddStoreModal({ isOpen, onClose, setStores }: {
   };
 
   const handleSave = () => {
-    const newStore = {
-      id: `STORE-${Date.now()}`,
-      name: formData.name,
-      type: formData.type,
-      whatsappNumber: `${formData.countryCode} ${formData.whatsappNumber}`,
-      bio: formData.bio,
-      image: previewImage || "/placeholder-store.jpg",
-    };
-    setStores((prev) => [...prev, newStore]);
-    setFormData({ name: "", whatsappNumber: "", countryCode: "+234", type: "", bio: "", image: null });
+    if (isEditMode && editStore) {
+      // Update existing store
+      setStores((prev) =>
+        prev.map((store) =>
+          store.id === editStore.id
+            ? {
+                ...store,
+                name: formData.name,
+                type: formData.type,
+                whatsappNumber: `${formData.countryCode} ${formData.whatsappNumber}`,
+                bio: formData.bio,
+                image: previewImage || store.image,
+              }
+            : store
+        )
+      );
+    } else {
+      // Add new store
+      const newStore = {
+        id: `STORE-${Date.now()}`,
+        name: formData.name,
+        type: `${formData.type} • Lagos • Inactive`,
+        whatsappNumber: `${formData.countryCode} ${formData.whatsappNumber}`,
+        bio: formData.bio,
+        image: previewImage || "/placeholder-store.jpg",
+      };
+      setStores((prev) => [...prev, newStore]);
+    }
+
+    // Reset form and close
+    setFormData({ 
+      name: "", 
+      whatsappNumber: "", 
+      countryCode: "+234", 
+      type: "", 
+      bio: "", 
+      image: null 
+    });
     setPreviewImage(null);
     onClose();
   };
@@ -86,7 +155,9 @@ export default function AddStoreModal({ isOpen, onClose, setStores }: {
       <DialogOverlay className="backdrop-blur-xs bg-[#06140033] dark:bg-black/50" />
       <DialogContent className="sm:max-w-[571px] rounded-lg">
         <DialogHeader className="border-b pb-4">
-          <DialogTitle className="text-sm font-semibold">Edit Store</DialogTitle>
+          <DialogTitle className="text-sm font-semibold">
+            {isEditMode ? "Edit Store" : "Add Store"}
+          </DialogTitle>
           <p className="text-xs font-light text-gray-400 dark:text-gray-100">
             Let&apos;s make sure you want to perform this action
           </p>
@@ -108,7 +179,9 @@ export default function AddStoreModal({ isOpen, onClose, setStores }: {
                 />
               </label>
             </div>
-            <p className="text-xs text-center text-gray-400 dark:text-gray-100">Upload your store logo or image</p>
+            <p className="text-xs text-center text-gray-400 dark:text-gray-100">
+              Upload your store logo or image
+            </p>
           </div>
 
           <div className="flex justify-between items-center gap-4">
@@ -118,11 +191,13 @@ export default function AddStoreModal({ isOpen, onClose, setStores }: {
                 id="storeName"
                 value={formData.name}
                 onChange={(e) => handleInputChange("name", e.target.value)}
-                className="dark:bg-background "
+                className="dark:bg-background"
               />
             </div>
             <div className="space-y-2 md:col-span-2 w-full md:w-[50%]">
-              <Label htmlFor="whatsappNumber" className="text-xs">WhatsApp Business Number *</Label>
+              <Label htmlFor="whatsappNumber" className="text-xs">
+                WhatsApp Business Number *
+              </Label>
               <div className="flex gap-1">
                 <Select
                   value={formData.countryCode}
@@ -149,7 +224,10 @@ export default function AddStoreModal({ isOpen, onClose, setStores }: {
 
           <div className="space-y-2">
             <Label htmlFor="storeType" className="text-xs">Store Type *</Label>
-            <Select onValueChange={(value) => handleInputChange("type", value)} value={formData.type}>
+            <Select 
+              onValueChange={(value) => handleInputChange("type", value)} 
+              value={formData.type}
+            >
               <SelectTrigger className="w-full dark:bg-background">
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>

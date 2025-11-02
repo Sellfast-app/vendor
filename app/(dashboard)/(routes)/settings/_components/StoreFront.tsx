@@ -21,20 +21,25 @@ import { Switch } from "@/components/ui/switch";
 import QrIcon from "@/components/svgIcons/QrIcon";
 import LinkIcon from "@/components/svgIcons/LinkIcon";
 import ThemeIcon from "@/components/svgIcons/ThemeIcon";
+import AddBankModal from "../../payouts/_components/AddBankModal";
+import Accessbank from "@/components/svgIcons/Accessbank";
+
 
 interface BankAccount {
   id: string;
   accountNumber: string;
   bankName: string;
   accountHolder: string;
-  icon: string;
+  icon: React.ReactNode;
 }
+
 
 function StorefrontComponent() {
   const [isEditingStorefront, setIsEditingStorefront] = useState(false);
   const [isEditingTheme, setIsEditingTheme] = useState(false);
   const [showDeleteSection, setShowDeleteSection] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [isAddBankModalOpen, setIsAddBankModalOpen] = useState(false);
 
   const [storefrontData, setStorefrontData] = useState({
     storeName: "Pizza Cafe",
@@ -46,7 +51,7 @@ function StorefrontComponent() {
     customUrl: "www.swiftree.com/cassandrakitchen",
   });
 
-  const [bankAccounts] = useState<BankAccount[]>([
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([
     {
       id: "1",
       accountNumber: "0102798098",
@@ -96,6 +101,54 @@ function StorefrontComponent() {
     // Add toast notification here
   };
 
+  const handleAddBank = (bankData: {
+    bankName: string;
+    accountNumber: string;
+    accountHolder: string;
+  }) => {
+    // Generate bank icon based on bank name
+    const getBankIcon = (bankName: string) => {
+      if (bankName === 'Access Bank') {
+        return <Accessbank />;
+      }
+      // For other banks, use colored circles with abbreviations
+      const colors: { [key: string]: string } = {
+        'GTBank': 'bg-orange-500',
+        'Zenith Bank': 'bg-red-600',
+        'UBA': 'bg-red-700',
+        'First Bank': 'bg-blue-800',
+        'Fidelity Bank': 'bg-purple-600',
+        'Sterling Bank': 'bg-blue-700',
+        'Union Bank': 'bg-blue-600',
+        'Wema Bank': 'bg-purple-700',
+        'Unity Bank': 'bg-green-600',
+        'Polaris Bank': 'bg-indigo-600',
+        'Stanbic IBTC': 'bg-blue-500',
+        'Ecobank': 'bg-red-500',
+        'FCMB': 'bg-yellow-600',
+        'Keystone Bank': 'bg-teal-600',
+      };
+
+      const abbreviation = bankName.split(' ').map(word => word[0]).join('').slice(0, 3).toUpperCase();
+      const color = colors[bankName] || 'bg-gray-500';
+
+      return (
+        <div className={`w-8 h-8 ${color} rounded-full flex items-center justify-center text-white text-xs font-bold`}>
+          {abbreviation}
+        </div>
+      );
+    };
+
+    const newBank: BankAccount = {
+      id: `bank-${bankAccounts.length + 1}`,
+      icon: getBankIcon(bankData.bankName),
+      accountNumber: bankData.accountNumber,
+      bankName: bankData.bankName,
+      accountHolder: bankData.accountHolder
+    };
+
+    setBankAccounts([...bankAccounts, newBank]);
+  };
   return (
     <div className="w-full space-y-6">
       <div className="flex items-center justify-between">
@@ -110,8 +163,8 @@ function StorefrontComponent() {
           </div>
         </div>
         <div className="flex gap-2 items-center">
-          <Button variant={"outline"}><QrIcon/> <span className="hidden sm:inline">View QR Banner</span> </Button>
-          <Button variant={"outline"}> <span className="hidden sm:inline">Visit Storefront</span>  <LinkIcon/></Button>
+          <Button variant={"outline"}><QrIcon /> <span className="hidden sm:inline">View QR Banner</span> </Button>
+          <Button variant={"outline"}> <span className="hidden sm:inline">Visit Storefront</span>  <LinkIcon /></Button>
         </div>
       </div>
       {/* Storefront Setup */}
@@ -282,7 +335,7 @@ function StorefrontComponent() {
                   onClick={() => copyToClipboard(storefrontData.customUrl)}
                   className="dark:bg-background"
                 >
-                <span className="hidden sm:inline">Copy Link </span>  <Copy className="w-4 h-4" />
+                  <span className="hidden sm:inline">Copy Link </span>  <Copy className="w-4 h-4" />
                 </Button>
               </div>
             </div>
@@ -311,8 +364,8 @@ function StorefrontComponent() {
           <div className="space-y-4 pt-6">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium">Bank Account Setup</h3>
-              <Button variant="outline" size="sm">
-               <span className="hidden sm:inline">Add Bank Account</span>  <PlusIcon/>
+              <Button variant="outline" size="sm" onClick={() => setIsAddBankModalOpen(true)}>
+                <span className="hidden sm:inline">Add Bank Account</span>  <PlusIcon />
               </Button>
             </div>
 
@@ -372,7 +425,7 @@ function StorefrontComponent() {
 
             <div className="flex items-center justify-between p-4 rounded-lg">
               <div className="flex items-center gap-3">
-                <ThemeIcon/>
+                <ThemeIcon />
                 <span className="text-sm">Theme</span>
               </div>
               <Select
@@ -465,6 +518,11 @@ function StorefrontComponent() {
           </div>
         </CardContent>
       </Card>
+      <AddBankModal
+        isOpen={isAddBankModalOpen}
+        onClose={() => setIsAddBankModalOpen(false)}
+        onAddBank={handleAddBank}
+      />
     </div>
   );
 }

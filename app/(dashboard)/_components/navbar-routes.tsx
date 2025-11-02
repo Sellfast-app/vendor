@@ -7,10 +7,12 @@ import { Avatar, AvatarFallback } from "@radix-ui/react-avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import NotificationModal from "./NotificationModal";
 
 export const NavbarRoutes = () => {
   const [businessName, setBusinessName] = useState<string>("My Business");
   const router = useRouter();
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
 
   const getCookieValue = (name: string): string | null => {
     const value = `; ${document.cookie}`;
@@ -90,14 +92,17 @@ export const NavbarRoutes = () => {
       </div>
 
       <div className="flex items-center gap-3">
-        <IoNotificationsOutline className="w-5 h-5" />
-        <button onClick={() => router.push("/settings")}>
+        <Button variant={"ghost"} onClick={() => setIsNotificationModalOpen(true)}> <IoNotificationsOutline className="w-5 h-5" /></Button>
+       
+        <Button variant="ghost" onClick={() => router.push("/settings")}>
           <Settings className="md:hidden w-4 h-4 cursor-pointer hover:text-gray-600 dark:hover:text-gray-300 transition-colors"/>
-        </button>
+        </Button>
         <Button variant={"outline"} className="rounded-full dark:bg-background hidden md:flex">
           Visit Your StoreFront <HiOutlineExternalLink />
         </Button>
       </div>
+        <NotificationModal
+         isOpen={isNotificationModalOpen} onClose={() => setIsNotificationModalOpen(false)} />
     </div>
   );
 };

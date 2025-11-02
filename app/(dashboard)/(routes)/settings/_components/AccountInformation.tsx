@@ -19,6 +19,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import StoreIcon from "@/components/svgIcons/StoreIcon";
 import Imag from "@/components/svgIcons/Image2";
 import AddStoreModal from "./AddStoreModal";
+import DeleteStoreModal from "./DeleteStoreModal";
 
 interface Store {
   id: string;
@@ -54,7 +55,7 @@ function AccountInformation() {
       id: "1",
       name: "Cassie's Kitchen",
       type: "Bakery • Lagos • Active",
-      whatsappNumber: "809 123 4567",
+      whatsappNumber: "+234 809 123 4567",
       bio: "A cozy bakery serving fresh pastries.",
       image: "/placeholder-store1.jpg",
     },
@@ -62,7 +63,7 @@ function AccountInformation() {
       id: "2",
       name: "Burger Shack",
       type: "Restaurant • Lagos • Inactive",
-      whatsappNumber: "809 234 5678",
+      whatsappNumber: "+234 809 234 5678",
       bio: "Serving delicious burgers and fries.",
       image: "/placeholder-store2.jpg",
     },
@@ -70,13 +71,17 @@ function AccountInformation() {
       id: "3",
       name: "Pizza Cafe",
       type: "Bakery • Lagos • Inactive",
-      whatsappNumber: "809 345 6789",
+      whatsappNumber: "+234 809 345 6789",
       bio: "Your go-to spot for authentic pizza.",
       image: "/placeholder-store3.jpg",
     },
   ]);
 
   const [isAddStoreModalOpen, setIsAddStoreModalOpen] = useState(false);
+  const [editingStore, setEditingStore] = useState<Store | null>(null);
+  const [isEditStoreMode, setIsEditStoreMode] = useState(false);
+  const [isDeleteStoreModalOpen, setIsDeleteStoreModalOpen] = useState(false);
+  const [storeToDelete, setStoreToDelete] = useState<Store | null>(null);
 
   const handleEditProfile = () => {
     setIsEditingProfile(true);
@@ -106,6 +111,36 @@ function AccountInformation() {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleEditStore = (store: Store) => {
+    setEditingStore(store);
+    setIsEditStoreMode(true);
+    setIsAddStoreModalOpen(true);
+  };
+
+  const handleAddStore = () => {
+    setEditingStore(null);
+    setIsEditStoreMode(false);
+    setIsAddStoreModalOpen(true);
+  };
+
+  const handleCloseStoreModal = () => {
+    setIsAddStoreModalOpen(false);
+    setEditingStore(null);
+    setIsEditStoreMode(false);
+  };
+
+  const handleOpenDeleteModal = (store: Store) => {
+    setStoreToDelete(store);
+    setIsDeleteStoreModalOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (storeToDelete) {
+      setStores(stores.filter(store => store.id !== storeToDelete.id));
+      setStoreToDelete(null);
+    }
   };
 
   return (
@@ -332,7 +367,7 @@ function AccountInformation() {
               <Button
                 variant="default"
                 size="sm"
-                onClick={() => setIsAddStoreModalOpen(true)}
+                onClick={handleAddStore}
               >
                 <StoreIcon />
                 <span className="ml-2 hidden sm:inline">Add Store</span>
@@ -366,11 +401,21 @@ function AccountInformation() {
                         Switch
                       </Button>
                     )}
-                    <Button variant="outline" size="sm" className="dark:bg-background">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="dark:bg-background"
+                      onClick={() => handleEditStore(store)}
+                    >
                       <span className="hidden sm:inline mr-2">Edit</span>
                       <EditIcon />
                     </Button>
-                    <Button variant="outline" size="sm" className="text-destructive dark:bg-background">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="text-destructive dark:bg-background"
+                      onClick={() => handleOpenDeleteModal(store)}
+                    >
                       <span className="hidden sm:inline mr-2">Delete</span>
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -583,11 +628,24 @@ function AccountInformation() {
         </CardContent>
       </Card>
 
+      {/* Modals */}
       <AddStoreModal
         isOpen={isAddStoreModalOpen}
-        onClose={() => setIsAddStoreModalOpen(false)}
+        onClose={handleCloseStoreModal}
         stores={stores}
         setStores={setStores}
+        editStore={editingStore}
+        isEditMode={isEditStoreMode}
+      />
+
+      <DeleteStoreModal
+        isOpen={isDeleteStoreModalOpen}
+        onClose={() => {
+          setIsDeleteStoreModalOpen(false);
+          setStoreToDelete(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        store={storeToDelete}
       />
     </div>
   );
