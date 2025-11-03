@@ -20,6 +20,7 @@ import StoreIcon from "@/components/svgIcons/StoreIcon";
 import Imag from "@/components/svgIcons/Image2";
 import AddStoreModal from "./AddStoreModal";
 import DeleteStoreModal from "./DeleteStoreModal";
+import { useRouter } from "next/navigation";
 
 interface Store {
   id: string;
@@ -35,6 +36,7 @@ function AccountInformation() {
   const [isEditingBusiness, setIsEditingBusiness] = useState(false);
   const [showDeleteSection, setShowDeleteSection] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const router = useRouter();
   const [formData, setFormData] = useState({
     firstName: "Cassandra",
     lastName: "Kayla",
@@ -419,7 +421,7 @@ function AccountInformation() {
                       <span className="hidden sm:inline mr-2">Delete</span>
                       <Trash2 className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="icon">
+                    <Button variant="ghost" size="icon" onClick={() => {router.push(`/settings/store/${store.id}`);}}>
                       <svg
                         className="w-4 h-4"
                         fill="none"
