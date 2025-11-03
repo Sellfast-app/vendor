@@ -3,6 +3,7 @@ import CardIcon from '@/components/svgIcons/CardIcon'
 import MastersCardIcon from '@/components/svgIcons/MastersCardIcon'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
 import { PlusIcon } from 'lucide-react'
 import React, { JSX, useState } from 'react'
 import CC1 from '@/public/Card1.png';
@@ -12,6 +13,8 @@ import { LuEye, LuEyeClosed } from 'react-icons/lu'
 import AddBankModal from "../../payouts/_components/AddBankModal";
 import Accessbank from '@/components/svgIcons/Accessbank'
 import AddCardModal from '../../payouts/_components/AddCardModal'
+import PdfIcon from '@/components/svgIcons/PdfIcon'
+import DownloadIcon from '@/components/svgIcons/DownloadIcon'
 
 interface BankAccount {
   id: string;
@@ -32,11 +35,20 @@ interface CreditCard {
   icon: JSX.Element;
 }
 
+interface BillingHistory {
+  id: string;
+  invoice: string;
+  date: string;
+  plan: string;
+  amount: string;
+}
+
 function Finance() {
   const [showCardNumber, setShowCardNumber] = useState<boolean>(false);
   const [isAddBankModalOpen, setIsAddBankModalOpen] = useState(false);
   const [isAddCardModalOpen, setIsAddCardModalOpen] = useState(false);
   const [editingCard, setEditingCard] = useState<CreditCard | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([
     {
@@ -83,6 +95,31 @@ function Finance() {
     }
   ]);
 
+  // Billing History Mock Data - 12 samples
+  const allBillingHistory: BillingHistory[] = [
+    { id: "1", invoice: "Invoice #0001", date: "12 Apr 2025", plan: "Basic Plan", amount: "₦10,000" },
+    { id: "2", invoice: "Invoice #0002", date: "28 Mar 2025", plan: "Basic Plan", amount: "₦10,000" },
+    { id: "3", invoice: "Invoice #0003", date: "15 Mar 2025", plan: "Standard Plan", amount: "₦25,000" },
+    { id: "4", invoice: "Invoice #0004", date: "01 Mar 2025", plan: "Standard Plan", amount: "₦25,000" },
+    { id: "5", invoice: "Invoice #0005", date: "14 Feb 2025", plan: "Basic Plan", amount: "₦10,000" },
+    { id: "6", invoice: "Invoice #0006", date: "31 Jan 2025", plan: "Premium Plan", amount: "₦65,000" },
+    { id: "7", invoice: "Invoice #0007", date: "17 Jan 2025", plan: "Premium Plan", amount: "₦65,000" },
+    { id: "8", invoice: "Invoice #0008", date: "03 Jan 2025", plan: "Standard Plan", amount: "₦25,000" },
+    { id: "9", invoice: "Invoice #0009", date: "20 Dec 2024", plan: "Basic Plan", amount: "₦10,000" },
+    { id: "10", invoice: "Invoice #0010", date: "07 Dec 2024", plan: "Basic Plan", amount: "₦10,000" },
+    { id: "11", invoice: "Invoice #0011", date: "24 Nov 2024", plan: "Standard Plan", amount: "₦25,000" },
+    { id: "12", invoice: "Invoice #0012", date: "11 Nov 2024", plan: "Premium Plan", amount: "₦65,000" },
+  ];
+
+  // Pagination configuration
+  const itemsPerPage = 6;
+  const totalPages = Math.ceil(allBillingHistory.length / itemsPerPage);
+
+  // Calculate current page data
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentBillingHistory = allBillingHistory.slice(startIndex, endIndex);
+
   const toggleCardNumberVisibility = () => {
     setShowCardNumber(!showCardNumber);
   };
@@ -94,6 +131,7 @@ function Finance() {
     // Show first 4 and last 4 digits, hide middle 8 digits
     return `${cardNumber.slice(0, 4)} **** **** ${cardNumber.slice(-4)}`;
   };
+  
   const handleAddBank = (bankData: {
     bankName: string;
     accountNumber: string;
@@ -180,6 +218,64 @@ function Finance() {
     ));
     setEditingCard(null);
   };
+
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    
+    if (totalPages <= maxVisiblePages) {
+      // Show all pages if total pages are less than or equal to max visible
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Always show first page
+      pages.push(1);
+      
+      // Calculate start and end of middle pages
+      let start = Math.max(2, currentPage - 1);
+      let end = Math.min(totalPages - 1, currentPage + 1);
+      
+      // Adjust if we're at the beginning
+      if (currentPage <= 2) {
+        end = 3;
+      }
+      
+      // Adjust if we're at the end
+      if (currentPage >= totalPages - 1) {
+        start = totalPages - 2;
+      }
+      
+      // Add ellipsis after first page if needed
+      if (start > 2) {
+        pages.push('...');
+      }
+      
+      // Add middle pages
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+      
+      // Add ellipsis before last page if needed
+      if (end < totalPages - 1) {
+        pages.push('...');
+      }
+      
+      // Always show last page
+      pages.push(totalPages);
+    }
+    
+    return pages;
+  };
+
+  const handleDownloadInvoice = (invoice: BillingHistory) => {
+    // Mock download functionality
+    console.log('Downloading invoice:', invoice);
+    // In a real app, this would trigger a file download
+    alert(`Downloading ${invoice.invoice}`);
+  };
+
   return (
     <div className="w-full space-y-6">
       <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
@@ -301,7 +397,81 @@ function Finance() {
           </div>
         </CardContent>
         <CardContent>
-          <h3 className='text-sm font-medium'>Billing History</h3>
+          <div className="space-y-4">
+            <h3 className='text-sm font-medium'>Billing History</h3>
+            
+            {/* Billing History Table without headers */}
+            <Table>
+              <TableBody>
+                {currentBillingHistory.map((invoice) => (
+                  <TableRow key={invoice.id} className="border-b last:border-b-0">
+                    <TableCell className="font-medium py-6 flex items-center gap-1"><PdfIcon /> {invoice.invoice}</TableCell>
+                    <TableCell className="">{invoice.date}</TableCell>
+                    <TableCell className="">{invoice.plan}</TableCell>
+                    <TableCell className="">{invoice.amount}</TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDownloadInvoice(invoice)}
+                        className="hover:bg-gray-100 dark:hover:bg-gray-800"
+                      >
+                        <DownloadIcon  />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+
+            {/* Pagination */}
+            <div className="flex items-center justify-center gap-2 pt-4">
+              {/* Previous Button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className="w-8 h-8"
+              >
+                <span className="text-sm">&lt;</span>
+              </Button>
+
+              {/* Page Numbers */}
+              {getPageNumbers().map((page, index) => (
+                <React.Fragment key={index}>
+                  {page === '...' ? (
+                    <span className="px-2 text-sm text-muted-foreground">...</span>
+                  ) : (
+                    <Button
+                      variant={currentPage === page ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setCurrentPage(page as number)}
+                      className="w-8 h-8"
+                    >
+                      {page}
+                    </Button>
+                  )}
+                </React.Fragment>
+              ))}
+
+              {/* Next Button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                className="w-8 h-8"
+              >
+                <span className="text-sm">&gt;</span>
+              </Button>
+            </div>
+
+            {/* Page Info */}
+            <div className="text-center text-sm text-muted-foreground">
+              Showing {startIndex + 1}-{Math.min(endIndex, allBillingHistory.length)} of {allBillingHistory.length} invoices
+            </div>
+          </div>
         </CardContent>
       </Card>
       <AddBankModal
