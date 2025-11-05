@@ -5,7 +5,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search } from 'lucide-react';
+import { Download, Search } from 'lucide-react';
 import Image from 'next/image';
 
 interface ChartData {
@@ -135,7 +135,7 @@ export default function ViewPerformanceModal({ isOpen, onClose }: ViewPerformanc
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+        <DialogHeader className='flex flex-col items-start'>
           <DialogTitle className="text-sm font-semibold">View Performance</DialogTitle>
           <DialogDescription className="text-xs font-light text-gray-400 dark:text-gray-100">
             Select the data you&apos;d like to export and the format
@@ -289,9 +289,10 @@ export default function ViewPerformanceModal({ isOpen, onClose }: ViewPerformanc
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
-              <Button size="sm">
-                Download Data
-              </Button>
+              <Button size="sm" >
+                    <Download/>
+                    <span className="hidden sm:inline ml-2"> Download </span>
+                  </Button>
             </div>
           </div>
         </div>

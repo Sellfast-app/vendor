@@ -296,13 +296,13 @@ export default function StoreDetailsPage() {
                 <div className="flex items-center gap-2">
                     <Button variant="outline" size="sm">
                         <RiShare2Fill />
-                        Export
+                        <span className="hidden sm:inline ml-2">     Export</span>
                     </Button>
                     <Button variant="outline" size="sm">
                         <QrIcon />
-                        View QR Banner
+                        <span className="hidden sm:inline ml-2">    View QR Banner</span>
                     </Button>
-                    <Button size="sm">Visit Storefront <LinkIcon /></Button>
+                    <Button size="sm">   <span className="hidden sm:inline mr-2"> Visit Storefront</span> <LinkIcon /></Button>
                 </div>
             </div>
 
@@ -531,7 +531,7 @@ export default function StoreDetailsPage() {
                                 {availability.map((item, index) => (
                                     <div
                                         key={item.day}
-                                        className="flex items-center justify-between gap-4 p-3 border rounded-lg"
+                                        className="flex flex-col md:flex-row items-center justify-between gap-4 p-3 border rounded-lg"
                                     >
                                         <span className="text-sm font-medium w-24">{item.day}</span>
                                         <div className="flex items-center gap-2 flex-1">

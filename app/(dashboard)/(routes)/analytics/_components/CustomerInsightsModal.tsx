@@ -5,7 +5,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Download } from 'lucide-react';
 
 const MapView = lazy(() => import('@/components/MapView'));
 
@@ -92,8 +92,8 @@ export default function CustomerInsightsModal({ isOpen, onClose, locationData }:
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto ">
+        <DialogHeader className='flex flex-col items-start'>
           <DialogTitle className="text-sm font-semibold">Customer Insights</DialogTitle>
           <DialogDescription className="text-xs font-light text-gray-400 dark:text-gray-100">
             Select the data you&apos;d like to export and the format
@@ -109,7 +109,7 @@ export default function CustomerInsightsModal({ isOpen, onClose, locationData }:
                 {/* Chart */}
                 <div className="flex flex-col md:flex-row gap-6 items-center ">
                   <div className="flex-1">
-                  <div className="flex justify-between items-start mb-4">
+                  <div className="flex flex-col md:flex-row justify-between items-start mb-4">
                   <div>
                     <h3 className="text-sm font-semibold">Customer Segments</h3>
                     <p className="text-xs text-gray-500 mt-1">An overview of your withdraw count and refund count.</p>
@@ -119,7 +119,7 @@ export default function CustomerInsightsModal({ isOpen, onClose, locationData }:
                       <button
                         key={period}
                         onClick={() => setSelectedPeriod(period)}
-                        className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                        className={`px-3 py-1 text-xs md:text-sm rounded-md transition-colors ${
                           selectedPeriod === period
                             ? 'bg-white text-gray-900 shadow-sm'
                             : 'text-gray-600 hover:text-gray-900'
@@ -192,7 +192,7 @@ export default function CustomerInsightsModal({ isOpen, onClose, locationData }:
                     </div>
 
                     {/* Legend */}
-                    <div className="flex items-center justify-center gap-6 mt-4 text-xs text-gray-600">
+                    <div className="flex items-center justify-center gap-2 md:gap-6 mt-4 text-xs text-gray-600">
                       <div className="flex items-center gap-2">
                         <span className="w-3 h-3 bg-blue-400 rounded-sm" />
                         <span>New Customers</span>
@@ -209,7 +209,7 @@ export default function CustomerInsightsModal({ isOpen, onClose, locationData }:
                   </div>
 
                   {/* Stats Section */}
-                  <div className="w-[300px] space-y-4">
+                  <div className="w-[300px] space-y-4 pl-[-30px]">
                     <div className='flex gap-3 justify-between border border-[#F5F5F5] dark:border-[#1F1F1F] rounded-xl p-3'>
                          <div className="space-y-1">
                       <div className="text-xs text-gray-500">Total Customers</div>
@@ -261,7 +261,8 @@ export default function CustomerInsightsModal({ isOpen, onClose, locationData }:
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
                   <Button size="sm" >
-                    Download Data
+                    <Download/>
+                    <span className="hidden sm:inline ml-2"> Download </span>
                   </Button>
                 </div>
               </div>
@@ -309,8 +310,9 @@ export default function CustomerInsightsModal({ isOpen, onClose, locationData }:
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={onClose}>Cancel</Button>
-                  <Button >
-                    Download Data
+                  <Button size="sm" >
+                    <Download/>
+                    <span className="hidden sm:inline ml-2"> Download </span>
                   </Button>
                 </div>
               </div>

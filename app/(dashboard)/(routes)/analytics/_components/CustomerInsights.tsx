@@ -41,7 +41,7 @@ const CustomerSegmentsChart = () => {
     return (
         <Card className="w-full shadow-none border-0">
             <CardHeader className="pb-4">
-                <div className="flex justify-between items-start">
+                <div className="flex flex-col md:flex-row justify-between items-start">
                     <div>
                         <CardTitle className="text-sm font-bold">
                             Customer Segments
@@ -97,7 +97,7 @@ const CustomerSegmentsChart = () => {
                     {chartType === 'pie' ? (
                         // Pie/Donut Chart View
                         <div className="flex items-center justify-center h-full">
-                            <div className="flex items-center gap-16">
+                            <div className="flex flex-col md:flex-row items-center md:gap-10">
                                 <ResponsiveContainer width={400} height={400}>
                                     <PieChart>
                                         <Pie
@@ -117,14 +117,14 @@ const CustomerSegmentsChart = () => {
                                         </Pie>
                                     </PieChart>
                                 </ResponsiveContainer>
-                                <div className="flex flex-col gap-4">
+                                <div className="flex flex-row md:flex-col gap-4">
                                     {pieData.map((entry, index) => (
                                         <div key={index} className="flex items-center gap-3">
                                             <span
                                                 className="w-3 h-3 rounded-sm"
                                                 style={{ backgroundColor: entry.color }}
                                             />
-                                            <span className="text-sm text-gray-600">{entry.name}</span>
+                                            <span className="text-xs md:text-sm text-gray-600">{entry.name}</span>
                                         </div>
                                     ))}
                                 </div>
