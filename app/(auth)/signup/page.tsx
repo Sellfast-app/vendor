@@ -69,9 +69,9 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => {
   return (
     <div className="flex items-center justify-center mb-8 space-x-4">
       {steps.map((step, index) => (
-        <div key={step.number} className="flex items-center">
+        <div key={step.number} className="flex items-center px-5 md:px-0">
           <div
-            className={`flex items-center justify-center w-12 h-12 rounded-full transition-all duration-200 ${
+            className={`flex items-center justify-center w-12 h-12 mr-6 md:mr-0 rounded-full transition-all duration-200 ${
               step.number === currentStep
                 ? 'bg-primary border-primary text-primary-foreground'
                 : step.number < currentStep
@@ -87,13 +87,13 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => {
               {step.icon}
             </span>
           </div>
-          <div className="ml-3 text-left">
+          <div className="hidden sm:inline ml-3 text-left">
             <p
               className={`text-sm font-medium ${
                 step.number <= currentStep ? 'text-foreground' : 'text-gray-400'
               }`}
             >
-              <span className="hidden sm:inline ml-2">{step.title}</span> 
+              <span className=" ml-2">{step.title}</span> 
             </p>
           </div>
           {index < steps.length - 1 && (
