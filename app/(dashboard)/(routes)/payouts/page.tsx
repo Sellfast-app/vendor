@@ -142,12 +142,7 @@ export default function PayoutsPage() {
   const [billingCardId, setBillingCardId] = useState('card-1');
 
   const overviewMetrics: OverviewMetric[] = [
-    {
-      id: "escrow-balance",
-      icon1: <EscrowIcon />,
-      title: "Escrow Balance",
-      value: "0",
-    },
+    
     {
       id: "total-earnings",
       icon1: <EarningsIcon />,
@@ -318,7 +313,7 @@ export default function PayoutsPage() {
       </div>
       <div className='flex w-full gap-3 flex-col xl:flex-row'>
         <div className="space-y-8 w-full xl:w-[65%]">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 md:grid-cols-2  gap-2">
             {overviewMetrics.map((metric) => (
               <Payoutmetrics key={metric.id} metric={metric} />
             ))}

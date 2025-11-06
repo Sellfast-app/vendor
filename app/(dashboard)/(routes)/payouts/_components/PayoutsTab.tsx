@@ -24,12 +24,12 @@ export default function PayoutsTab() {
         >
         <FaCreditCard className="md:hidden"/>  <span className="hidden sm:inline ml-2">Subscription Billings</span>
         </TabsTrigger>
-        <TabsTrigger 
+        {/* <TabsTrigger 
           value="escrow" 
           className="bg-transparent data-[state=active]:bg-primary dark:data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-input space-x-2"
         >
         <GrTransaction className="md:hidden"/>  <span className="hidden sm:inline ml-2">Escrow Transactions</span>
-        </TabsTrigger>
+        </TabsTrigger> */}
       </TabsList>
       
       <TabsContent value="withdraw">
@@ -39,10 +39,10 @@ export default function PayoutsTab() {
       <TabsContent value="billings">
         <SubscriptionBillings />
       </TabsContent>
-      
+{/*       
       <TabsContent value="escrow">
         <EscrowTransactions />
-      </TabsContent>
+      </TabsContent> */}
       
     </Tabs>
   );
