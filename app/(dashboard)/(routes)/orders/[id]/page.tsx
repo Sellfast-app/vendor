@@ -15,6 +15,7 @@ import { Progress } from '@/components/ui/progress';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import Image from 'next/image';
+import Loading from "@/components/Loading";
 
 interface Order {
   orderId: string;
@@ -58,8 +59,7 @@ export default function OrderDetailPage() {
     return (
       <div className='min-h-screen flex items-center justify-center'>
         <div className='text-center'>
-          <p>Loading order details...</p>
-          <Button onClick={() => router.push('/orders')} className='mt-4'>Back to Orders</Button>
+          <Loading/>
         </div>
       </div>
     );
