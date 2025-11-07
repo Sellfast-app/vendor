@@ -14,6 +14,7 @@ import PendingGlass from '@/components/svgIcons/Pendingglass';
 import { Progress } from '@/components/ui/progress';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
+import Image from 'next/image';
 
 interface Order {
   orderId: string;
@@ -32,14 +33,12 @@ export default function OrderDetailPage() {
   const [order, setOrder] = useState<Order | null>(null);
 
   useEffect(() => {
-    // Get order from localStorage
     const storedOrder = localStorage.getItem('selectedOrder');
     if (storedOrder) {
       setOrder(JSON.parse(storedOrder));
     }
   }, []);
 
-  // Function to get progress values based on shipping status
   const getShippingProgress = (status: string) => {
     switch(status) {
       case 'Pending':
@@ -70,202 +69,293 @@ export default function OrderDetailPage() {
 
   return (
     <div className='min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6'>
-      <div className='flex justify-between'>
-        <div className='flex gap-4'>
-          <Button variant={"outline"} onClick={()=> router.push(`/orders`)}><ArrowLeft /> </Button>
-          <div className='flex flex-col gap-2'>
-            <div className='flex items-center gap-4'> 
-              <h3>Order ID: {order.orderId}</h3> 
-              <span className='text-xs text-[#F47200]'>Payment {order.payment}</span>
+      {/* Header Section */}
+      <div className='flex flex-col lg:flex-row gap-4 lg:justify-between'>
+        {/* Left Section */}
+        <div className='flex gap-2 sm:gap-4 items-start'>
+          <Button 
+            variant={"outline"} 
+            size="icon"
+            onClick={()=> router.push(`/orders`)}
+            className="flex-shrink-0"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <div className='flex flex-col gap-2 min-w-0 flex-1'>
+            <div className='flex flex-col sm:flex-row sm:items-center gap-2'> 
+              <h3 className='text-sm sm:text-base font-semibold truncate'>Order ID: {order.orderId}</h3> 
+              <span className='text-xs text-[#F47200] whitespace-nowrap'>Payment {order.payment}</span>
             </div>
-            <div className='flex items-center gap-3'>
-              <small>Order date {format(new Date(order.date), 'MMM dd, yyyy')}</small>. 
-              <small>Time placed 12:30PM</small>. 
-              <small>Placed via Storefront</small>
+            <div className='flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-xs sm:text-sm text-muted-foreground'>
+              <small className='whitespace-nowrap'>Order date {format(new Date(order.date), 'MMM dd, yyyy')}</small>
+              <span className='hidden sm:inline'>•</span>
+              <small className='whitespace-nowrap'>Time placed 12:30PM</small>
+              <span className='hidden sm:inline'>•</span>
+              <small className='whitespace-nowrap'>Placed via Storefront</small>
             </div>
           </div>
         </div>
-        <div className='flex gap-2'>
-          <Button variant={"outline"}>   <RiShare2Fill /> <span className="hidden sm:inline ml-2">Export</span>  </Button>
-          <Button variant={"outline"}>   <EditIcon /> <span className="hidden sm:inline ">Edit</span>  </Button>
-          <div className='flex flex-col gap-2'>
-            <div> <Button variant={"outline"}><ArrowLeft /></Button><Button variant={"outline"}><ArrowRight /></Button></div>
-            <small>Order 12 of 30</small>
+
+        {/* Right Section */}
+        <div className='flex gap-2 items-center justify-between lg:justify-end'>
+          <div className='flex gap-2'>
+            <Button variant={"outline"} size="sm">
+              <RiShare2Fill className="w-4 h-4" />
+              <span className="hidden md:inline ml-2">Export</span>
+            </Button>
+            <Button variant={"outline"} size="sm">
+              <EditIcon />
+              <span className="hidden md:inline ml-1">Edit</span>
+            </Button>
+          </div>
+          <div className='flex flex-col gap-2 items-end'>
+            <div className='flex gap-1'>
+              <Button variant={"outline"} size="icon" className="h-8 w-8">
+                <ArrowLeft className="w-4 h-4" />
+              </Button>
+              <Button variant={"outline"} size="icon" className="h-8 w-8">
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </div>
+            <small className='text-xs whitespace-nowrap'>Order 12 of 30</small>
           </div>
         </div>
       </div>
+
+      {/* Main Content */}
       <div className="flex w-full gap-3 flex-col xl:flex-row mt-4">
-        <div className='space-y-8 w-full xl:w-[65%]'>
+        <div className='space-y-4 sm:space-y-8 w-full xl:w-[65%]'>
+          {/* Shipping Progress Card */}
           <Card className='shadow-none'>
-            <CardHeader className='border-b flex items-center justify-between'>
-              <small>Delivery to 23 Menlo Park, SA</small>
-              <small>Estimated arrival at 23rd to 14th February, 2025</small>
+            <CardHeader className='border-b p-4'>
+              <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs sm:text-sm'>
+                <span className='truncate'>Delivery to 23 Menlo Park, SA</span>
+                <span className='text-muted-foreground'>Est. arrival 23rd - 14th Feb, 2025</span>
+              </div>
             </CardHeader>
-            <CardContent className='flex items-center justify-between'>
-              <div className='flex flex-col gap-2'>
-                <span className='text-sm font-medium'>Review Order</span>
-                <Progress value={progress.review} className='bg-[#F5F5F5] [&>div]:bg-[#061400]'/>
-              </div>
-              <div className='flex flex-col gap-2'>
-                <span className='text-sm font-medium'>Preparing Order</span>
-                <Progress value={progress.preparing} className='bg-[#F5F5F5] [&>div]:bg-[#061400]'/>
-              </div>
-              <div className='flex flex-col gap-2'>
-                <span className='text-sm font-medium'>Shipping</span>
-                <Progress value={progress.shipping} className='bg-[#F5F5F5] [&>div]:bg-[#061400]'/>
-              </div>
-              <div className='flex flex-col gap-2'>
-                <span className='text-sm font-medium'>Delivered</span>
-                <Progress value={progress.delivered} className='bg-[#F5F5F5] [&>div]:bg-[#061400]'/>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className='shadow-none'>
-            <CardHeader className='flex flex-row items-center justify-between'>
-              <h4>Order Items</h4>
-              <span className='text-sm text-red-500 flex items-center gap-2'>
-                <UnfufilledIcon />
-                Unfulfilled
-              </span>
-            </CardHeader>
-            <CardContent className='space-y-4 py-4'>
-              <div className='flex items-center gap-4'>
-                <div className='w-20 h-20 bg-gray-100 rounded flex-shrink-0 overflow-hidden'>
-                  <img src="/Macbook.png" alt="iPhone 15 Pro Max" className='w-full h-full object-cover' />
+            <CardContent className='p-4 overflow-x-auto'>
+              <div className='flex items-center justify-between gap-4 min-w-[600px] sm:min-w-0'>
+                <div className='flex flex-col gap-2 flex-1 min-w-[120px]'>
+                  <span className='text-xs sm:text-sm font-medium'>Review Order</span>
+                  <Progress value={progress.review} className='bg-[#F5F5F5] [&>div]:bg-[#061400]'/>
                 </div>
-                <div className='flex-1'>
-                  <p className='text-sm text-gray-500'>Macbook Pro 14 Inch 512GB M1 Pro</p>
-                  <p className='font-semibold mt-1'>₦1,670,900.00</p>
-                  <p className='text-xs text-gray-400 mt-1'>Silver / 14 inches</p>
+                <div className='flex flex-col gap-2 flex-1 min-w-[120px]'>
+                  <span className='text-xs sm:text-sm font-medium'>Preparing Order</span>
+                  <Progress value={progress.preparing} className='bg-[#F5F5F5] [&>div]:bg-[#061400]'/>
                 </div>
-                <div className='flex items-center gap-4'>
-                  <input type="number" value="1" className='w-20 px-2 py-1 border rounded-xl text-center' />
-                  <span className='font-semibold w-32 text-right'>₦1,670,900.00</span>
-                  <button className='text-gray-400 hover:text-gray-600'>
-                    <Trash />
-                  </button>
+                <div className='flex flex-col gap-2 flex-1 min-w-[120px]'>
+                  <span className='text-xs sm:text-sm font-medium'>Shipping</span>
+                  <Progress value={progress.shipping} className='bg-[#F5F5F5] [&>div]:bg-[#061400]'/>
                 </div>
-              </div>
-              <div className='flex items-center gap-4'>
-                <div className='w-20 h-20 bg-gray-100 rounded flex-shrink-0 overflow-hidden'>
-                  <img src="/Iphone.png" alt="iPhone 15 Pro Max" className='w-full h-full object-cover' />
-                </div>
-                <div className='flex-1'>
-                  <p className='text-sm text-gray-500'>Iphone 15 Pro Max 256GB</p>
-                  <p className='font-semibold mt-1'>₦780,990.99</p>
-                  <p className='text-xs text-gray-400 mt-1'>Star dust / 6.7 inches</p>
-                </div>
-                <div className='flex items-center gap-4'>
-                  <input type="number" value="1" className='w-20 px-2 py-1 border rounded-xl text-center' />
-                  <span className='font-semibold w-32 text-right'>₦780,990.99</span>
-                  <button className='text-gray-400 hover:text-gray-600'>
-                    <Trash />
-                  </button>
+                <div className='flex flex-col gap-2 flex-1 min-w-[120px]'>
+                  <span className='text-xs sm:text-sm font-medium'>Delivered</span>
+                  <Progress value={progress.delivered} className='bg-[#F5F5F5] [&>div]:bg-[#061400]'/>
                 </div>
               </div>
             </CardContent>
-            <CardContent className='border-t'>
-              <div className='flex justify-between pt-4'>
-                <Button variant="outline" className='text-red-500 hover:text-red-600'>Cancel order</Button>
-                <div className='flex gap-2'>
-                  <Button variant="outline">Fulfill Item</Button>
-                  <Button >Create shipping label</Button>
-                </div>
-              </div></CardContent>
           </Card>
 
+          {/* Order Items Card */}
           <Card className='shadow-none'>
-            <CardHeader className='border-b flex flex-row items-center justify-between'>
-              <h4>Order Summary</h4>
-              <span className='text-sm text-[#E76C00] flex items-center gap-2'>
-              <PendingGlass/>
-                Payment pending
+            <CardHeader className='flex flex-row items-center justify-between p-4'>
+              <h4 className='text-sm sm:text-base font-semibold'>Order Items</h4>
+              <span className='text-xs sm:text-sm text-red-500 flex items-center gap-1 sm:gap-2'>
+                <UnfufilledIcon />
+                <span className="hidden sm:inline">Unfulfilled</span>
               </span>
             </CardHeader>
-            <CardContent className='py-4 space-y-3'>
-              <div className='flex justify-between text-sm'>
+            <CardContent className='space-y-4 p-4'>
+              {/* Item 1 */}
+              <div className='flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-center'>
+                <div className='w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded flex-shrink-0 overflow-hidden'>
+                  <Image 
+                    src="/Macbook.png" 
+                    alt="Macbook Pro 14 Inch" 
+                    width={80}
+                    height={80}
+                    className='w-full h-full object-cover'
+                  />
+                </div>
+                <div className='flex-1 min-w-0'>
+                  <p className='text-xs sm:text-sm text-gray-500 truncate'>Macbook Pro 14 Inch 512GB M1 Pro</p>
+                  <p className='font-semibold text-sm sm:text-base mt-1'>₦1,670,900.00</p>
+                  <p className='text-xs text-gray-400 mt-1'>Silver / 14 inches</p>
+                </div>
+                <div className='flex items-center gap-2 sm:gap-4 justify-between sm:justify-end'>
+                  <input 
+                    type="number" 
+                    value="1" 
+                    className='w-16 sm:w-20 px-2 py-1 border rounded-xl text-center text-sm' 
+                    readOnly
+                  />
+                  <span className='font-semibold text-sm sm:text-base sm:w-32 sm:text-right'>₦1,670,900.00</span>
+                  <button className='text-gray-400 hover:text-gray-600 flex-shrink-0'>
+                    <Trash />
+                  </button>
+                </div>
+              </div>
+
+              {/* Item 2 */}
+              <div className='flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-center'>
+                <div className='w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded flex-shrink-0 overflow-hidden'>
+                  <Image 
+                    src="/Iphone.png" 
+                    alt="iPhone 15 Pro Max" 
+                    width={80}
+                    height={80}
+                    className='w-full h-full object-cover'
+                  />
+                </div>
+                <div className='flex-1 min-w-0'>
+                  <p className='text-xs sm:text-sm text-gray-500 truncate'>Iphone 15 Pro Max 256GB</p>
+                  <p className='font-semibold text-sm sm:text-base mt-1'>₦780,990.99</p>
+                  <p className='text-xs text-gray-400 mt-1'>Star dust / 6.7 inches</p>
+                </div>
+                <div className='flex items-center gap-2 sm:gap-4 justify-between sm:justify-end'>
+                  <input 
+                    type="number" 
+                    value="1" 
+                    className='w-16 sm:w-20 px-2 py-1 border rounded-xl text-center text-sm' 
+                    readOnly
+                  />
+                  <span className='font-semibold text-sm sm:text-base sm:w-32 sm:text-right'>₦780,990.99</span>
+                  <button className='text-gray-400 hover:text-gray-600 flex-shrink-0'>
+                    <Trash />
+                  </button>
+                </div>
+              </div>
+            </CardContent>
+            <CardContent className='border-t p-4'>
+              <div className='flex flex-col sm:flex-row gap-2 sm:justify-between'>
+                <Button variant="outline" size="sm" className='text-red-500 hover:text-red-600 w-full sm:w-auto'>
+                  Cancel order
+                </Button>
+                <div className='flex gap-2'>
+                  <Button variant="outline" size="sm" className='flex-1 sm:flex-none'>
+                    Fulfill Item
+                  </Button>
+                  <Button size="sm" className='flex-1 sm:flex-none'>
+                    Create shipping label
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Order Summary Card */}
+          <Card className='shadow-none'>
+            <CardHeader className='border-b flex flex-row items-center justify-between p-4'>
+              <h4 className='text-sm sm:text-base font-semibold'>Order Summary</h4>
+              <span className='text-xs sm:text-sm text-[#E76C00] flex items-center gap-1 sm:gap-2'>
+                <PendingGlass/>
+                <span className="hidden sm:inline">Payment pending</span>
+              </span>
+            </CardHeader>
+            <CardContent className='p-4 space-y-3'>
+              <div className='flex justify-between text-xs sm:text-sm'>
                 <span className='text-gray-500'>Subtotal</span>
                 <span>₦{order.total.toLocaleString()}</span>
               </div>
-              <div className='flex justify-between items-center text-sm'>
+              <div className='flex justify-between items-center text-xs sm:text-sm'>
                 <div className='flex items-center gap-2'>
                   <span className='text-gray-500'>Discount</span>
                   <span className='text-gray-400'>20%</span>
                 </div>
                 <span>-₦{(order.total * 0.2).toLocaleString()}</span>
               </div>
-              <div className='flex justify-between items-center text-sm pb-3 border-b'>
-                <div className='flex items-center gap-2'>
+              <div className='flex justify-between items-center text-xs sm:text-sm pb-3 border-b'>
+                <div className='flex flex-col sm:flex-row sm:items-center gap-0 sm:gap-2'>
                   <span className='text-gray-500'>Shipping</span>
-                  <span className='text-gray-400'>{order.deliveryPartner}</span>
+                  <span className='text-gray-400 text-xs'>{order.deliveryPartner}</span>
                 </div>
                 <span>₦15,000</span>
               </div>
-              <div className='flex justify-between font-semibold pt-2'>
+              <div className='flex justify-between font-semibold text-sm sm:text-base pt-2'>
                 <span>Total</span>
                 <span>₦{((order.total * 0.8) + 15000).toLocaleString()}</span>
               </div>
-              <div className='flex justify-between text-sm text-gray-500'>
+              <div className='flex justify-between text-xs sm:text-sm text-gray-500'>
                 <span>Paid by customer</span>
                 <span>₦0.00</span>
               </div>
-              <div className='flex justify-between text-sm items-center pt-2'>
-                <span className='text-gray-500'>Payment due when invoice is sent</span>
-                <button className='text-green-500 hover:text-green-600 text-sm'>Edit</button>
+              <div className='flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 pt-2'>
+                <span className='text-xs sm:text-sm text-gray-500'>Payment due when invoice is sent</span>
+                <button className='text-green-500 hover:text-green-600 text-xs sm:text-sm self-start sm:self-auto'>
+                  Edit
+                </button>
               </div>
             </CardContent>
-            <CardContent className='border-t'>
-              <div className='flex justify-between pt-4'>
-                <Button variant="outline" className='text-red-500 hover:text-red-600'>Cancel order</Button>
+            <CardContent className='border-t p-4'>
+              <div className='flex flex-col sm:flex-row gap-2 sm:justify-between'>
+                <Button variant="outline" size="sm" className='text-red-500 hover:text-red-600 w-full sm:w-auto'>
+                  Cancel order
+                </Button>
                 <div className='flex gap-2'>
-                  <Button variant="outline">Send Invoice</Button>
-                  <Button className='bg-green-500 hover:bg-green-600 text-white'>Collect payment</Button>
+                  <Button variant="outline" size="sm" className='flex-1 sm:flex-none'>
+                    Send Invoice
+                  </Button>
+                  <Button size="sm" className='bg-green-500 hover:bg-green-600 text-white flex-1 sm:flex-none'>
+                    Collect payment
+                  </Button>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
-        <div className='w-full xl:w-[35%]'>
+
+        {/* Sidebar */}
+        <div className='w-full xl:w-[35%] space-y-4'>
+          {/* Order Note Card */}
           <Card className='shadow-none'>
-            <CardContent className='flex flex-col gap-4'>
+            <CardContent className='flex flex-col gap-4 p-4'>
               <div className='flex justify-between items-center'>
-                <h4>Order Note</h4>
+                <h4 className='text-sm sm:text-base font-semibold'>Order Note</h4>
                 <EditIcon />
               </div>
-              <p className='line-clamp-2 text-sm'>Please wrap the box with a wrapper, so the text is unreadable, this for a birthday present for a 15 y/o kid. The package has to be properly handled</p>
+              <p className='line-clamp-3 text-xs sm:text-sm text-gray-600'>
+                Please wrap the box with a wrapper, so the text is unreadable, this for a birthday present for a 15 y/o kid. The package has to be properly handled
+              </p>
             </CardContent>
           </Card>
-          <Card className='shadow-none mt-4'>
-            <CardHeader className='border-b'>
+
+          {/* Customer Card */}
+          <Card className='shadow-none'>
+            <CardHeader className='border-b p-4'>
               <div className='flex flex-col gap-3'>
-                <h4>Customer</h4>
+                <h4 className='text-sm sm:text-base font-semibold'>Customer</h4>
                 <div className='flex items-center justify-between'>
-                  <div className='flex'>
-                    <Avatar>{order.customerName.substring(0, 2).toUpperCase()}</Avatar> 
-                    <div className='flex flex-col'>
-                      <span>{order.customerName}</span> 
-                      <small>Total: {order.items} orders</small>
+                  <div className='flex gap-3 items-center min-w-0 flex-1'>
+                    <Avatar className='flex-shrink-0'>
+                      {order.customerName.substring(0, 2).toUpperCase()}
+                    </Avatar> 
+                    <div className='flex flex-col min-w-0'>
+                      <span className='text-sm sm:text-base truncate'>{order.customerName}</span> 
+                      <small className='text-xs text-muted-foreground'>Total: {order.items} orders</small>
                     </div>
                   </div>
-                  <Button variant={"outline"}><MessageIcon /></Button>
+                  <Button variant={"outline"} size="icon" className='flex-shrink-0'>
+                    <MessageIcon />
+                  </Button>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className='border-b pb-2'>
+            <CardContent className='border-b p-4'>
               <div className='flex flex-col gap-3'>
                 <div className='flex items-center justify-between'>
-                  <h4>Shipping Address</h4>
+                  <h4 className='text-sm sm:text-base font-semibold'>Shipping Address</h4>
                   <EditIcon />
                 </div>
-                <small>1226 University Drive
+                <small className='text-xs sm:text-sm text-gray-600'>
+                  1226 University Drive
                   Menlo Park CA 94025
-                  United States</small>
+                  United States
+                </small>
               </div>
             </CardContent>
-            <CardContent>
-              <h4>Contact Information</h4>
-              <div className='flex flex-col text-xs mt-2'>
-                <span>anthoniolaguerta@gmail.com</span>
+            <CardContent className='p-4'>
+              <h4 className='text-sm sm:text-base font-semibold mb-2'>Contact Information</h4>
+              <div className='flex flex-col text-xs sm:text-sm text-gray-600 gap-1'>
+                <span className='break-all'>anthoniolaguerta@gmail.com</span>
                 <span>+234 809 678 0098</span>
               </div>
             </CardContent>
