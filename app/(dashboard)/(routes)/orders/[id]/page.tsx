@@ -16,6 +16,7 @@ import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import Image from 'next/image';
 import Loading from "@/components/Loading";
+import { orderData } from "@/lib/mockdata";
 
 interface Order {
   orderId: string;
@@ -32,11 +33,26 @@ interface Order {
 export default function OrderDetailPage() {
   const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [allOrders, setAllOrders] = useState<Order[]>([]);
 
   useEffect(() => {
+    // Get the current order from localStorage
     const storedOrder = localStorage.getItem('selectedOrder');
+    
+    // Get the filtered orders list from localStorage (set by OrderTable)
+    const storedFilteredOrders = localStorage.getItem('filteredOrders');
+    const orders = storedFilteredOrders ? JSON.parse(storedFilteredOrders) : orderData;
+    
+    setAllOrders(orders);
+
     if (storedOrder) {
-      setOrder(JSON.parse(storedOrder));
+      const currentOrder = JSON.parse(storedOrder);
+      setOrder(currentOrder);
+      
+      // Find the index of the current order in the filtered list
+      const index = orders.findIndex((o: Order) => o.orderId === currentOrder.orderId);
+      setCurrentIndex(index !== -1 ? index : 0);
     }
   }, []);
 
@@ -52,6 +68,26 @@ export default function OrderDetailPage() {
         return { review: 100, preparing: 100, shipping: 100, delivered: 100 };
       default:
         return { review: 100, preparing: 0, shipping: 0, delivered: 0 };
+    }
+  };
+
+  const navigateToOrder = (direction: 'next' | 'prev') => {
+    let newIndex = currentIndex;
+    
+    if (direction === 'next' && currentIndex < allOrders.length - 1) {
+      newIndex = currentIndex + 1;
+    } else if (direction === 'prev' && currentIndex > 0) {
+      newIndex = currentIndex - 1;
+    }
+
+    if (newIndex !== currentIndex) {
+      const newOrder = allOrders[newIndex];
+      setOrder(newOrder);
+      setCurrentIndex(newIndex);
+      localStorage.setItem('selectedOrder', JSON.stringify(newOrder));
+      
+      // Update URL without full page reload
+      window.history.pushState({}, '', `/orders/${newOrder.orderId}`);
     }
   };
 
@@ -110,14 +146,28 @@ export default function OrderDetailPage() {
           </div>
           <div className='flex flex-col gap-2 items-end'>
             <div className='flex gap-1'>
-              <Button variant={"outline"} size="icon" className="h-8 w-8">
+              <Button 
+                variant={"outline"} 
+                size="icon" 
+                className="h-8 w-8"
+                onClick={() => navigateToOrder('prev')}
+                disabled={currentIndex === 0}
+              >
                 <ArrowLeft className="w-4 h-4" />
               </Button>
-              <Button variant={"outline"} size="icon" className="h-8 w-8">
+              <Button 
+                variant={"outline"} 
+                size="icon" 
+                className="h-8 w-8"
+                onClick={() => navigateToOrder('next')}
+                disabled={currentIndex === allOrders.length - 1}
+              >
                 <ArrowRight className="w-4 h-4" />
               </Button>
             </div>
-            <small className='text-xs whitespace-nowrap'>Order 12 of 30</small>
+            <small className='text-xs whitespace-nowrap'>
+              Order {currentIndex + 1} of {allOrders.length}
+            </small>
           </div>
         </div>
       </div>

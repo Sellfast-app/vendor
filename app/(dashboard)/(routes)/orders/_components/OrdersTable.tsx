@@ -117,6 +117,10 @@ export default function OrderTable() {
     setCurrentPage(0);
   }, [searchTerm, activeTab, filterDateRange, filterStatus, filterPaymentStatus, filterDeliveryPartner, filterEscrow]);
 
+  useEffect(() => {
+    localStorage.setItem('filteredOrders', JSON.stringify(orders));
+  }, [orders]);
+
   const totalPages = Math.ceil(orders.length / pageSize);
   const displayedOrders = orders.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
 
