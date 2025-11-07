@@ -35,6 +35,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { Label } from "@/components/ui/label";
 import ProductDetailsModal from "./ProductDetailsModal";
+import Loading from "@/components/Loading";
 
 interface Product {
   id: string;
@@ -454,7 +455,7 @@ export default function ProductTable() {
           {isLoading ? (
             <TableRow>
               <TableCell colSpan={9} className="text-center py-8">
-                Loading products...
+               < Loading />
               </TableCell>
             </TableRow>
           ) : displayedProducts.length > 0 ? (
