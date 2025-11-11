@@ -21,7 +21,7 @@ import StoreFrontIcon from '@/components/svgIcons/StoreFrontIcon';
 import { ThemeName, themes } from '@/lib/themes';
 import Image from 'next/image';
 
-// Inline TypeScript interfaces
+// Updated TypeScript interfaces to match API documentation
 interface UserDetails {
   firstName: string;
   lastName: string;
@@ -36,11 +36,15 @@ interface BrandColor {
   accent: string;
 }
 
+interface BusinessMetadata {
+  brand_color: BrandColor;
+}
+
 interface BusinessDetails {
   store_name: string;
   type: string;
-  description: string;
-  brand_color: BrandColor;
+  description?: string;
+  metadata: BusinessMetadata;
 }
 
 interface RegisterRequest {
@@ -168,7 +172,7 @@ export default function MultiStepSignupPage() {
   const [successData, setSuccessData] = useState<RegisterResponse | null>(null);
   const router = useRouter();
 
-  // Form data state
+  // Updated form data state with metadata wrapper
   const [formData, setFormData] = useState<RegisterRequest & { agreeToTerms: boolean; countryCode: string; colorScheme: ThemeName }>({
     user_details: {
       firstName: '',
@@ -181,10 +185,12 @@ export default function MultiStepSignupPage() {
       store_name: '',
       type: '',
       description: '',
-      brand_color: {
-        primary: '',
-        secondary: '',
-        accent: '',
+      metadata: {
+        brand_color: {
+          primary: '',
+          secondary: '',
+          accent: '',
+        },
       },
     },
     agreeToTerms: false,
@@ -237,7 +243,7 @@ export default function MultiStepSignupPage() {
           toast.error('Please select a business type');
           return false;
         }
-        if (!formData.business_details.description.trim()) {
+        if (!formData.business_details.description?.trim()) {
           toast.error('Business description is required');
           return false;
         }
@@ -247,7 +253,7 @@ export default function MultiStepSignupPage() {
           toast.error('WhatsApp business number is required');
           return false;
         }
-        if (!formData.business_details.brand_color.primary) {
+        if (!formData.business_details.metadata?.brand_color?.primary) {
           toast.error('Please choose a color scheme');
           return false;
         }
@@ -267,12 +273,15 @@ export default function MultiStepSignupPage() {
     setCurrentStep(currentStep - 1);
   };
 
-  const mapColorSchemeToBrandColor = (scheme: ThemeName) => {
+  // Updated to return metadata wrapper
+  const mapColorSchemeToBrandColor = (scheme: ThemeName): BusinessMetadata => {
     const colors = themes[scheme].light;
     return {
-      primary: colors.primary,
-      secondary: colors.secondary,
-      accent: colors.tertiary,
+      brand_color: {
+        primary: colors.primary,
+        secondary: colors.secondary,
+        accent: colors.tertiary,
+      }
     };
   };
 
@@ -289,7 +298,7 @@ export default function MultiStepSignupPage() {
           colorScheme: value as ThemeName,
           business_details: {
             ...prev.business_details,
-            brand_color: mapColorSchemeToBrandColor(value as ThemeName),
+            metadata: mapColorSchemeToBrandColor(value as ThemeName),
           },
         };
       }
@@ -324,6 +333,8 @@ export default function MultiStepSignupPage() {
         business_details: formData.business_details,
       };
 
+      console.log('Sending registration payload:', JSON.stringify(payload, null, 2));
+
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: {
@@ -338,12 +349,31 @@ export default function MultiStepSignupPage() {
         throw new Error(result.message || 'Failed to create account');
       }
 
-      // Save theme to local storage
+      // Convert relative QR code path to full URL
+      const qrCodeUrl = result.data.qrCode.startsWith('http') 
+        ? result.data.qrCode 
+        : `https://api.swiftree.app${result.data.qrCode}`;
+
+      // Save to local storage
       localStorage.setItem('colorScheme', formData.colorScheme);
       localStorage.setItem('store_url', result.data.store_url);
-      localStorage.setItem('qrCode', result.data.qrCode);
+      localStorage.setItem('qrCode', qrCodeUrl);
 
-      setSuccessData(result);
+      // Save store name to cookie for sidebar access
+      document.cookie = `store_name=${encodeURIComponent(formData.business_details.store_name)}; path=/; max-age=2592000; SameSite=Lax`;
+      // Also save to localStorage as backup
+      localStorage.setItem('store_name', formData.business_details.store_name);
+
+      // Update result with full QR code URL
+      const updatedResult = {
+        ...result,
+        data: {
+          ...result.data,
+          qrCode: qrCodeUrl
+        }
+      };
+
+      setSuccessData(updatedResult);
       toast.success('Account created successfully!');
       setIsSuccess(true);
     } catch (error) {
@@ -358,6 +388,7 @@ export default function MultiStepSignupPage() {
   };
 
   const businessTypes = [
+    'Fashion',
     'Restaurant/Food Service',
     'Retail Store',
     'E-commerce',
@@ -366,6 +397,7 @@ export default function MultiStepSignupPage() {
     'Technology',
     'Education',
     'Real Estate',
+    'Electronics',
     'Other',
   ];
 
@@ -566,14 +598,14 @@ export default function MultiStepSignupPage() {
           </Label>
           <Textarea
             id="businessDescription"
-            value={formData.business_details.description}
+            value={formData.business_details.description || ''}
             placeholder="Tell customers what makes your business special"
             onChange={(e) => handleInputChange('business_details', e.target.value, 'description')}
             className="w-full min-h-[100px] bg-muted border-0 rounded-lg focus:ring-2 transition-all duration-200 resize-none"
             maxLength={500}
           />
           <div className="text-right text-xs text-muted-foreground">
-            {formData.business_details.description.length}/500
+            {formData.business_details.description?.length || 0}/500
           </div>
         </div>
       </div>
@@ -672,13 +704,17 @@ export default function MultiStepSignupPage() {
           We&apos;ve created your awesome <span className="text-primary">{formData.business_details.store_name}</span> storefront with WhatsApp integration
         </p>
         {successData?.data.qrCode && (
-          <div className="relative w-32 h-32">
+          <div className="relative w-32 h-32 bg-gray-100 rounded-lg flex items-center justify-center">
             <Image
               src={successData.data.qrCode}
               alt="QR Code"
               fill
-              className="object-contain"
+              className="object-contain p-2"
               sizes="128px"
+              onError={(e) => {
+                console.error('QR Code failed to load:', successData.data.qrCode);
+                e.currentTarget.style.display = 'none';
+              }}
             />
           </div>
         )}
@@ -686,8 +722,19 @@ export default function MultiStepSignupPage() {
           <Button
             variant="outline"
             onClick={() => {
-              toast.success('QR code download triggered!');
-              // Implement actual download logic if needed
+              if (successData?.data.qrCode) {
+                // Create a temporary link to download the QR code
+                const link = document.createElement('a');
+                link.href = successData.data.qrCode;
+                link.download = `${formData.business_details.store_name}-qr-code.png`;
+                link.target = '_blank';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                toast.success('QR code download started!');
+              } else {
+                toast.error('QR code not available');
+              }
             }}
           >
             Download QR <Download />

@@ -17,11 +17,15 @@ interface BrandColor {
   accent: string;
 }
 
+interface BusinessMetadata {
+  brand_color: BrandColor;
+}
+
 interface BusinessDetails {
   store_name: string;
   type: string;
-  description: string;
-  brand_color: BrandColor;
+  description?: string;  // Optional per API docs
+  metadata: BusinessMetadata;  // Changed: wrapped brand_color in metadata
 }
 
 interface RegisterRequest {
@@ -42,8 +46,7 @@ export async function POST(request: Request) {
       !data.user_details?.phone_number ||
       !data.business_details?.store_name ||
       !data.business_details?.type ||
-      !data.business_details?.description ||
-      !data.business_details?.brand_color?.primary
+      !data.business_details?.metadata?.brand_color?.primary
     ) {
       console.log("Validation failed: Missing required fields", data);
       return NextResponse.json(
@@ -97,7 +100,7 @@ export async function POST(request: Request) {
               message: result.message || "Registration failed. The email might already be registered.", 
               success: false 
             },
-            { status: 400 } // Return 400 instead of 500 to frontend
+            { status: 400 }
           );
         }
         
@@ -112,33 +115,52 @@ export async function POST(request: Request) {
       }
 
       // Successful registration
+      const storeName = data.business_details.store_name;
+      
       const nextResponse = NextResponse.json(
         {
           status: "success",
           message: result.message || "Registration successful",
           success: true,
-          data: result.data || {
-            token: "temp-token",
-            store_url: "https://example.com/store",
-            qrCode: "https://example.com/qr"
+          data: {
+            ...result.data,
+            store_name: storeName
           }
         },
         { status: 201 }
       );
 
+      // Set cookies with same pattern as login
+      const cookieOptions = {
+        path: "/",
+        httpOnly: true,
+        sameSite: "lax" as const,
+        maxAge: 86400,
+        secure: process.env.NODE_ENV === "production",
+      };
+
       if (result.data?.token) {
-        nextResponse.cookies.set("accessToken", result.data.token, {
-          path: "/",
-          httpOnly: true,
-          sameSite: "lax",
-          maxAge: 86400,
-          secure: true,
+        nextResponse.cookies.set("accessToken", result.data.token, cookieOptions);
+      }
+
+      // Set store_name cookie (httpOnly: false so client can access)
+      nextResponse.cookies.set("store_name", storeName, {
+        ...cookieOptions,
+        httpOnly: false,
+        maxAge: 2592000, // 30 days
+      });
+
+      // Set store_id if available
+      if (result.data?.store_id) {
+        nextResponse.cookies.set("store_id", result.data.store_id, {
+          ...cookieOptions,
+          httpOnly: false,
         });
       }
 
       return nextResponse;
 
-    }       // eslint-disable-next-line @typescript-eslint/no-explicit-any 
+    }  // eslint-disable-next-line @typescript-eslint/no-explicit-any
     catch (fetchError: any) {
       clearTimeout(timeoutId);
       
@@ -157,8 +179,8 @@ export async function POST(request: Request) {
       );
     }
 
-  }       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-   catch (error: any) {
+  } // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  catch (error: any) {
     console.error("Unexpected error in register API:", error);
     return NextResponse.json(
       { status: "error", message: "Internal server error", success: false },

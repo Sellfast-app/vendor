@@ -48,17 +48,23 @@ const withPWA = require('next-pwa')({
 });
 
 const nextConfig: NextConfig = {
-  /* config options here */
   images: {
+    // Option 1: Using domains (legacy but still works)
     domains: [
       'res.cloudinary.com',
-      // Add other domains if needed
+      'api.swiftree.app', // Add this line
     ],
-    // Or use remotePatterns for more control (recommended):
+    // Option 2: Using remotePatterns (recommended)
     remotePatterns: [
       {
         protocol: 'https',
         hostname: 'res.cloudinary.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'api.swiftree.app', 
         port: '',
         pathname: '/**',
       },
