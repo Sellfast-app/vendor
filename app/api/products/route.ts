@@ -122,9 +122,10 @@ export async function GET(request: NextRequest) {
   }
 }
 
+
 export async function POST(request: Request) {
   try {
-    // Get token from cookies
+    // Get token from cookies (your existing code is fine)
     const cookieHeader = request.headers.get("cookie");
     let token = null;
 
@@ -163,6 +164,24 @@ export async function POST(request: Request) {
 
       clearTimeout(timeoutId);
 
+      // FIX: Check content type before parsing as JSON
+      const contentType = response.headers.get("content-type");
+      
+      if (!contentType || !contentType.includes("application/json")) {
+        // Handle non-JSON responses (HTML, text, etc.)
+        const textResponse = await response.text();
+        console.error("Non-JSON response received:", textResponse.substring(0, 200));
+        
+        return NextResponse.json(
+          { 
+            status: "error", 
+            message: `Server returned unexpected response: ${response.status} ${response.statusText}` 
+          },
+          { status: 502 } // Bad Gateway
+        );
+      }
+
+      // Now safely parse as JSON
       const result = await response.json();
 
       if (!response.ok) {
@@ -173,7 +192,8 @@ export async function POST(request: Request) {
       }
 
       // Clear cache when a new product is added
-      cache.clear();
+      // Note: You'll need to define 'cache' or remove this if not implemented
+      // cache.clear();
       console.log('Products cache cleared after adding new product');
 
       return NextResponse.json(result, { status: response.status });
@@ -196,7 +216,7 @@ export async function POST(request: Request) {
       );
     }
 
-  } // eslint-disable-next-line @typescript-eslint/no-explicit-any 
+  }// eslint-disable-next-line @typescript-eslint/no-explicit-any  
    catch (error: any) {
     console.error("Unexpected error in products API:", error);
     return NextResponse.json(
