@@ -303,9 +303,9 @@ export default function PayoutsPage() {
           <h3 className="text-sm font-bold">Payouts</h3>
         </div>
         <div className="flex gap-2">
-          <Button variant={"outline"} onClick={() => setIsWithdrawalModalOpen(true)}>
+          {/* <Button variant={"outline"} onClick={() => setIsWithdrawalModalOpen(true)}>
             <span className="hidden sm:inline mr-2"> Request Withdrawal</span> <Withdrawal />
-          </Button>
+          </Button> */}
           <Button onClick={() => setIsExportModalOpen(true)}>
             <RiShare2Fill />  <span className="hidden sm:inline ml-2">Export</span>
           </Button>
@@ -340,10 +340,10 @@ export default function PayoutsPage() {
               </div>
               <h3 className='text-2xl font-bold mt-2'>₦2,945,090.50</h3>
               <span className="text-xs">+15% from last payout • Last updated 2 minutes ago</span>
-              <div className='flex items-center justify-between mt-2 gap-3'>
+              {/* <div className='flex items-center justify-between mt-2 gap-3'>
                 <Button className='w-[50%]' onClick={() => setIsDepositModalOpen(true)}> Deposit <Withdrawal color='white' /></Button>
                 <Button className='bg-[#5BA3F8] hover:bg-[#5BA3F8]/90 w-[50%]' onClick={() => setIsWithdrawalModalOpen(true)}> Withdraw <Withdrawal color='white' /></Button>
-              </div>
+              </div> */}
             </CardHeader>
             <CardContent className="px-0  border-b">
               <div className="px-6 mb-4">
