@@ -116,6 +116,7 @@ export async function POST(request: Request) {
 
       // Successful registration
       const storeName = data.business_details.store_name;
+      const storeUrl = result.data?.store_url || null; // Extract store URL from response
       
       const nextResponse = NextResponse.json(
         {
@@ -124,7 +125,8 @@ export async function POST(request: Request) {
           success: true,
           data: {
             ...result.data,
-            store_name: storeName
+            store_name: storeName,
+            store_url: storeUrl
           }
         },
         { status: 201 }
@@ -156,6 +158,15 @@ export async function POST(request: Request) {
           ...cookieOptions,
           httpOnly: false,
         });
+      }
+
+      // Set store_url if available (same as login)
+      if (storeUrl) {
+        nextResponse.cookies.set("store_url", storeUrl, {
+          ...cookieOptions,
+          httpOnly: false,
+        });
+        console.log(`[REGISTER] Store URL saved to cookie: ${storeUrl}`);
       }
 
       return nextResponse;

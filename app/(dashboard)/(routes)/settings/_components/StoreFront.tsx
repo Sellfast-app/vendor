@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,6 +40,7 @@ function StorefrontComponent() {
   const [showDeleteSection, setShowDeleteSection] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [isAddBankModalOpen, setIsAddBankModalOpen] = useState(false);
+  const [storefrontUrl, setStorefrontUrl] = useState("");
 
   const [storefrontData, setStorefrontData] = useState({
     storeName: "Pizza Cafe",
@@ -78,6 +79,26 @@ function StorefrontComponent() {
   const [themeColor, setThemeColor] = useState("Surge Green");
   const [availabilityEnabled, setAvailabilityEnabled] = useState(true);
 
+  useEffect(() => {
+    const getCookie = (name: string) => {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop()?.split(';').shift();
+      return null;
+    };
+
+    const urlFromCookie = getCookie("store_url");
+    if (urlFromCookie) {
+      // Decode the URL if it's encoded
+      try {
+        const decodedUrl = decodeURIComponent(urlFromCookie);
+        setStorefrontUrl(decodedUrl);
+      } catch {
+        setStorefrontUrl(urlFromCookie);
+      }
+    }
+  }, []);
+
   const handleEditStorefront = () => setIsEditingStorefront(true);
   const handleCancelStorefront = () => setIsEditingStorefront(false);
   const handleSaveStorefront = () => {
@@ -99,6 +120,32 @@ function StorefrontComponent() {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     // Add toast notification here
+  };
+
+  const handleVisitStorefront = () => {
+    if (storefrontUrl) {
+      // Ensure the URL has the proper protocol and is not encoded
+      let fullUrl = storefrontUrl;
+      if (!storefrontUrl.startsWith('http')) {
+        fullUrl = `https://${storefrontUrl}`;
+      }
+      // Clean the URL - remove any encoding
+      fullUrl = fullUrl.replace(/%3A/g, ':').replace(/%2F/g, '/');
+      window.open(fullUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      // Fallback to the custom URL if storefront URL is not available
+      const fallbackUrl = storefrontData.customUrl.startsWith('http')
+        ? storefrontData.customUrl
+        : `https://${storefrontData.customUrl}`;
+      window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const copyStorefrontUrl = () => {
+    let urlToCopy = storefrontUrl || storefrontData.customUrl;
+    // Clean the URL before copying
+    urlToCopy = urlToCopy.replace(/%3A/g, ':').replace(/%2F/g, '/');
+    copyToClipboard(urlToCopy);
   };
 
   const handleAddBank = (bankData: {
@@ -164,7 +211,7 @@ function StorefrontComponent() {
         </div>
         <div className="flex gap-2 items-center">
           <Button variant={"outline"}><QrIcon /> <span className="hidden sm:inline">View QR Banner</span> </Button>
-          <Button variant={"outline"}> <span className="hidden sm:inline">Visit Storefront</span>  <LinkIcon /></Button>
+          <Button variant={"outline"} onClick={handleVisitStorefront}> <span className="hidden sm:inline">Visit Storefront</span>  <LinkIcon /></Button>
         </div>
       </div>
       {/* Storefront Setup */}
@@ -327,12 +374,12 @@ function StorefrontComponent() {
               <div className="flex gap-2 ">
                 <div className="flex items-center gap-2 flex-1 px-2 py-1.5 border rounded-md dark:bg-background">
                   <ExternalLink className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm">{storefrontData.customUrl}</span>
+                  <span className="text-sm">{storefrontUrl || storefrontData.customUrl}</span>
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => copyToClipboard(storefrontData.customUrl)}
+                  onClick={copyStorefrontUrl}
                   className="dark:bg-background"
                 >
                   <span className="hidden sm:inline">Copy Link </span>  <Copy className="w-4 h-4" />

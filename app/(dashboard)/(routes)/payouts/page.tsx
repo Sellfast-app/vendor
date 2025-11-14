@@ -91,48 +91,6 @@ export default function PayoutsPage() {
     }
   ]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([
-    {
-      id: "access-bank-1",
-      icon: <Accessbank />,
-      accountNumber: "0823869297",
-      bankName: "Access Bank",
-      accountHolder: "Akpomughe Caleb.O."
-    },
-    {
-      id: "gtb-1",
-      icon: <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center text-white text-xs font-bold">GTB</div>,
-      accountNumber: "0234567890",
-      bankName: "GTBank",
-      accountHolder: "Akpomughe Caleb.O."
-    },
-    {
-      id: "zenith-1",
-      icon: <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white text-xs font-bold">ZEN</div>,
-      accountNumber: "1234567890",
-      bankName: "Zenith Bank",
-      accountHolder: "Akpomughe Caleb.O."
-    },
-    {
-      id: "uba-1",
-      icon: <div className="w-8 h-8 bg-red-700 rounded-full flex items-center justify-center text-white text-xs font-bold">UBA</div>,
-      accountNumber: "2345678901",
-      bankName: "UBA",
-      accountHolder: "Akpomughe Caleb.O."
-    },
-    {
-      id: "fidelity-1",
-      icon: <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">FID</div>,
-      accountNumber: "3456789012",
-      bankName: "Fidelity Bank",
-      accountHolder: "Akpomughe Caleb.O."
-    },
-    {
-      id: "sterling-1",
-      icon: <div className="w-8 h-8 bg-blue-700 rounded-full flex items-center justify-center text-white text-xs font-bold">STR</div>,
-      accountNumber: "4567890123",
-      bankName: "Sterling Bank",
-      accountHolder: "Akpomughe Caleb.O."
-    }
   ]);
   const [editingCard, setEditingCard] = useState<CreditCard | null>(null);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
