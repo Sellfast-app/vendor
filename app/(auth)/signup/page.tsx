@@ -721,17 +721,32 @@ export default function MultiStepSignupPage() {
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            onClick={() => {
+            onClick={async () => {
               if (successData?.data.qrCode) {
-                // Create a temporary link to download the QR code
-                const link = document.createElement('a');
-                link.href = successData.data.qrCode;
-                link.download = `${formData.business_details.store_name}-qr-code.png`;
-                link.target = '_blank';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                toast.success('QR code download started!');
+                try {
+                  // Fetch the image as a blob
+                  const response = await fetch(successData.data.qrCode);
+                  const blob = await response.blob();
+                  
+                  // Create a blob URL
+                  const blobUrl = window.URL.createObjectURL(blob);
+                  
+                  // Create a temporary link and trigger download
+                  const link = document.createElement('a');
+                  link.href = blobUrl;
+                  link.download = `${formData.business_details.store_name.replace(/\s+/g, '-')}-qr-code.png`;
+                  document.body.appendChild(link);
+                  link.click();
+                  
+                  // Clean up
+                  document.body.removeChild(link);
+                  window.URL.revokeObjectURL(blobUrl);
+                  
+                  toast.success('QR code downloaded successfully!');
+                } catch (error) {
+                  console.error('Download error:', error);
+                  toast.error('Failed to download QR code. Please try again.');
+                }
               } else {
                 toast.error('QR code not available');
               }
