@@ -11,6 +11,7 @@ import NotificationModal from "./NotificationModal";
 
 export const NavbarRoutes = () => {
   const [businessName, setBusinessName] = useState<string>("My Business");
+  const [storefrontUrl, setStorefrontUrl] = useState<string>("");
   const router = useRouter();
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
 
@@ -29,6 +30,17 @@ export const NavbarRoutes = () => {
       setBusinessName(decodeURIComponent(storeName)); 
     } else {
       setBusinessName("My Business"); 
+    }
+
+    // Get storefront URL from cookie
+    const urlFromCookie = getCookieValue("store_url");
+    if (urlFromCookie) {
+      try {
+        const decodedUrl = decodeURIComponent(urlFromCookie);
+        setStorefrontUrl(decodedUrl);
+      } catch {
+        setStorefrontUrl(urlFromCookie);
+      }
     }
   }, []);
 
@@ -54,6 +66,22 @@ export const NavbarRoutes = () => {
     if (words.length === 0) return "MB";
     if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
     return (words[0][0] + words[1][0]).toUpperCase();
+  };
+
+  const handleVisitStorefront = () => {
+    if (storefrontUrl) {
+      // Ensure the URL has the proper protocol and is not encoded
+      let fullUrl = storefrontUrl;
+      if (!storefrontUrl.startsWith('http')) {
+        fullUrl = `https://${storefrontUrl}`;
+      }
+      // Clean the URL - remove any encoding
+      fullUrl = fullUrl.replace(/%3A/g, ':').replace(/%2F/g, '/');
+      window.open(fullUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      // Fallback if no URL is available
+      console.log('No storefront URL available');
+    }
   };
 
   return (
@@ -92,17 +120,27 @@ export const NavbarRoutes = () => {
       </div>
 
       <div className="flex items-center gap-3">
-        <Button variant={"ghost"} onClick={() => setIsNotificationModalOpen(true)}> <IoNotificationsOutline className="w-5 h-5" /></Button>
+        <Button variant={"ghost"} onClick={() => setIsNotificationModalOpen(true)}> 
+          <IoNotificationsOutline className="w-5 h-5" />
+        </Button>
        
         <Button variant="ghost" onClick={() => router.push("/settings")}>
           <Settings className="md:hidden w-4 h-4 cursor-pointer hover:text-gray-600 dark:hover:text-gray-300 transition-colors"/>
         </Button>
-        <Button variant={"outline"} className="rounded-full dark:bg-background hidden md:flex">
+        
+        <Button 
+          variant={"outline"} 
+          className="rounded-full dark:bg-background hidden md:flex"
+          onClick={handleVisitStorefront}
+        >
           Visit Your StoreFront <HiOutlineExternalLink />
         </Button>
       </div>
-        <NotificationModal
-         isOpen={isNotificationModalOpen} onClose={() => setIsNotificationModalOpen(false)} />
+      
+      <NotificationModal
+        isOpen={isNotificationModalOpen} 
+        onClose={() => setIsNotificationModalOpen(false)} 
+      />
     </div>
   );
 };
