@@ -4,13 +4,6 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Camera, Trash2 } from "lucide-react";
 import EditIcon from "@/components/svgIcons/Edit";
@@ -21,6 +14,7 @@ import Imag from "@/components/svgIcons/Image2";
 import AddStoreModal from "./AddStoreModal";
 import DeleteStoreModal from "./DeleteStoreModal";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 interface Store {
   id: string;
@@ -31,24 +25,46 @@ interface Store {
   image: string | null;
 }
 
+interface GeoLocation {
+  lat: number;
+  lng: number;
+}
+
+interface GeocodeResult {
+  formatted_address: string;
+  geometry: { location: GeoLocation };
+}
+
 function AccountInformation() {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isEditingBusiness, setIsEditingBusiness] = useState(false);
   const [showDeleteSection, setShowDeleteSection] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+
+  // Updated form data structure for API integration
   const [formData, setFormData] = useState({
-    firstName: "Cassandra",
-    lastName: "Kayla",
-    email: "cassandrakayla@gmail.com",
-    whatsappNumber: "809 789 7891",
+    // Personal Info
+    firstName: "",
+    lastName: "",
+    email: "",
+    whatsappNumber: "",
     countryCode: "+234",
-    country: "Nigeria",
-    state: "Rivers",
-    city: "Port Harcourt",
-    lga: "Obio-Akpor",
-    cacNumber: "RC123456",
-    taxId: "NNNNNNNN-NNN",
+    
+    // Store/Address Info for API
+    owner_name: "",
+    address: "",
+    address_line_2: "",
+    city: "",
+    state: "",
+    post_code: "",
+    phone: "",
+    country: "NG",
+    
+    // Business Info
+    cacNumber: "",
+    taxId: "",
     documentType: "",
   });
 
@@ -85,6 +101,40 @@ function AccountInformation() {
   const [isDeleteStoreModalOpen, setIsDeleteStoreModalOpen] = useState(false);
   const [storeToDelete, setStoreToDelete] = useState<Store | null>(null);
 
+  // Geocoding function - EXACTLY as provided by backend dev
+  async function geocode(address: string): Promise<GeocodeResult | null> {
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${process.env.NEXT_PUBLIC_GOOGLE_API_KEY}`;
+
+    console.log('🔍 Geocoding URL (key hidden):', url.replace(process.env.NEXT_PUBLIC_GOOGLE_API_KEY!, '***'));
+
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+
+      console.log('🔍 Geocoding API response status:', data.status);
+
+      if (!data.results || !data.results.length) {
+        console.error('❌ Geocoding: No results found');
+        toast.error('Address not found. Please check the address.');
+        return null;
+      }
+
+      const place = data.results[0];
+
+      console.log('✅ Geocoding success - Location:', place.geometry.location);
+      toast.success('Address validated successfully!');
+
+      return {
+        formatted_address: place.formatted_address,
+        geometry: place.geometry,
+      };
+    } catch (error) {
+      console.error("❌ Geocoding error:", error);
+      toast.error('Failed to validate address. Please try again.');
+      return null;
+    }
+  }
+
   const handleEditProfile = () => {
     setIsEditingProfile(true);
   };
@@ -93,9 +143,81 @@ function AccountInformation() {
     setIsEditingProfile(false);
   };
 
-  const handleSaveProfile = () => {
-    setIsEditingProfile(false);
-    // Save changes logic here
+  const handleSaveProfile = async () => {
+    // Basic validation
+    const requiredFields = ['owner_name', 'address', 'city', 'state', 'country'];
+    const missingFields = requiredFields.filter(field => !formData[field as keyof typeof formData]?.toString().trim());
+    
+    if (missingFields.length > 0) {
+      toast.error(`Please fill in all required fields: ${missingFields.join(', ')}`);
+      return;
+    }
+
+    setIsLoading(true);
+    const saveToast = toast.loading('Updating profile...');
+
+    try {
+      // Geocode the address
+      const fullAddress = `${formData.address}, ${formData.city}, ${formData.state}, ${formData.country}`;
+      console.log('🔍 Full address for geocoding:', fullAddress);
+      
+      const geocodeResult = await geocode(fullAddress);
+
+      if (!geocodeResult) {
+        console.error('❌ Geocoding failed - stopping process');
+        toast.dismiss(saveToast);
+        return;
+      }
+
+      // Prepare the update data according to API structure
+      const updateData = {
+        metadata: {
+          owner_name: formData.owner_name.trim(),
+          address: formData.address.trim(),
+          address_line_2: formData.address_line_2?.trim() || '',
+          city: formData.city.trim(),
+          state: formData.state.trim(),
+          post_code: formData.post_code?.trim() || '',
+          phone: formData.phone?.trim() || formData.whatsappNumber?.trim() || '',
+          latitude: geocodeResult.geometry.location.lat,
+          longitude: geocodeResult.geometry.location.lng,
+          country: formData.country.trim(),
+        }
+      };
+
+      console.log('🔍 Sending update data to API:', updateData);
+
+      // Call the API route
+      const response = await fetch('/api/store', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
+      });
+
+      console.log('🔍 API Response status:', response.status);
+
+      const responseData = await response.json().catch(() => ({ error: 'Invalid JSON response' }));
+
+      if (!response.ok) {
+        console.error('❌ API Error response:', responseData);
+        throw new Error(responseData.error || `Server error: ${response.status}`);
+      }
+
+      console.log('✅ Store updated successfully:', responseData);
+      
+      toast.dismiss(saveToast);
+      toast.success('Profile updated successfully!');
+      setIsEditingProfile(false);
+      
+    } catch (error) {
+      console.error('❌ Error updating store:', error);
+      toast.dismiss(saveToast);
+      toast.error(error instanceof Error ? error.message : 'Failed to update profile');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleEditBusiness = () => {
@@ -108,7 +230,6 @@ function AccountInformation() {
 
   const handleSaveBusiness = () => {
     setIsEditingBusiness(false);
-    // Save changes logic here
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -142,6 +263,7 @@ function AccountInformation() {
     if (storeToDelete) {
       setStores(stores.filter(store => store.id !== storeToDelete.id));
       setStoreToDelete(null);
+      toast.success('Store deleted successfully');
     }
   };
 
@@ -169,9 +291,16 @@ function AccountInformation() {
                   <Button onClick={handleCancelProfile} variant="outline" size="sm">
                     Cancel
                   </Button>
-                  <Button onClick={handleSaveProfile} variant="default" size="sm">
+                  <Button 
+                    onClick={handleSaveProfile} 
+                    variant="default" 
+                    size="sm"
+                    disabled={isLoading}
+                  >
                     <SaveIcon />
-                    <span className="hidden sm:inline ml-2">Save Changes</span>
+                    <span className="hidden sm:inline ml-2">
+                      {isLoading ? "Saving..." : "Save Changes"}
+                    </span>
                   </Button>
                 </div>
               )}
@@ -192,126 +321,62 @@ function AccountInformation() {
               </div>
             </div>
 
-            {/* Form Fields */}
+            {/* Store Owner Name and Phone */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* First Name */}
               <div className="space-y-2">
-                <Label htmlFor="firstName" className="text-xs">
-                  First Name *
+                <Label htmlFor="owner_name" className="text-xs">
+                  Store Owner Name *
                 </Label>
                 <Input
-                  id="firstName"
-                  value={formData.firstName}
-                  onChange={(e) => handleInputChange("firstName", e.target.value)}
+                  id="owner_name"
+                  value={formData.owner_name}
+                  onChange={(e) => handleInputChange("owner_name", e.target.value)}
                   disabled={!isEditingProfile}
                   className="dark:bg-background"
+                  placeholder="Enter store owner name"
                 />
               </div>
-
-              {/* Last Name */}
               <div className="space-y-2">
-                <Label htmlFor="lastName" className="text-xs">
-                  Last Name *
+                <Label htmlFor="phone" className="text-xs">
+                  Business Phone *
                 </Label>
                 <Input
-                  id="lastName"
-                  value={formData.lastName}
-                  onChange={(e) => handleInputChange("lastName", e.target.value)}
+                  id="phone"
+                  value={formData.phone}
+                  onChange={(e) => handleInputChange("phone", e.target.value)}
                   disabled={!isEditingProfile}
                   className="dark:bg-background"
+                  placeholder="Enter business phone"
                 />
               </div>
             </div>
 
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-              <div className="space-y-2 md:col-span-2 w-full md:w-[50%]">
-                <Label htmlFor="email" className="text-xs">
-                  Email *
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange("email", e.target.value)}
-                  disabled={!isEditingProfile}
-                  className="dark:bg-background"
-                />
-              </div>
-              {/* WhatsApp Number */}
-              <div className="space-y-2 md:col-span-2 w-full md:w-[50%]">
-                <Label htmlFor="whatsapp" className="text-xs">
-                  WhatsApp Business Number *
-                </Label>
-                <div className="flex gap-2">
-                  <Select
-                    value={formData.countryCode}
-                    onValueChange={(value) =>
-                      handleInputChange("countryCode", value)
-                    }
-                    disabled={!isEditingProfile}
-                  >
-                    <SelectTrigger className="max-w-[120px] dark:bg-background">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="+234">+234</SelectItem>
-                      <SelectItem value="+1">+1</SelectItem>
-                      <SelectItem value="+44">+44</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    id="whatsapp"
-                    value={formData.whatsappNumber}
-                    onChange={(e) =>
-                      handleInputChange("whatsappNumber", e.target.value)
-                    }
-                    disabled={!isEditingProfile}
-                    className="flex-1 dark:bg-background"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-              {/* Country */}
               <div className="space-y-2 w-full">
                 <Label htmlFor="country" className="text-xs">
                   Country *
                 </Label>
-                <Select
+                <Input
+                  id="country"
                   value={formData.country}
-                  onValueChange={(value) => handleInputChange("country", value)}
+                  onChange={(e) => handleInputChange("country", e.target.value)}
                   disabled={!isEditingProfile}
-                >
-                  <SelectTrigger className="w-full dark:bg-background">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Nigeria">Nigeria</SelectItem>
-                    <SelectItem value="Ghana">Ghana</SelectItem>
-                    <SelectItem value="Kenya">Kenya</SelectItem>
-                  </SelectContent>
-                </Select>
+                  className="w-full dark:bg-background"
+                  placeholder="Enter country"
+                />
               </div>
-              {/* State */}
               <div className="space-y-2 w-full">
                 <Label htmlFor="state" className="text-xs">
                   State *
                 </Label>
-                <Select
+                <Input
+                  id="state"
                   value={formData.state}
-                  onValueChange={(value) => handleInputChange("state", value)}
+                  onChange={(e) => handleInputChange("state", e.target.value)}
                   disabled={!isEditingProfile}
-                >
-                  <SelectTrigger className="w-full dark:bg-background">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Rivers">Rivers</SelectItem>
-                    <SelectItem value="Lagos">Lagos</SelectItem>
-                    <SelectItem value="Abuja">Abuja</SelectItem>
-                  </SelectContent>
-                </Select>
+                  className="w-full dark:bg-background"
+                  placeholder="Enter state"
+                />
               </div>
             </div>
 
@@ -320,46 +385,63 @@ function AccountInformation() {
                 <Label htmlFor="city" className="text-xs">
                   City *
                 </Label>
-                <Select
+                <Input
+                  id="city"
                   value={formData.city}
-                  onValueChange={(value) => handleInputChange("city", value)}
+                  onChange={(e) => handleInputChange("city", e.target.value)}
                   disabled={!isEditingProfile}
-                >
-                  <SelectTrigger className="w-full dark:bg-background">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Port Harcourt">Port Harcourt</SelectItem>
-                    <SelectItem value="Ikeja">Ikeja</SelectItem>
-                    <SelectItem value="Victoria Island">Victoria Island</SelectItem>
-                  </SelectContent>
-                </Select>
+                  className="w-full dark:bg-background"
+                  placeholder="Enter city"
+                />
               </div>
-              {/* LGA */}
               <div className="space-y-2 w-full">
-                <Label htmlFor="lga" className="text-xs">
-                  L.G.A *
+                <Label htmlFor="address" className="text-xs">
+                  Address *
                 </Label>
-                <Select
-                  value={formData.lga}
-                  onValueChange={(value) => handleInputChange("lga", value)}
+                <Input
+                  id="address"
+                  value={formData.address}
+                  onChange={(e) => handleInputChange("address", e.target.value)}
                   disabled={!isEditingProfile}
-                >
-                  <SelectTrigger className="w-full dark:bg-background">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Obio-Akpor">Obio-Akpor</SelectItem>
-                    <SelectItem value="Port Harcourt">Port Harcourt</SelectItem>
-                    <SelectItem value="Eleme">Eleme</SelectItem>
-                  </SelectContent>
-                </Select>
+                  className="w-full dark:bg-background"
+                  placeholder="Enter full address"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+              <div className="space-y-2 w-full">
+                <Label htmlFor="address_line_2" className="text-xs">
+                  Address Line 2
+                </Label>
+                <Input
+                  id="address_line_2"
+                  value={formData.address_line_2}
+                  onChange={(e) => handleInputChange("address_line_2", e.target.value)}
+                  disabled={!isEditingProfile}
+                  className="w-full dark:bg-background"
+                  placeholder="Apartment, suite, unit, etc."
+                />
+              </div>
+              <div className="space-y-2 w-full">
+                <Label htmlFor="post_code" className="text-xs">
+                  Post Code *
+                </Label>
+                <Input
+                  id="post_code"
+                  value={formData.post_code}
+                  onChange={(e) => handleInputChange("post_code", e.target.value)}
+                  disabled={!isEditingProfile}
+                  className="w-full dark:bg-background"
+                  placeholder="Enter post code"
+                />
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
+      {/* REST OF THE CODE REMAINS EXACTLY THE SAME */}
       {/* Linked Stores */}
       <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
         <CardContent>
@@ -501,27 +583,19 @@ function AccountInformation() {
                 />
               </div>
 
-              {/* Document Type */}
+              {/* Document Type - CHANGED TO INPUT */}
               <div className="space-y-2">
                 <Label htmlFor="documentType" className="text-xs">
                   Document Type *
                 </Label>
-                <Select
+                <Input
+                  id="documentType"
                   value={formData.documentType}
-                  onValueChange={(value) =>
-                    handleInputChange("documentType", value)
-                  }
+                  onChange={(e) => handleInputChange("documentType", e.target.value)}
                   disabled={!isEditingBusiness}
-                >
-                  <SelectTrigger className="w-full dark:bg-background">
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cac">CAC Certificate</SelectItem>
-                    <SelectItem value="tin">TIN Certificate</SelectItem>
-                    <SelectItem value="business">Business Permit</SelectItem>
-                  </SelectContent>
-                </Select>
+                  className="w-full dark:bg-background"
+                  placeholder="e.g., CAC Certificate, TIN Certificate"
+                />
               </div>
             </div>
 
