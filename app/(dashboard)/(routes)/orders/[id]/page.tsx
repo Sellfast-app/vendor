@@ -12,59 +12,128 @@ import UnfufilledIcon from '@/components/svgIcons/UnfufilledIcon';
 import Trash from '@/components/svgIcons/Trash';
 import PendingGlass from '@/components/svgIcons/Pendingglass';
 import { Progress } from '@/components/ui/progress';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { format } from 'date-fns';
 import Image from 'next/image';
 import Loading from "@/components/Loading";
-import { orderData } from "@/lib/mockdata";
+import { toast } from "sonner";
+
+interface OrderItem {
+  price: number;
+  discount: number;
+  quantity: number;
+  product_id: string;
+  store_id: string;
+  product_name?: string;
+  product_image?: string;
+}
 
 interface Order {
-  orderId: string;
-  date: string;
-  customerName: string;
-  payment: string;
-  total: number;
-  items: number;
+  id: string;
+  order_number: string;
+  order_status: string;
+  order_total: string;
+  order_total_quantity: number;
+  payment_status: string;
+  payment_method: string;
+  customer_name: string;
+  customer_phone: string;
+  customer_email: string;
+  customer_address: string;
+  delivery_note: string;
+  delivery_fee: string;
+  delivery_method: string;
+  order_items: OrderItem[];
+  created_at: string;
+  updated_at: string;
+}
+
+interface ApiResponse {
   status: string;
-  deliveryPartner: string;
-  escrow: string;
+  message: string;
+  data: Order;
 }
 
 export default function OrderDetailPage() {
   const router = useRouter();
+  const params = useParams();
+  const orderId = params.orderId as string;
+  
   const [order, setOrder] = useState<Order | null>(null);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
   const [allOrders, setAllOrders] = useState<Order[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
-    // Get the current order from localStorage
-    const storedOrder = localStorage.getItem('selectedOrder');
-    
-    // Get the filtered orders list from localStorage (set by OrderTable)
-    const storedFilteredOrders = localStorage.getItem('filteredOrders');
-    const orders = storedFilteredOrders ? JSON.parse(storedFilteredOrders) : orderData;
-    
-    setAllOrders(orders);
+    fetchOrderDetails();
+    fetchAllOrders();
+  }, [orderId]);
 
-    if (storedOrder) {
-      const currentOrder = JSON.parse(storedOrder);
-      setOrder(currentOrder);
-      
-      // Find the index of the current order in the filtered list
-      const index = orders.findIndex((o: Order) => o.orderId === currentOrder.orderId);
-      setCurrentIndex(index !== -1 ? index : 0);
+  const fetchOrderDetails = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/orders/${orderId}`);
+      const result: ApiResponse = await response.json();
+
+      if (result.status === 'success') {
+        setOrder(result.data);
+      } else {
+        toast.error(result.message || 'Failed to fetch order details');
+        // Fallback to localStorage if API fails
+        const storedOrder = localStorage.getItem('selectedOrder');
+        if (storedOrder) {
+          setOrder(JSON.parse(storedOrder));
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching order details:', error);
+      toast.error('Failed to load order details');
+      // Fallback to localStorage
+      const storedOrder = localStorage.getItem('selectedOrder');
+      if (storedOrder) {
+        setOrder(JSON.parse(storedOrder));
+      }
+    } finally {
+      setIsLoading(false);
     }
-  }, []);
+  };
+
+  const fetchAllOrders = async () => {
+    try {
+      const response = await fetch('/api/orders?pageSize=100');
+      const result = await response.json();
+
+      if (result.status === 'success') {
+        setAllOrders(result.data || []);
+        
+        // Find current index
+        if (orderId && result.data) {
+          const index = result.data.findIndex((o: Order) => o.id === orderId);
+          setCurrentIndex(index !== -1 ? index : 0);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching all orders:', error);
+      // Fallback to localStorage
+      const storedOrders = localStorage.getItem('filteredOrders');
+      if (storedOrders) {
+        const orders = JSON.parse(storedOrders);
+        setAllOrders(orders);
+        const index = orders.findIndex((o: Order) => o.id === orderId);
+        setCurrentIndex(index !== -1 ? index : 0);
+      }
+    }
+  };
 
   const getShippingProgress = (status: string) => {
-    switch(status) {
-      case 'Pending':
+    switch(status?.toLowerCase()) {
+      case 'pending':
         return { review: 100, preparing: 0, shipping: 0, delivered: 0 };
-      case 'Processing':
+      case 'processing':
         return { review: 100, preparing: 100, shipping: 0, delivered: 0 };
-      case 'Shipped':
+      case 'shipped':
         return { review: 100, preparing: 100, shipping: 100, delivered: 0 };
-      case 'Fulfilled':
+      case 'fulfilled':
         return { review: 100, preparing: 100, shipping: 100, delivered: 100 };
       default:
         return { review: 100, preparing: 0, shipping: 0, delivered: 0 };
@@ -86,12 +155,26 @@ export default function OrderDetailPage() {
       setCurrentIndex(newIndex);
       localStorage.setItem('selectedOrder', JSON.stringify(newOrder));
       
-      // Update URL without full page reload
-      window.history.pushState({}, '', `/orders/${newOrder.orderId}`);
+      // Update URL
+      router.push(`/orders/${newOrder.id}`);
     }
   };
 
-  if (!order) {
+  const calculateItemTotal = (item: OrderItem) => {
+    return (item.price - item.discount) * item.quantity;
+  };
+
+  const calculateSubtotal = () => {
+    return order?.order_items.reduce((total, item) => total + calculateItemTotal(item), 0) || 0;
+  };
+
+  const calculateTotal = () => {
+    const subtotal = calculateSubtotal();
+    const deliveryFee = parseFloat(order?.delivery_fee || "0");
+    return subtotal + deliveryFee;
+  };
+
+  if (isLoading) {
     return (
       <div className='min-h-screen flex items-center justify-center'>
         <div className='text-center'>
@@ -101,7 +184,23 @@ export default function OrderDetailPage() {
     );
   }
 
-  const progress = getShippingProgress(order.status);
+  if (!order) {
+    return (
+      <div className='min-h-screen flex items-center justify-center'>
+        <div className='text-center'>
+          <h2 className="text-xl font-semibold mb-2">Order Not Found</h2>
+          <p className="text-muted-foreground mb-4">The order you&apos;re looking for doesn&apos;t exist.</p>
+          <Button onClick={() => router.push('/orders')}>
+            Back to Orders
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const progress = getShippingProgress(order.order_status);
+  const subtotal = calculateSubtotal();
+  const total = calculateTotal();
 
   return (
     <div className='min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6'>
@@ -112,20 +211,26 @@ export default function OrderDetailPage() {
           <Button 
             variant={"outline"} 
             size="icon"
-            onClick={()=> router.push(`/orders`)}
+            onClick={() => router.push(`/orders`)}
             className="flex-shrink-0"
           >
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div className='flex flex-col gap-2 min-w-0 flex-1'>
             <div className='flex flex-col sm:flex-row sm:items-center gap-2'> 
-              <h3 className='text-sm sm:text-base font-semibold truncate'>Order ID: {order.orderId}</h3> 
-              <span className='text-xs text-[#F47200] whitespace-nowrap'>Payment {order.payment}</span>
+              <h3 className='text-sm sm:text-base font-semibold truncate'>Order ID: {order.order_number}</h3> 
+              <span className={`text-xs ${
+                order.payment_status === 'paid' ? 'text-green-600' : 
+                order.payment_status === 'pending' ? 'text-[#F47200]' : 
+                'text-red-600'
+              } whitespace-nowrap`}>
+                Payment {order.payment_status}
+              </span>
             </div>
             <div className='flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-xs sm:text-sm text-muted-foreground'>
-              <small className='whitespace-nowrap'>Order date {format(new Date(order.date), 'MMM dd, yyyy')}</small>
+              <small className='whitespace-nowrap'>Order date {format(new Date(order.created_at), 'MMM dd, yyyy')}</small>
               <span className='hidden sm:inline'>•</span>
-              <small className='whitespace-nowrap'>Time placed 12:30PM</small>
+              <small className='whitespace-nowrap'>Time placed {format(new Date(order.created_at), 'hh:mm a')}</small>
               <span className='hidden sm:inline'>•</span>
               <small className='whitespace-nowrap'>Placed via Storefront</small>
             </div>
@@ -179,8 +284,8 @@ export default function OrderDetailPage() {
           <Card className='shadow-none'>
             <CardHeader className='border-b p-4'>
               <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs sm:text-sm'>
-                <span className='truncate'>Delivery to 23 Menlo Park, SA</span>
-                <span className='text-muted-foreground'>Est. arrival 23rd - 14th Feb, 2025</span>
+                <span className='truncate'>Delivery to {order.customer_address}</span>
+                <span className='text-muted-foreground'>Est. arrival within 3-5 business days</span>
               </div>
             </CardHeader>
             <CardContent className='p-4 overflow-x-auto'>
@@ -215,65 +320,48 @@ export default function OrderDetailPage() {
               </span>
             </CardHeader>
             <CardContent className='space-y-4 p-4'>
-              {/* Item 1 */}
-              <div className='flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-center'>
-                <div className='w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded flex-shrink-0 overflow-hidden'>
-                  <Image 
-                    src="/Macbook.png" 
-                    alt="Macbook Pro 14 Inch" 
-                    width={80}
-                    height={80}
-                    className='w-full h-full object-cover'
-                  />
+              {order.order_items.map((item, index) => (
+                <div key={item.product_id || index} className='flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-center'>
+                  <div className='w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded flex-shrink-0 overflow-hidden flex items-center justify-center'>
+                    {item.product_image ? (
+                      <Image 
+                        src={item.product_image} 
+                        alt={item.product_name || 'Product'} 
+                        width={80}
+                        height={80}
+                        className='w-full h-full object-cover'
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400">
+                        <span>No Image</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className='flex-1 min-w-0'>
+                    <p className='text-xs sm:text-sm text-gray-500 truncate'>
+                      {item.product_name || `Product ${item.product_id}`}
+                    </p>
+                    <p className='font-semibold text-sm sm:text-base mt-1'>₦{item.price.toLocaleString()}</p>
+                    {item.discount > 0 && (
+                      <p className='text-xs text-green-600 mt-1'>Discount: ₦{item.discount.toLocaleString()}</p>
+                    )}
+                  </div>
+                  <div className='flex items-center gap-2 sm:gap-4 justify-between sm:justify-end'>
+                    <input 
+                      type="number" 
+                      value={item.quantity} 
+                      className='w-16 sm:w-20 px-2 py-1 border rounded-xl text-center text-sm' 
+                      readOnly
+                    />
+                    <span className='font-semibold text-sm sm:text-base sm:w-32 sm:text-right'>
+                      ₦{calculateItemTotal(item).toLocaleString()}
+                    </span>
+                    <button className='text-gray-400 hover:text-gray-600 flex-shrink-0'>
+                      <Trash />
+                    </button>
+                  </div>
                 </div>
-                <div className='flex-1 min-w-0'>
-                  <p className='text-xs sm:text-sm text-gray-500 truncate'>Macbook Pro 14 Inch 512GB M1 Pro</p>
-                  <p className='font-semibold text-sm sm:text-base mt-1'>₦1,670,900.00</p>
-                  <p className='text-xs text-gray-400 mt-1'>Silver / 14 inches</p>
-                </div>
-                <div className='flex items-center gap-2 sm:gap-4 justify-between sm:justify-end'>
-                  <input 
-                    type="number" 
-                    value="1" 
-                    className='w-16 sm:w-20 px-2 py-1 border rounded-xl text-center text-sm' 
-                    readOnly
-                  />
-                  <span className='font-semibold text-sm sm:text-base sm:w-32 sm:text-right'>₦1,670,900.00</span>
-                  <button className='text-gray-400 hover:text-gray-600 flex-shrink-0'>
-                    <Trash />
-                  </button>
-                </div>
-              </div>
-
-              {/* Item 2 */}
-              <div className='flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-center'>
-                <div className='w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded flex-shrink-0 overflow-hidden'>
-                  <Image 
-                    src="/Iphone.png" 
-                    alt="iPhone 15 Pro Max" 
-                    width={80}
-                    height={80}
-                    className='w-full h-full object-cover'
-                  />
-                </div>
-                <div className='flex-1 min-w-0'>
-                  <p className='text-xs sm:text-sm text-gray-500 truncate'>Iphone 15 Pro Max 256GB</p>
-                  <p className='font-semibold text-sm sm:text-base mt-1'>₦780,990.99</p>
-                  <p className='text-xs text-gray-400 mt-1'>Star dust / 6.7 inches</p>
-                </div>
-                <div className='flex items-center gap-2 sm:gap-4 justify-between sm:justify-end'>
-                  <input 
-                    type="number" 
-                    value="1" 
-                    className='w-16 sm:w-20 px-2 py-1 border rounded-xl text-center text-sm' 
-                    readOnly
-                  />
-                  <span className='font-semibold text-sm sm:text-base sm:w-32 sm:text-right'>₦780,990.99</span>
-                  <button className='text-gray-400 hover:text-gray-600 flex-shrink-0'>
-                    <Trash />
-                  </button>
-                </div>
-              </div>
+              ))}
             </CardContent>
             <CardContent className='border-t p-4'>
               <div className='flex flex-col sm:flex-row gap-2 sm:justify-between'>
@@ -296,43 +384,34 @@ export default function OrderDetailPage() {
           <Card className='shadow-none'>
             <CardHeader className='border-b flex flex-row items-center justify-between p-4'>
               <h4 className='text-sm sm:text-base font-semibold'>Order Summary</h4>
-              <span className='text-xs sm:text-sm text-[#E76C00] flex items-center gap-1 sm:gap-2'>
+              <span className={`text-xs sm:text-sm ${
+                order.payment_status === 'paid' ? 'text-green-600' : 
+                order.payment_status === 'pending' ? 'text-[#E76C00]' : 
+                'text-red-600'
+              } flex items-center gap-1 sm:gap-2`}>
                 <PendingGlass/>
-                <span className="hidden sm:inline">Payment pending</span>
+                <span className="hidden sm:inline">Payment {order.payment_status}</span>
               </span>
             </CardHeader>
             <CardContent className='p-4 space-y-3'>
               <div className='flex justify-between text-xs sm:text-sm'>
                 <span className='text-gray-500'>Subtotal</span>
-                <span>₦{order.total.toLocaleString()}</span>
+                <span>₦{subtotal.toLocaleString()}</span>
               </div>
               <div className='flex justify-between items-center text-xs sm:text-sm'>
                 <div className='flex items-center gap-2'>
-                  <span className='text-gray-500'>Discount</span>
-                  <span className='text-gray-400'>20%</span>
+                  <span className='text-gray-500'>Delivery Fee</span>
+                  <span className='text-gray-400'>{order.delivery_method}</span>
                 </div>
-                <span>-₦{(order.total * 0.2).toLocaleString()}</span>
+                <span>₦{parseFloat(order.delivery_fee || "0").toLocaleString()}</span>
               </div>
-              <div className='flex justify-between items-center text-xs sm:text-sm pb-3 border-b'>
-                <div className='flex flex-col sm:flex-row sm:items-center gap-0 sm:gap-2'>
-                  <span className='text-gray-500'>Shipping</span>
-                  <span className='text-gray-400 text-xs'>{order.deliveryPartner}</span>
-                </div>
-                <span>₦15,000</span>
-              </div>
-              <div className='flex justify-between font-semibold text-sm sm:text-base pt-2'>
+              <div className='flex justify-between font-semibold text-sm sm:text-base pt-2 border-t'>
                 <span>Total</span>
-                <span>₦{((order.total * 0.8) + 15000).toLocaleString()}</span>
+                <span>₦{total.toLocaleString()}</span>
               </div>
               <div className='flex justify-between text-xs sm:text-sm text-gray-500'>
                 <span>Paid by customer</span>
-                <span>₦0.00</span>
-              </div>
-              <div className='flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 pt-2'>
-                <span className='text-xs sm:text-sm text-gray-500'>Payment due when invoice is sent</span>
-                <button className='text-green-500 hover:text-green-600 text-xs sm:text-sm self-start sm:self-auto'>
-                  Edit
-                </button>
+                <span>₦{order.payment_status === 'paid' ? total.toLocaleString() : '0.00'}</span>
               </div>
             </CardContent>
             <CardContent className='border-t p-4'>
@@ -363,7 +442,7 @@ export default function OrderDetailPage() {
                 <EditIcon />
               </div>
               <p className='line-clamp-3 text-xs sm:text-sm text-gray-600'>
-                Please wrap the box with a wrapper, so the text is unreadable, this for a birthday present for a 15 y/o kid. The package has to be properly handled
+                {order.delivery_note || 'No special delivery notes provided.'}
               </p>
             </CardContent>
           </Card>
@@ -376,11 +455,11 @@ export default function OrderDetailPage() {
                 <div className='flex items-center justify-between'>
                   <div className='flex gap-3 items-center min-w-0 flex-1'>
                     <Avatar className='flex-shrink-0'>
-                      {order.customerName.substring(0, 2).toUpperCase()}
+                      {order.customer_name.substring(0, 2).toUpperCase()}
                     </Avatar> 
                     <div className='flex flex-col min-w-0'>
-                      <span className='text-sm sm:text-base truncate'>{order.customerName}</span> 
-                      <small className='text-xs text-muted-foreground'>Total: {order.items} orders</small>
+                      <span className='text-sm sm:text-base truncate'>{order.customer_name}</span> 
+                      <small className='text-xs text-muted-foreground'>{order.order_total_quantity} items</small>
                     </div>
                   </div>
                   <Button variant={"outline"} size="icon" className='flex-shrink-0'>
@@ -395,23 +474,21 @@ export default function OrderDetailPage() {
                   <h4 className='text-sm sm:text-base font-semibold'>Shipping Address</h4>
                   <EditIcon />
                 </div>
-                <small className='text-xs sm:text-sm text-gray-600'>
-                  1226 University Drive
-                  Menlo Park CA 94025
-                  United States
+                <small className='text-xs sm:text-sm text-gray-600 whitespace-pre-line'>
+                  {order.customer_address}
                 </small>
               </div>
             </CardContent>
             <CardContent className='p-4'>
               <h4 className='text-sm sm:text-base font-semibold mb-2'>Contact Information</h4>
               <div className='flex flex-col text-xs sm:text-sm text-gray-600 gap-1'>
-                <span className='break-all'>anthoniolaguerta@gmail.com</span>
-                <span>+234 809 678 0098</span>
+                <span className='break-all'>{order.customer_email}</span>
+                <span>{order.customer_phone}</span>
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
     </div>
-  )
+  );
 }

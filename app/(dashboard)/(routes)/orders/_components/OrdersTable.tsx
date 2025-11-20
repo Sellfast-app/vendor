@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { ChevronLeft, ChevronRight, FilterIcon, PlusIcon, SearchIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { BsThreeDots } from "react-icons/bs";
-import { orderData } from "@/lib/mockdata";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import MarkIcon from "@/components/svgIcons/MarkIcon";
@@ -38,109 +37,140 @@ import { format } from "date-fns";
 import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
 import CreateOrderModal from "./CreateOrderModal";
+import { toast } from "sonner";
+
+interface Order {
+  id: string;
+  order_number: string;
+  order_status: string;
+  order_total: string;
+  order_total_quantity: number;
+  payment_status: string;
+  payment_method: string;
+  customer_name: string;
+  customer_phone: string;
+  customer_email: string;
+  customer_address: string;
+  delivery_note: string;
+  delivery_fee: string;
+  delivery_method: string;
+  order_items: Array<{
+    price: number;
+    discount: number;
+    quantity: number;
+    product_id: string;
+    store_id: string;
+    product_name?: string;
+    product_image?: string;
+  }>;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ApiResponse {
+  status: string;
+  message: string;
+  data: Order[];
+  pagination?: {
+    current_page: number;
+    total_pages: number;
+    total_count: number;
+    page_size: number;
+  };
+}
 
 export default function OrderTable() {
-  const [currentPage, setCurrentPage] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
   const [searchTerm, setSearchTerm] = useState("");
-  const [orders, setOrders] = useState(orderData);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("all");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [filterDateRange, setFilterDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined });
-  const [filterStatus, setFilterStatus] = useState<string>("all"); // New status filter
+  const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>("all");
   const [filterDeliveryPartner, setFilterDeliveryPartner] = useState<string>("all");
   const [filterEscrow, setFilterEscrow] = useState<string>("all");
+  const [isLoading, setIsLoading] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
   const router = useRouter();
   const [isCreateOrderModalOpen, setIsCreateOrderModalOpen] = useState(false);
 
+  // Fetch orders from API
+  const fetchOrders = async () => {
+    setIsLoading(true);
+    try {
+      const queryParams = new URLSearchParams({
+        page: currentPage.toString(),
+        pageSize: pageSize.toString(),
+        ...(searchTerm && { search: searchTerm }),
+        ...(activeTab !== "all" && { status: activeTab }),
+        ...(filterStatus !== "all" && { status: filterStatus }),
+        ...(filterPaymentStatus !== "all" && { paymentStatus: filterPaymentStatus }),
+        ...(filterDateRange.from && { startDate: filterDateRange.from.toISOString().split('T')[0] }),
+        ...(filterDateRange.to && { endDate: filterDateRange.to.toISOString().split('T')[0] }),
+      });
+
+      const response = await fetch(`/api/orders?${queryParams}`);
+      const result: ApiResponse = await response.json();
+
+      if (result.status === 'success') {
+        setOrders(result.data || []);
+        setTotalCount(result.pagination?.total_count || result.data?.length || 0);
+      } else {
+        toast.error(result.message || 'Failed to fetch orders');
+        setOrders([]);
+        setTotalCount(0);
+      }
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      toast.error('Failed to load orders');
+      setOrders([]);
+      setTotalCount(0);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    let filteredOrders = [...orderData];
-
-    // Filter by search term
-    if (searchTerm) {
-      filteredOrders = filteredOrders.filter(
-        (order) =>
-          order.orderId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          order.customerName.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Filter by status tab
-    if (activeTab !== "all") {
-      filteredOrders = filteredOrders.filter(
-        (order) => order.status.toLowerCase() === activeTab.toLowerCase()
-      );
-    }
-
-    // Filter by date range
-    if (filterDateRange.from && filterDateRange.to) {
-      filteredOrders = filteredOrders.filter(
-        (order) => {
-          const orderDate = new Date(order.date);
-          return orderDate >= filterDateRange.from! && orderDate <= filterDateRange.to!;
-        }
-      );
-    }
-
-    // Filter by status
-    if (filterStatus && filterStatus !== "all") {
-      filteredOrders = filteredOrders.filter(
-        (order) => order.status === filterStatus
-      );
-    }
-
-    // Filter by payment status
-    if (filterPaymentStatus && filterPaymentStatus !== "all") {
-      filteredOrders = filteredOrders.filter(
-        (order) => order.payment === filterPaymentStatus
-      );
-    }
-
-    // Filter by delivery partner
-    if (filterDeliveryPartner && filterDeliveryPartner !== "all") {
-      filteredOrders = filteredOrders.filter(
-        (order) => order.deliveryPartner === filterDeliveryPartner
-      );
-    }
-
-    // Filter by escrow status
-    if (filterEscrow && filterEscrow !== "all") {
-      filteredOrders = filteredOrders.filter(
-        (order) => order.escrow === filterEscrow
-      );
-    }
-
-    setOrders(filteredOrders);
-    setSelectedOrders([]);
-    setCurrentPage(0);
-  }, [searchTerm, activeTab, filterDateRange, filterStatus, filterPaymentStatus, filterDeliveryPartner, filterEscrow]);
+    fetchOrders();
+  }, [currentPage, searchTerm, activeTab, filterStatus, filterPaymentStatus, filterDateRange]);
 
   useEffect(() => {
     localStorage.setItem('filteredOrders', JSON.stringify(orders));
   }, [orders]);
 
-  const totalPages = Math.ceil(orders.length / pageSize);
-  const displayedOrders = orders.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
+  const totalPages = Math.ceil(totalCount / pageSize);
 
   const getPageNumbers = () => {
     const pages = [];
-    if (totalPages <= 3) {
-      for (let i = 0; i < totalPages; i++) pages.push(i);
+    const maxVisiblePages = 5;
+    
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
     } else {
-      pages.push(0);
-      if (currentPage > 2) pages.push(currentPage - 1, currentPage);
-      else pages.push(1);
-      if (currentPage < totalPages - 2) pages.push("...");
-      pages.push(totalPages - 1);
+      pages.push(1);
+      
+      if (currentPage > 3) pages.push('...');
+      
+      const start = Math.max(2, currentPage - 1);
+      const end = Math.min(totalPages - 1, currentPage + 1);
+      
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+      
+      if (currentPage < totalPages - 2) pages.push('...');
+      
+      pages.push(totalPages);
     }
     return pages;
   };
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedOrders(displayedOrders.map((order) => order.orderId));
+      setSelectedOrders(orders.map((order) => order.id));
     } else {
       setSelectedOrders([]);
     }
@@ -155,37 +185,40 @@ export default function OrderTable() {
   };
 
   const getPaymentClass = (status: string) => {
-    switch (status) {
-      case "Paid":
-        return "bg-[#53DC19] border border-[#C9FFB2]";
-      case "Pending":
-        return "bg-[#FFB347] border border-[#FCE3BF]";
-      case "Failed":
-        return "bg-[#E40101] border border-[#FFD3D3]";
+    switch (status?.toLowerCase()) {
+      case "paid":
+        return "bg-[#53DC19]";
+      case "pending":
+        return "bg-[#FFB347]";
+      case "failed":
+        return "bg-[#E40101]";
       default:
-        return "";
+        return "bg-gray-400";
     }
   };
 
   const getDeliveryClass = (status: string) => {
-    switch (status) {
-      case "Fulfilled":
-        return "bg-[#EFFFE9] rounded-xl";
-      case "Pending":
-        return "bg-[#FFF5E8] rounded-xl";
-      case "Shipped":
-        return "bg-[#F9E4FF] rounded-xl";
-      case "Processing":
-        return "bg-[#E6F6FF] rounded-xl";
-      case "Cancelled":
-        return "bg-[#FFEFEF] rounded-xl";
+    switch (status?.toLowerCase()) {
+      case "fulfilled":
+        return "bg-[#EFFFE9] text-[#065F46]";
+      case "pending":
+        return "bg-[#FFF5E8] text-[#9A3412]";
+      case "shipped":
+        return "bg-[#F9E4FF] text-[#86198F]";
+      case "processing":
+        return "bg-[#E6F6FF] text-[#075985]";
+      case "cancelled":
+        return "bg-[#FFEFEF] text-[#991B1B]";
       default:
-        return "";
+        return "bg-gray-100 text-gray-800";
     }
   };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any 
-  const handleCreateOrder = (order: any) => {
+
+             // eslint-disable-next-line @typescript-eslint/no-explicit-any
+const handleCreateOrder = (order: any) => {
     console.log("Creating order:", order);
+    toast.success('Order created successfully');
+    fetchOrders(); // Refresh the orders list
   };
 
   const clearFilters = () => {
@@ -197,11 +230,17 @@ export default function OrderTable() {
     setIsFilterOpen(false);
   };
 
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setCurrentPage(1);
+    fetchOrders();
+  };
+
   return (
     <div className="w-full">
       {/* Search and Filter Section */}
       <div className="flex justify-between mb-4 space-x-4">
-        <div className="relative flex items-center pb-2">
+        <form onSubmit={handleSearch} className="relative flex items-center pb-2">
           <Input
             type="text"
             placeholder="Search by Order ID/Customer..."
@@ -210,7 +249,7 @@ export default function OrderTable() {
             className="w-full sm:w-64 md:w-84 pr-8 py-2 text-xs sm:text-sm dark:bg-background rounded-lg border-[#F5F5F5] dark:border-[#1F1F1F]"
           />
           <SearchIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        </div>
+        </form>
         <div className="flex space-x-2">
           <Button
             variant="outline"
@@ -225,13 +264,17 @@ export default function OrderTable() {
               {isFilterOpen ? "Clear Filter" : "Filter"}
             </span>
           </Button>
-          <Button variant="outline" className="border-[#4FCA6A] text-[#4FCA6A] dark:bg-background"
-            onClick={() => setIsCreateOrderModalOpen(true)}>
+          <Button 
+            variant="outline" 
+            className="border-[#4FCA6A] text-[#4FCA6A] dark:bg-background"
+            onClick={() => setIsCreateOrderModalOpen(true)}
+          >
             <PlusIcon className="text-[#4FCA6A]" />
             <span className="hidden sm:inline ml-2">Add Order</span>
           </Button>
         </div>
       </div>
+
       {isFilterOpen && (
         <div className="mb-4 p-4 bg-white dark:bg-[#1F1F1F] rounded-lg border border-[#F5F5F5] dark:border-[#2D2D2D]">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -273,11 +316,11 @@ export default function OrderTable() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="Processing">Processing</SelectItem>
-                  <SelectItem value="Shipped">Shipped</SelectItem>
-                  <SelectItem value="Fulfilled">Fulfilled</SelectItem>
-                  <SelectItem value="Cancelled">Cancelled</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="shipped">Shipped</SelectItem>
+                  <SelectItem value="fulfilled">Fulfilled</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -289,23 +332,23 @@ export default function OrderTable() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="Paid">Paid</SelectItem>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="Failed">Failed</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="failed">Failed</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="deliveryFilter">Delivery Partner</Label>
+              <Label htmlFor="deliveryFilter">Delivery Method</Label>
               <Select onValueChange={setFilterDeliveryPartner} value={filterDeliveryPartner}>
                 <SelectTrigger className="w-full dark:bg-background">
-                  <SelectValue placeholder="All partners" />
+                  <SelectValue placeholder="All methods" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="Kwik">Kwik</SelectItem>
-                  <SelectItem value="GIG">GIG</SelectItem>
-                  <SelectItem value="Sendnow">Sendnow</SelectItem>
+                  <SelectItem value="standard">Standard</SelectItem>
+                  <SelectItem value="express">Express</SelectItem>
+                  <SelectItem value="pickup">Pickup</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -317,186 +360,196 @@ export default function OrderTable() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="Held">Held</SelectItem>
-                  <SelectItem value="Released">Released</SelectItem>
+                  <SelectItem value="held">Held</SelectItem>
+                  <SelectItem value="released">Released</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          <div className="flex justify-end mt-4">
+            <Button onClick={clearFilters} variant="outline" size="sm">
+              Clear All Filters
+            </Button>
           </div>
         </div>
       )}
 
       {/* Filter Tabs */}
-      <div className="flex space-x-2 mb-0 px-2 pb-4">
-        <Button
-          variant="ghost"
-          className={`px-4 rounded-none text-[#A0A0A0] ${activeTab === "all" ? "border-b border-[#4FCA6A] text-black" : ""}`}
-          onClick={() => setActiveTab("all")}
-        >
-          <Allcon />
-          <span className="hidden sm:inline ml-2">All</span>
-        </Button>
-        <Button
-          variant="ghost"
-          className={`px-4 rounded-none text-[#A0A0A0] ${activeTab === "pending" ? "border-b border-[#4FCA6A] text-black" : ""}`}
-          onClick={() => setActiveTab("pending")}
-        >
-          <Pending />
-          <span className="hidden sm:inline ml-2">Pending</span>
-        </Button>
-        <Button
-          variant="ghost"
-          className={`px-4 rounded-none text-[#A0A0A0] ${activeTab === "processing" ? "border-b border-[#4FCA6A] text-black" : ""}`}
-          onClick={() => setActiveTab("processing")}
-        >
-          <Processing />
-          <span className="hidden sm:inline ml-2">Processing</span>
-        </Button>
-        <Button
-          variant="ghost"
-          className={`px-4 rounded-none text-[#A0A0A0] ${activeTab === "shipped" ? "border-b border-[#4FCA6A] text-black" : ""}`}
-          onClick={() => setActiveTab("shipped")}
-        >
-          <Shipped />
-          <span className="hidden sm:inline ml-2">Shipped</span>
-        </Button>
-        <Button
-          variant="ghost"
-          className={`px-4 rounded-none text-[#A0A0A0] ${activeTab === "fulfilled" ? "border-b border-[#4FCA6A] text-black" : ""}`}
-          onClick={() => setActiveTab("fulfilled")}
-        >
-          <Fulfilled />
-          <span className="hidden sm:inline ml-2">Fulfilled</span>
-        </Button>
-        <Button
-          variant="ghost"
-          className={`px-4 rounded-none text-[#A0A0A0] ${activeTab === "cancelled" ? "border-b border-[#4FCA6A] text-black" : ""}`}
-          onClick={() => setActiveTab("cancelled")}
-        >
-          <Cancelled />
-          <span className="hidden sm:inline ml-2">Cancelled</span>
-        </Button>
+      <div className="flex space-x-2 mb-4 px-2 pb-4 overflow-x-auto">
+        {[
+          { key: "all", label: "All", icon: <Allcon /> },
+          { key: "pending", label: "Pending", icon: <Pending /> },
+          { key: "processing", label: "Processing", icon: <Processing /> },
+          { key: "shipped", label: "Shipped", icon: <Shipped /> },
+          { key: "fulfilled", label: "Fulfilled", icon: <Fulfilled /> },
+          { key: "cancelled", label: "Cancelled", icon: <Cancelled /> },
+        ].map((tab) => (
+          <Button
+            key={tab.key}
+            variant="ghost"
+            className={`px-4 rounded-none text-[#A0A0A0] whitespace-nowrap ${
+              activeTab === tab.key ? "border-b-2 border-[#4FCA6A] text-black dark:text-white" : ""
+            }`}
+            onClick={() => {
+              setActiveTab(tab.key);
+              setCurrentPage(1);
+            }}
+          >
+            {tab.icon}
+            <span className="hidden sm:inline ml-2">{tab.label}</span>
+          </Button>
+        ))}
       </div>
 
-      <Table>
-        <TableHeader className="bg-[#F5F5F5] dark:bg-background">
-          <TableRow>
-            <TableHead className="w-[50px]">
-              <Checkbox
-                checked={selectedOrders.length === displayedOrders.length && displayedOrders.length > 0}
-                onCheckedChange={handleSelectAll}
-              />
-            </TableHead>
-            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Order ID</TableHead>
-            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Date</TableHead>
-            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Customer Name</TableHead>
-            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Payment</TableHead>
-            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Total</TableHead>
-            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Items</TableHead>
-            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Status</TableHead>
-            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {displayedOrders.length > 0 ? (
-            displayedOrders.map((order) => (
-              <TableRow key={order.orderId}>
-                <TableCell className="py-6">
-                  <Checkbox
-                    checked={selectedOrders.includes(order.orderId)}
-                    onCheckedChange={(checked) => handleSelectOrder(order.orderId, checked as boolean)}
-                  />
-                </TableCell>
-                <TableCell className="text-[#4FCA6A] underline">{order.orderId}</TableCell>
-                <TableCell>{format(new Date(order.date), "dd/MM/yyyy")}</TableCell>
-                <TableCell>{order.customerName}</TableCell>
-                <TableCell>
-                  <span className="flex items-center">
-                    <span className={`w-2 h-2 rounded-full mr-2 ${getPaymentClass(order.payment)}`}></span>
-                    {order.payment}
-                  </span>
-                </TableCell>
-                <TableCell>₦{order.total.toLocaleString()}</TableCell>
-                <TableCell>{order.items}</TableCell>
-                <TableCell>
-                  <span className={`flex items-center text-black px-2 py-1 w-[] rounded ${getDeliveryClass(order.status)}`}>
-                    <span className={`w-2 h-2 rounded-full mr-2 ${order.status === "Fulfilled" ? "bg-[#53DC19]" :
-                      order.status === "Pending" ? "bg-[#FFB347]" :
-                        order.status === "Shipped" ? "bg-[#C200F8]" :
-                          order.status === "Processing" ? "bg-[#06A4FF]" :
-                            order.status === "Cancelled" ? "bg-[#E40101]" : ""}`}></span>
-                    {order.status}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger>
-                      <Button variant="ghost" className="p-0">
-                        <BsThreeDots className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      <DropdownMenuItem onClick={() => {
-                        localStorage.setItem('selectedOrder', JSON.stringify(order));
-                        router.push(`/orders/${order.orderId}`);
-                      }}>
-                        <EyeIcon /> View Details
-                      </DropdownMenuItem>
-                      <DropdownMenuItem><MarkIcon /> Mark as Ready</DropdownMenuItem>
-                      <DropdownMenuItem><MessageIcon /> Message Customer</DropdownMenuItem>
-                      <DropdownMenuItem className="text-[#E40101]"><Cancelcon className="text-[#E40101]" /> Cancel Order</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader className="bg-[#F5F5F5] dark:bg-background">
+            <TableRow>
+              <TableHead className="w-[50px]">
+                <Checkbox
+                  checked={selectedOrders.length === orders.length && orders.length > 0}
+                  onCheckedChange={handleSelectAll}
+                />
+              </TableHead>
+              <TableHead className="font-semibold text-[#A0A0A0] text-sm">Order ID</TableHead>
+              <TableHead className="font-semibold text-[#A0A0A0] text-sm">Date</TableHead>
+              <TableHead className="font-semibold text-[#A0A0A0] text-sm">Customer Name</TableHead>
+              <TableHead className="font-semibold text-[#A0A0A0] text-sm">Payment</TableHead>
+              <TableHead className="font-semibold text-[#A0A0A0] text-sm">Total</TableHead>
+              <TableHead className="font-semibold text-[#A0A0A0] text-sm">Items</TableHead>
+              <TableHead className="font-semibold text-[#A0A0A0] text-sm">Status</TableHead>
+              <TableHead className="font-semibold text-[#A0A0A0] text-sm">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={9} className="text-center py-8">
+                  <div className="flex justify-center items-center">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#4FCA6A]"></div>
+                    <span className="ml-2">Loading orders...</span>
+                  </div>
                 </TableCell>
               </TableRow>
-            ))
-          ) : (
-            <TableRow>
-              <TableCell colSpan={9} className="text-center">
-                No orders found
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
-
-      <div className="flex justify-center mt-4 space-x-2">
-        <span className="text-sm">
-          {`${(currentPage * pageSize) + 1}-${Math.min((currentPage + 1) * pageSize, orders.length)} of ${orders.length}`}
-        </span>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setCurrentPage((p) => Math.max(p - 1, 0))}
-          disabled={currentPage === 0}
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        {getPageNumbers().map((page, index) => (
-          <span key={index}>
-            {page === "..." ? (
-              <span className="px-2 text-sm">...</span>
+            ) : orders.length > 0 ? (
+              orders.map((order) => (
+                <TableRow key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-900">
+                  <TableCell className="py-4">
+                    <Checkbox
+                      checked={selectedOrders.includes(order.id)}
+                      onCheckedChange={(checked) => handleSelectOrder(order.id, checked as boolean)}
+                    />
+                  </TableCell>
+                  <TableCell className="text-[#4FCA6A] underline cursor-pointer" onClick={() => {
+                    localStorage.setItem('selectedOrder', JSON.stringify(order));
+                    router.push(`/orders/${order.id}`);
+                  }}>
+                    {order.order_number}
+                  </TableCell>
+                  <TableCell>{format(new Date(order.created_at), "dd/MM/yyyy")}</TableCell>
+                  <TableCell className="font-medium">{order.customer_name}</TableCell>
+                  <TableCell>
+                    <span className="flex items-center">
+                      <span className={`w-2 h-2 rounded-full mr-2 ${getPaymentClass(order.payment_status)}`}></span>
+                      <span className="capitalize">{order.payment_status}</span>
+                    </span>
+                  </TableCell>
+                  <TableCell className="font-semibold">₦{parseFloat(order.order_total).toLocaleString()}</TableCell>
+                  <TableCell>{order.order_total_quantity}</TableCell>
+                  <TableCell>
+                    <span className={`flex items-center px-3 py-1 rounded-full text-xs font-medium ${getDeliveryClass(order.order_status)}`}>
+                      <span className={`w-2 h-2 rounded-full mr-2 ${getPaymentClass(order.order_status)}`}></span>
+                      <span className="capitalize">{order.order_status}</span>
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <BsThreeDots className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => {
+                          localStorage.setItem('selectedOrder', JSON.stringify(order));
+                          router.push(`/orders/${order.id}`);
+                        }}>
+                          <EyeIcon className="mr-2 h-4 w-4" />
+                          View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <MarkIcon className="mr-2 h-4 w-4" />
+                          Mark as Ready
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <MessageIcon className="mr-2 h-4 w-4" />
+                          Message Customer
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-[#E40101]">
+                          <Cancelcon className="mr-2 h-4 w-4" />
+                          Cancel Order
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
             ) : (
-              <Button
-                variant={currentPage === page ? "default" : "outline"}
-                size="sm"
-                onClick={() => setCurrentPage(Number(page))}
-                disabled={page === "..." || page === currentPage}
-              >
-                {Number(page) + 1}
-              </Button>
+              <TableRow>
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                  No orders found
+                </TableCell>
+              </TableRow>
             )}
-          </span>
-        ))}
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages - 1))}
-          disabled={currentPage >= totalPages - 1}
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
+          </TableBody>
+        </Table>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-2 py-4">
+          <div className="text-sm text-muted-foreground">
+            Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} orders
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            
+            {getPageNumbers().map((page, index) => (
+              <div key={index}>
+                {page === "..." ? (
+                  <span className="px-2 py-1">...</span>
+                ) : (
+                  <Button
+                    variant={currentPage === page ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentPage(Number(page))}
+                    className="w-8 h-8 p-0"
+                  >
+                    {page}
+                  </Button>
+                )}
+              </div>
+            ))}
+            
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
       <CreateOrderModal
         isOpen={isCreateOrderModalOpen}
         onClose={() => setIsCreateOrderModalOpen(false)}
