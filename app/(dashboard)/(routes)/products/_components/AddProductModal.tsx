@@ -54,7 +54,7 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
     const [productName, setProductName] = useState('');
     const [description, setDescription] = useState('');
     const [price, setPrice] = useState('');
-    const [sku, setSku] = useState('');
+    const [weight, setWeight] = useState('1'); // Default weight to 1kg
     const [quantity, setQuantity] = useState('');
     const [prodFrom, setProdFrom] = useState('');
     const [prodTo, setProdTo] = useState('');
@@ -158,6 +158,10 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
             toast.error('Valid price is required');
             return;
         }
+        if (!weight || parseFloat(weight) <= 0) {
+            toast.error('Valid weight is required');
+            return;
+        }
         if (productType === 'single' && (!quantity || parseInt(quantity) <= 0)) {
             toast.error('Quantity is required for single products');
             return;
@@ -189,6 +193,7 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
             formData.append('price', price);
             formData.append('type', productType);
             formData.append('status', mapStatusToApi(status));
+            formData.append('weight', weight); // Add weight field
             
             // Calculate total quantity for variant products
             const totalQuantity = productType === 'single' 
@@ -225,11 +230,6 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                 toast.info(`Uploading ${uploadedImages.length} image(s)`);
             }
 
-            // Add SKU if provided
-            if (sku) {
-                formData.append('sku', sku);
-            }
-
             // Debug: Log all form data
             console.log('=== FORM DATA ===');
             for (const [key, value] of formData.entries()) {
@@ -259,7 +259,7 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
             if (result.status === 'success') {
                 // Transform API response to match our frontend product structure
                 const newProduct = {
-                    sku: result.product.product_sku || sku || `SKU-${Date.now()}`,
+                    sku: result.product.product_sku || `SKU-${Date.now()}`,
                     productName: result.product.product_name,
                     description: result.product.product_description,
                     stock: result.product.product_quantity,
@@ -271,6 +271,7 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                     variants: typeof result.product.variants === 'string' 
                         ? JSON.parse(result.product.variants || '[]')
                         : result.product.variants || [],
+                    weight: result.product.product_weight || weight, // Include weight
                 };
 
                 onAddProduct(newProduct);
@@ -300,7 +301,7 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
         setProductName('');
         setDescription('');
         setPrice('');
-        setSku('');
+        setWeight('1'); // Reset to default weight
         setQuantity('');
         setProdFrom('');
         setProdTo('');
@@ -442,13 +443,16 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                                     />
                                 </div>
                                 <div>
-                                    <Label className='text-xs font-light mt-4 mb-1' htmlFor='sku'>SKU</Label>
+                                    <Label className='text-xs font-light mt-4 mb-1' htmlFor='weight'>Weight (kg)<span className="text-destructive">*</span></Label>
                                     <Input
-                                        id='sku'
-                                        value={sku}
-                                        onChange={(e) => setSku(e.target.value)}
+                                        id='weight'
+                                        value={weight}
+                                        onChange={(e) => setWeight(e.target.value)}
                                         className=''
-                                        placeholder='SKU-123'
+                                        placeholder='1'
+                                        type='number'
+                                        step='0.1'
+                                        min='0.1'
                                         disabled={isLoading}
                                     />
                                 </div>
