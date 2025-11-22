@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { Eye, EyeOff, X, Check } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Logo from "@/components/svgIcons/Logo";
+import { toast } from "sonner";
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState("");
@@ -27,13 +28,6 @@ export default function ResetPasswordPage() {
   const [hasNumber, setHasNumber] = useState(false);
   const [hasSpecialChar, setHasSpecialChar] = useState(false);
 
-  // Redirect to /login if token is missing
-//   useEffect(() => {
-//     if (!token) {
-//       router.push("/login");
-//     }
-//   }, [token, router]);
-
   // Validate password rules on change
   useEffect(() => {
     setHasLength(password.length >= 8);
@@ -42,6 +36,9 @@ export default function ResetPasswordPage() {
     setHasNumber(/\d/.test(password));
     setHasSpecialChar(/[!@#$%^&*(),.?":{}|<>]/.test(password));
   }, [password]);
+
+  // Check if all password requirements are met
+  const isPasswordValid = hasLength && hasUppercase && hasLowercase && hasNumber && hasSpecialChar;
 
   const togglePasswordVisibility = () => {
     setShowPassword((prev) => !prev);
@@ -53,18 +50,27 @@ export default function ResetPasswordPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!token) {
+      setError("Invalid reset link. Please request a new password reset.");
+      return;
+    }
+
     if (!password || !confirmPassword) {
       setError("Please fill in all fields");
       return;
     }
+
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
     }
-    if (!hasLength || !hasUppercase || !hasLowercase || !hasNumber || !hasSpecialChar) {
+
+    if (!isPasswordValid) {
       setError("Password does not meet all requirements");
       return;
     }
+
     setError("");
     setIsLoading(true);
 
@@ -72,40 +78,47 @@ export default function ResetPasswordPage() {
       const res = await fetch("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ newPassword: password, confirmPassword, token }),
+        body: JSON.stringify({ 
+          token, 
+          newPassword: password, 
+          confirmPassword 
+        }),
       });
 
       const data = await res.json();
-      console.log("Reset password response:", JSON.stringify(data, null, 2)); // Debug log
+      
       if (res.ok && data.success) {
-        alert("Password reset successfully!"); // Replace with toast
-        router.push("/login");
+        toast.success("Password reset successfully! You can now log in with your new password.");
+        setTimeout(() => {
+          router.push("/login");
+        }, 2000);
       } else {
-        setError(data.error || "Failed to reset password");
+        const errorMessage = data.message || "Failed to reset password";
+        setError(errorMessage);
+        toast.error(errorMessage);
       }
     } catch (err) {
-      setError("Failed to reset password. Please try again.");
+      const errorMessage = "Network error. Please check your connection and try again.";
+      setError(errorMessage);
+      toast.error(errorMessage);
       console.error("Reset password error:", err);
     } finally {
       setIsLoading(false);
     }
   };
 
-//   if (!token) {
-//     return null;
-//   }
-
   return (
     <div className="w-full max-w-lg mx-auto space-y-6 p-6">
-        <Logo />
-      <div className="flex flex-col ">
+      <Logo />
+      <div className="flex flex-col">
         <h1 className="text-2xl font-semibold text-primary">Reset Password</h1>
         <p className="text-xs text-[#A0A0A0]">Enter your new password</p>
       </div>
+      
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-4">
+          {/* New Password Field */}
           <div className="relative">
-           
             <Input
               id="password"
               type={showPassword ? "text" : "password"}
@@ -113,13 +126,15 @@ export default function ResetPasswordPage() {
               onChange={(e) => setPassword(e.target.value)}
               onFocus={() => setPasswordFocused(true)}
               onBlur={() => setPasswordFocused(false)}
-              className="w-full h-12 bg-[#F8F8F8] border-0 pl-10 pr-10 rounded-lg focus:ring-2 transition-all duration-200 flex items-center"
+              className="w-full h-12 bg-[#F8F8F8] border-0 pl-4 pr-10 rounded-lg focus:ring-2 focus:ring-[#4FCA6A] transition-all duration-200"
+              placeholder=" "
+              disabled={isLoading}
             />
             <label
               htmlFor="password"
-              className={`absolute left-10 text-gray-400 text-sm transition-all duration-200 pointer-events-none inline-block px-1 ${
+              className={`absolute left-4 text-gray-400 text-sm transition-all duration-200 pointer-events-none ${
                 password || passwordFocused
-                  ? "top-[-1.5] text-xs text-gray-600 font-medium bg-card"
+                  ? "top-[-10px] text-xs text-gray-600 font-medium bg-white px-1"
                   : "top-3.5"
               }`}
             >
@@ -136,6 +151,8 @@ export default function ResetPasswordPage() {
               )}
             </div>
           </div>
+
+          {/* Confirm Password Field */}
           <div className="relative">
             <Input
               id="confirm-password"
@@ -144,13 +161,15 @@ export default function ResetPasswordPage() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               onFocus={() => setConfirmPasswordFocused(true)}
               onBlur={() => setConfirmPasswordFocused(false)}
-              className="w-full h-12 bg-[#F8F8F8] border-0 pl-10 pr-10 rounded-lg focus:ring-2 transition-all duration-200 flex items-center"
+              className="w-full h-12 bg-[#F8F8F8] border-0 pl-4 pr-10 rounded-lg focus:ring-2 focus:ring-[#4FCA6A] transition-all duration-200"
+              placeholder=" "
+              disabled={isLoading}
             />
             <label
               htmlFor="confirm-password"
-              className={`absolute left-10 text-gray-400 text-sm transition-all duration-200 pointer-events-none inline-block px-1 ${
+              className={`absolute left-4 text-gray-400 text-sm transition-all duration-200 pointer-events-none ${
                 confirmPassword || confirmPasswordFocused
-                  ? "top-[-1.5] text-xs text-gray-600 font-medium bg-card"
+                  ? "top-[-10px] text-xs text-gray-600 font-medium bg-white px-1"
                   : "top-3.5"
               }`}
             >
@@ -168,45 +187,50 @@ export default function ResetPasswordPage() {
             </div>
           </div>
         </div>
-        <div className="space-y-2 flex flex-wrap gap-1">
-          <div className="flex gap-2">
-            <div className={`flex items-center space-x-2 p-2 rounded-full ${hasUppercase ? "bg-[#D1FFDB] " : "bg-gray-100 text-gray-600"}`}>
-              {hasUppercase ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
-              <span className="text-xs">at least 1 uppercase letter</span>
+
+        {/* Password Requirements */}
+        <div className="space-y-3">
+          <p className="text-sm font-medium text-gray-700">Password Requirements:</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className={`flex items-center space-x-2 p-2 rounded-lg ${hasLength ? "bg-[#D1FFDB]" : "bg-gray-100"}`}>
+              {hasLength ? <Check className="h-4 w-4 text-green-600" /> : <X className="h-4 w-4 text-gray-400" />}
+              <span className={`text-xs ${hasLength ? "text-green-800" : "text-gray-600"}`}>8+ characters</span>
             </div>
-          </div>
-          <div className={`flex items-center space-x-2 p-2 rounded-full ${hasLowercase ? "bg-[#D1FFDB] " : "bg-gray-100 text-gray-600"}`}>
-              {hasLowercase ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
-              <span className="text-xs">at least 1 lowercase letter</span>
+            <div className={`flex items-center space-x-2 p-2 rounded-lg ${hasUppercase ? "bg-[#D1FFDB]" : "bg-gray-100"}`}>
+              {hasUppercase ? <Check className="h-4 w-4 text-green-600" /> : <X className="h-4 w-4 text-gray-400" />}
+              <span className={`text-xs ${hasUppercase ? "text-green-800" : "text-gray-600"}`}>Uppercase letter</span>
             </div>
-            <div className={`flex items-center space-x-2 p-2 rounded-full ${hasLowercase ? "bg-[#D1FFDB] " : "bg-gray-100 text-gray-600"}`}>
-              {hasLowercase ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
-              <span className="text-xs">at least 1 lowercase letter</span>
+            <div className={`flex items-center space-x-2 p-2 rounded-lg ${hasLowercase ? "bg-[#D1FFDB]" : "bg-gray-100"}`}>
+              {hasLowercase ? <Check className="h-4 w-4 text-green-600" /> : <X className="h-4 w-4 text-gray-400" />}
+              <span className={`text-xs ${hasLowercase ? "text-green-800" : "text-gray-600"}`}>Lowercase letter</span>
             </div>
-            <div className={`flex items-center space-x-2 p-2 rounded-full ${hasLength ? "bg-[#D1FFDB] " : "bg-gray-100 text-gray-600"}`}>
-              {hasLength ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
-              <span className="text-xs">min 8 characters</span>
+            <div className={`flex items-center space-x-2 p-2 rounded-lg ${hasNumber ? "bg-[#D1FFDB]" : "bg-gray-100"}`}>
+              {hasNumber ? <Check className="h-4 w-4 text-green-600" /> : <X className="h-4 w-4 text-gray-400" />}
+              <span className={`text-xs ${hasNumber ? "text-green-800" : "text-gray-600"}`}>Number</span>
             </div>
-            <div className={`flex items-center space-x-2 p-2 rounded-full ${hasNumber ? "bg-[#D1FFDB] " : "bg-gray-100 text-gray-600"}`}>
-              {hasNumber ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
-              <span className="text-xs">at least 1 number</span>
+            <div className={`flex items-center space-x-2 p-2 rounded-lg ${hasSpecialChar ? "bg-[#D1FFDB]" : "bg-gray-100"}`}>
+              {hasSpecialChar ? <Check className="h-4 w-4 text-green-600" /> : <X className="h-4 w-4 text-gray-400" />}
+              <span className={`text-xs ${hasSpecialChar ? "text-green-800" : "text-gray-600"}`}>Special character</span>
             </div>
-          <div className={`flex items-center space-x-2 p-2 rounded-full w-[50%] ${hasSpecialChar ? "bg-[#D1FFDB] " : "bg-gray-100 text-gray-600"}`}>
-            {hasSpecialChar ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
-            <span className="text-xs">at least 1 special symbol &apos;$, #...&apos;</span>
           </div>
         </div>
-        {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+
+        {error && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-600 text-center">{error}</p>
+          </div>
+        )}
+
         <Button
           type="submit"
-          className={`w-full py-2 rounded-lg transition-colors duration-200 ${
-            password && confirmPassword && !isLoading
-              ? "bg-[#4FCA6A]  text-white"
-              : "bg-[#F8F8F8] hover:bg-gray-300 text-gray-600"
+          className={`w-full py-3 rounded-lg transition-colors duration-200 font-medium ${
+            password && confirmPassword && isPasswordValid && !isLoading
+              ? "bg-[#4FCA6A] text-white hover:bg-[#45b860]" 
+              : "bg-gray-200 text-gray-500 cursor-not-allowed"
           }`}
-          disabled={!password || !confirmPassword || isLoading}
+          disabled={!password || !confirmPassword || !isPasswordValid || isLoading}
         >
-          {isLoading ? "Resetting..." : "Reset "}
+          {isLoading ? "Resetting Password..." : "Reset Password"}
         </Button>
       </form>
     </div>
