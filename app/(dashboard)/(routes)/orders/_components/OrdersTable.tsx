@@ -81,7 +81,7 @@ interface ApiResponse {
 
 export default function OrderTable() {
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
+  const pageSize = 6;
   const [searchTerm, setSearchTerm] = useState("");
   const [orders, setOrders] = useState<Order[]>([]);
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
@@ -145,24 +145,13 @@ export default function OrderTable() {
 
   const getPageNumbers = () => {
     const pages = [];
-    const maxVisiblePages = 5;
-    
-    if (totalPages <= maxVisiblePages) {
+    if (totalPages <= 3) {
       for (let i = 1; i <= totalPages; i++) pages.push(i);
     } else {
       pages.push(1);
-      
-      if (currentPage > 3) pages.push('...');
-      
-      const start = Math.max(2, currentPage - 1);
-      const end = Math.min(totalPages - 1, currentPage + 1);
-      
-      for (let i = start; i <= end; i++) {
-        pages.push(i);
-      }
-      
-      if (currentPage < totalPages - 2) pages.push('...');
-      
+      if (currentPage > 3) pages.push("...");
+      else pages.push(2);
+      if (currentPage < totalPages - 1) pages.push("...");
       pages.push(totalPages);
     }
     return pages;
@@ -506,49 +495,43 @@ const handleCreateOrder = (order: any) => {
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between px-2 py-4">
-          <div className="text-sm text-muted-foreground">
-            Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} orders
-          </div>
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            
-            {getPageNumbers().map((page, index) => (
-              <div key={index}>
-                {page === "..." ? (
-                  <span className="px-2 py-1">...</span>
-                ) : (
-                  <Button
-                    variant={currentPage === page ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setCurrentPage(Number(page))}
-                    className="w-8 h-8 p-0"
-                  >
-                    {page}
-                  </Button>
-                )}
-              </div>
-            ))}
-            
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+      <div className="flex justify-center mt-4 space-x-2">
+  <span className="text-sm">
+    {`${((currentPage - 1) * pageSize) + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount}`}
+  </span>
+  <Button
+    variant="outline"
+    size="icon"
+    onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+    disabled={currentPage === 1}
+  >
+    <ChevronLeft className="h-4 w-4" />
+  </Button>
+  {getPageNumbers().map((page, index) => (
+    <span key={index}>
+      {page === "..." ? (
+        <span className="px-2 text-sm">...</span>
+      ) : (
+        <Button
+          variant={currentPage === page ? "default" : "outline"}
+          size="sm"
+          onClick={() => setCurrentPage(Number(page))}
+          disabled={page === "..." || page === currentPage}
+        >
+          {Number(page)}
+        </Button>
       )}
+    </span>
+  ))}
+  <Button
+    variant="outline"
+    size="icon"
+    onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+    disabled={currentPage >= totalPages}
+  >
+    <ChevronRight className="h-4 w-4" />
+  </Button>
+</div>
 
       <CreateOrderModal
         isOpen={isCreateOrderModalOpen}
