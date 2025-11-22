@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 const API_BASE_URL = "https://api.swiftree.app";
+const INTERNAL_SECRET = process.env.INTERNAL_SECRET; // Make sure this is set in your environment
 
 export async function POST(request: Request) {
   try {
@@ -25,7 +26,20 @@ export async function POST(request: Request) {
       );
     }
 
-    // Prepare request to external API - using your exact endpoint format
+    // Check if internal secret is configured
+    if (!INTERNAL_SECRET) {
+      console.error("INTERNAL_SECRET is not configured");
+      return NextResponse.json(
+        { 
+          status: "error", 
+          message: "Service configuration error", 
+          success: false 
+        },
+        { status: 500 }
+      );
+    }
+
+    // Prepare request to external API
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
@@ -36,6 +50,7 @@ export async function POST(request: Request) {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "X-Internal-Secret": INTERNAL_SECRET, // Added the required header
           },
           signal: controller.signal,
         }
@@ -57,17 +72,41 @@ export async function POST(request: Request) {
         );
       }
 
+      // Handle specific error cases
+      if (response.status === 404) {
+        return NextResponse.json(
+          { 
+            status: "error", 
+            message: "No account found with this email address.", 
+            success: false 
+          },
+          { status: 404 }
+        );
+      }
+
+      if (response.status === 401) {
+        console.error("Authentication failed - check INTERNAL_SECRET");
+        return NextResponse.json(
+          { 
+            status: "error", 
+            message: "Authentication service error. Please try again later.", 
+            success: false 
+          },
+          { status: 500 }
+        );
+      }
+
       // Handle other status codes
       return NextResponse.json(
         { 
           status: "error", 
-          message: "Failed to send reset link. Please check if this email is registered.", 
+          message: "Failed to send reset link. Please try again later.", 
           success: false 
         },
         { status: response.status }
       );
 
-    }  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    }  // eslint-disable-next-line @typescript-eslint/no-explicit-any 
     catch (fetchError: any) {
       clearTimeout(timeoutId);
       
@@ -96,7 +135,7 @@ export async function POST(request: Request) {
     }
 
   }  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  catch (error: any) {
+   catch (error: any) {
     console.error("Unexpected error in reset password request API:", error);
     return NextResponse.json(
       { status: "error", message: "Internal server error", success: false },

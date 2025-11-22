@@ -20,10 +20,18 @@ export default function ForgotPasswordPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !validateEmail(email)) {
+    
+    // Validate email
+    if (!email) {
+      setError("Please enter your email address");
+      return;
+    }
+    
+    if (!validateEmail(email)) {
       setError("Please enter a valid email address");
       return;
     }
+    
     setError("");
     setIsLoading(true);
 
@@ -35,20 +43,19 @@ export default function ForgotPasswordPage() {
       });
 
       const data = await res.json();
-      console.log("Reset password mail response:", JSON.stringify(data, null, 2));
+      console.log("Reset password mail response:", data);
       
       if (res.ok && data.success) {
-        // Use toast instead of alert for better UX
         toast.success("Password reset link sent! Please check your email.");
         setEmail(""); // Clear the form on success
       } else {
-        // Use the message from API response
+        // Use the message from API response or fallback
         const errorMessage = data.message || "Failed to send reset link";
         setError(errorMessage);
         toast.error(errorMessage);
       }
     } catch (err) {
-      const errorMessage = "Failed to send reset link. Please try again.";
+      const errorMessage = "Network error. Please check your connection and try again.";
       setError(errorMessage);
       toast.error(errorMessage);
       console.error("Reset password mail error:", err);
@@ -71,10 +78,10 @@ export default function ForgotPasswordPage() {
           <div className="relative">
             <label
               htmlFor="email"
-              className={`left-10 text-sm transition-all duration-200 pointer-events-none inline-block px-1 ${
+              className={`absolute left-3 top-2 text-sm transition-all duration-200 pointer-events-none ${
                 email || emailFocused
-                  ? "top-[-1.5] text-xs font-medium"
-                  : "top-5"
+                  ? "transform -translate-y-3 scale-75 bg-white px-1 text-primary"
+                  : "text-gray-500"
               }`}
             >
               Email 
@@ -86,25 +93,33 @@ export default function ForgotPasswordPage() {
               onChange={(e) => setEmail(e.target.value)}
               onFocus={() => setEmailFocused(true)}
               onBlur={() => setEmailFocused(false)}
-              className="w-full h-12 bg-[#F8F8F8] border-0 pl-10 pr-4 rounded-lg focus:ring-2 transition-all duration-200 flex items-center"
+              className="w-full h-12 bg-[#F8F8F8] border-0 pl-3 pr-4 rounded-lg focus:ring-2 focus:ring-[#4FCA6A] transition-all duration-200"
               disabled={isLoading}
+              placeholder={emailFocused ? "" : "Enter your email"}
             />
           </div>
         </div>
-        {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+        {error && (
+          <p className="text-sm text-red-600 text-center bg-red-50 py-2 rounded-lg">
+            {error}
+          </p>
+        )}
         <Button
           type="submit"
-          className={`w-full py-2 rounded-lg transition-colors duration-200 ${
-            email && !isLoading 
+          className={`w-full py-3 rounded-lg transition-colors duration-200 font-medium ${
+            email && validateEmail(email) && !isLoading 
               ? "bg-[#4FCA6A] text-white hover:bg-[#45b860]" 
-              : "bg-[#F8F8F8] hover:bg-gray-300 text-gray-600"
+              : "bg-gray-200 text-gray-500 cursor-not-allowed"
           }`}
-          disabled={!email || isLoading}
+          disabled={!email || !validateEmail(email) || isLoading}
         >
-          {isLoading ? "Sending..." : "Request Link"}
+          {isLoading ? "Sending..." : "Request Reset Link"}
         </Button>
         <div className="text-center">
-          <Link href="/login" className="text-sm text-[#4FCA6A] hover:underline">
+          <Link 
+            href="/login" 
+            className="text-sm text-[#4FCA6A] hover:underline transition-colors"
+          >
             Back to Login
           </Link>
         </div>
