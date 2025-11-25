@@ -33,26 +33,6 @@ interface RegisterRequest {
   business_details: BusinessDetails;
 }
 
-// Helper function to extract store ID from store URL
-function extractStoreIdFromUrl(storeUrl: string): string | null {
-  try {
-    // Expected format: https://swiftree.app/storefront/<store-id>
-    const urlPattern = /\/storefront\/([a-zA-Z0-9-]+)/;
-    const match = storeUrl.match(urlPattern);
-    
-    if (match && match[1]) {
-      console.log(`[REGISTER] Extracted store ID: ${match[1]} from URL: ${storeUrl}`);
-      return match[1];
-    }
-    
-    console.warn(`[REGISTER] Could not extract store ID from URL: ${storeUrl}`);
-    return null;
-  } catch (error) {
-    console.error('[REGISTER] Error extracting store ID:', error);
-    return null;
-  }
-}
-
 export async function POST(request: Request) {
   try {
     const data: RegisterRequest = await request.json();
@@ -134,17 +114,29 @@ export async function POST(request: Request) {
         );
       }
 
-      // Successful registration
+      // Successful registration - NEW RESPONSE STRUCTURE
       const storeName = data.business_details.store_name;
-      const storeUrl = result.data?.store_url || null;
-      
-      // Extract store ID from store URL
-      let storeId = result.data?.store_id || null; // Try to get from response first
-      if (!storeId && storeUrl) {
-        storeId = extractStoreIdFromUrl(storeUrl);
-      }
+      const storeId = result.data?.defaultStore?.store_id || null;
+      const storeUrl = result.data?.defaultStore?.store_url || null;
+      const qrCode = result.data?.defaultStore?.qrCode || null;
+      const userId = result.data?.id || null;
+      const userEmail = result.data?.user_email || null;
 
-      console.log(`[REGISTER] Store details - Name: ${storeName}, ID: ${storeId}, URL: ${storeUrl}`);
+      console.log(`[REGISTER] Registration successful:`, {
+        userId,
+        userEmail,
+        storeName,
+        storeId,
+        storeUrl,
+        qrCode
+      });
+
+      // Convert relative QR code path to full URL if needed
+      const fullQrCodeUrl = qrCode 
+        ? (qrCode.startsWith('http') ? qrCode : `${API_BASE_URL}${qrCode}`)
+        : null;
+
+      console.log(`[REGISTER] QR Code URL: ${fullQrCodeUrl}`);
       
       const nextResponse = NextResponse.json(
         {
@@ -152,10 +144,13 @@ export async function POST(request: Request) {
           message: result.message || "Registration successful",
           success: true,
           data: {
-            ...result.data,
+            token: result.data?.token,
+            user_id: userId,
+            user_email: userEmail,
             store_name: storeName,
+            store_id: storeId,
             store_url: storeUrl,
-            store_id: storeId // Include extracted store_id in response
+            qrCode: fullQrCodeUrl
           }
         },
         { status: 201 }
@@ -173,7 +168,17 @@ export async function POST(request: Request) {
       // Set access token
       if (result.data?.token) {
         nextResponse.cookies.set("accessToken", result.data.token, cookieOptions);
-        console.log("[REGISTER] Access token cookie set");
+        console.log("[REGISTER] ✅ Access token cookie set");
+      }
+
+      // Set user_id cookie (accessible to client)
+      if (userId) {
+        nextResponse.cookies.set("user_id", userId, {
+          ...cookieOptions,
+          httpOnly: false,
+          maxAge: 2592000, // 30 days
+        });
+        console.log(`[REGISTER] ✅ User ID saved to cookie: ${userId}`);
       }
 
       // Set store_name cookie (httpOnly: false so client can access)
@@ -182,7 +187,7 @@ export async function POST(request: Request) {
         httpOnly: false,
         maxAge: 2592000, // 30 days
       });
-      console.log(`[REGISTER] Store name saved to cookie: ${storeName}`);
+      console.log(`[REGISTER] ✅ Store name saved to cookie: ${storeName}`);
 
       // Set store_id cookie if available
       if (storeId) {
@@ -191,9 +196,9 @@ export async function POST(request: Request) {
           httpOnly: false,
           maxAge: 2592000, // 30 days
         });
-        console.log(`[REGISTER] Store ID saved to cookie: ${storeId}`);
+        console.log(`[REGISTER] ✅ Store ID saved to cookie: ${storeId}`);
       } else {
-        console.warn("[REGISTER] No store ID available to save to cookie");
+        console.warn("[REGISTER] ⚠️ No store ID available to save to cookie");
       }
 
       // Set store_url cookie if available
@@ -203,13 +208,13 @@ export async function POST(request: Request) {
           httpOnly: false,
           maxAge: 2592000, // 30 days
         });
-        console.log(`[REGISTER] Store URL saved to cookie: ${storeUrl}`);
+        console.log(`[REGISTER] ✅ Store URL saved to cookie: ${storeUrl}`);
       }
 
       return nextResponse;
 
-    }  // eslint-disable-next-line @typescript-eslint/no-explicit-any 
-    catch (fetchError: any) {
+    }  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     catch (fetchError: any) {
       clearTimeout(timeoutId);
       
       if (fetchError.name === "AbortError") {

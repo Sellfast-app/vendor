@@ -55,8 +55,13 @@ interface RegisterRequest {
 interface RegisterResponse {
   status: string;
   message: string;
+  success: boolean;
   data: {
     token: string;
+    user_id: string;
+    user_email: string;
+    store_name: string;
+    store_id: string;
     store_url: string;
     qrCode: string;
   };
@@ -320,9 +325,9 @@ export default function MultiStepSignupPage() {
 
   const handleSubmit = async () => {
     if (!validateStep(3)) return;
-
+  
     setIsLoading(true);
-
+  
     try {
       const phone_number = `${formData.countryCode}${formData.user_details.phone_number}`.replace(/\s/g, '');
       const payload: RegisterRequest = {
@@ -332,9 +337,9 @@ export default function MultiStepSignupPage() {
         },
         business_details: formData.business_details,
       };
-
+  
       console.log('Sending registration payload:', JSON.stringify(payload, null, 2));
-
+  
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: {
@@ -342,41 +347,39 @@ export default function MultiStepSignupPage() {
         },
         body: JSON.stringify(payload),
       });
-
-      const result: RegisterResponse & { message?: string } = await response.json();
-
-      if (!response.ok) {
+  
+      const result: RegisterResponse = await response.json();
+  
+      console.log('Registration response:', result);
+  
+      if (!response.ok || !result.success) {
         throw new Error(result.message || 'Failed to create account');
       }
-
-      // Convert relative QR code path to full URL
-      const qrCodeUrl = result.data.qrCode.startsWith('http') 
-        ? result.data.qrCode 
-        : `https://api.swiftree.app${result.data.qrCode}`;
-
-      // Save to local storage
+  
+      // Save data to localStorage
       localStorage.setItem('colorScheme', formData.colorScheme);
+      localStorage.setItem('store_name', result.data.store_name);
+      localStorage.setItem('store_id', result.data.store_id);
       localStorage.setItem('store_url', result.data.store_url);
-      localStorage.setItem('qrCode', qrCodeUrl);
-
-      // Save store name to cookie for sidebar access
-      document.cookie = `store_name=${encodeURIComponent(formData.business_details.store_name)}; path=/; max-age=2592000; SameSite=Lax`;
-      // Also save to localStorage as backup
-      localStorage.setItem('store_name', formData.business_details.store_name);
-
-      // Update result with full QR code URL
-      const updatedResult = {
-        ...result,
-        data: {
-          ...result.data,
-          qrCode: qrCodeUrl
-        }
-      };
-
-      setSuccessData(updatedResult);
+      localStorage.setItem('qrCode', result.data.qrCode);
+      localStorage.setItem('user_id', result.data.user_id);
+      localStorage.setItem('user_email', result.data.user_email);
+  
+      // Save store name to cookie for sidebar access (backup to cookie set by API)
+      document.cookie = `store_name=${encodeURIComponent(result.data.store_name)}; path=/; max-age=2592000; SameSite=Lax`;
+  
+      console.log('✅ Registration data saved:', {
+        storeName: result.data.store_name,
+        storeId: result.data.store_id,
+        storeUrl: result.data.store_url,
+        qrCode: result.data.qrCode,
+      });
+  
+      setSuccessData(result);
       toast.success('Account created successfully!');
       setIsSuccess(true);
     } catch (error) {
+      console.error('Registration error:', error);
       toast.error(error instanceof Error ? error.message : 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
@@ -701,7 +704,7 @@ export default function MultiStepSignupPage() {
       <div className="space-y-2 flex flex-col justify-center items-center">
         <h2 className="text-lg font-bold text-foreground">Your Storefront is Ready!</h2>
         <p className="text-muted-foreground text-xs">
-          We&apos;ve created your awesome <span className="text-primary">{formData.business_details.store_name}</span> storefront with WhatsApp integration
+          We&apos;ve created your awesome <span className="text-primary">{successData?.data.store_name}</span> storefront with WhatsApp integration
         </p>
         {successData?.data.qrCode && (
           <div className="relative w-32 h-32 bg-gray-100 rounded-lg flex items-center justify-center">
@@ -734,7 +737,7 @@ export default function MultiStepSignupPage() {
                   // Create a temporary link and trigger download
                   const link = document.createElement('a');
                   link.href = blobUrl;
-                  link.download = `${formData.business_details.store_name.replace(/\s+/g, '-')}-qr-code.png`;
+                  link.download = `${successData.data.store_name.replace(/\s+/g, '-')}-qr-code.png`;
                   document.body.appendChild(link);
                   link.click();
                   
@@ -757,8 +760,12 @@ export default function MultiStepSignupPage() {
           <Button
             variant="outline"
             onClick={() => {
-              navigator.clipboard.writeText(successData?.data.store_url || '');
-              toast.success('Storefront link copied!');
+              if (successData?.data.store_url) {
+                navigator.clipboard.writeText(successData.data.store_url);
+                toast.success('Storefront link copied!');
+              } else {
+                toast.error('Store URL not available');
+              }
             }}
           >
             Copy Storefront Link <Copy />
