@@ -24,13 +24,33 @@ interface BusinessMetadata {
 interface BusinessDetails {
   store_name: string;
   type: string;
-  description?: string;  // Optional per API docs
-  metadata: BusinessMetadata;  // Changed: wrapped brand_color in metadata
+  description?: string;
+  metadata: BusinessMetadata;
 }
 
 interface RegisterRequest {
   user_details: UserDetails;
   business_details: BusinessDetails;
+}
+
+// Helper function to extract store ID from store URL
+function extractStoreIdFromUrl(storeUrl: string): string | null {
+  try {
+    // Expected format: https://swiftree.app/storefront/<store-id>
+    const urlPattern = /\/storefront\/([a-zA-Z0-9-]+)/;
+    const match = storeUrl.match(urlPattern);
+    
+    if (match && match[1]) {
+      console.log(`[REGISTER] Extracted store ID: ${match[1]} from URL: ${storeUrl}`);
+      return match[1];
+    }
+    
+    console.warn(`[REGISTER] Could not extract store ID from URL: ${storeUrl}`);
+    return null;
+  } catch (error) {
+    console.error('[REGISTER] Error extracting store ID:', error);
+    return null;
+  }
 }
 
 export async function POST(request: Request) {
@@ -116,7 +136,15 @@ export async function POST(request: Request) {
 
       // Successful registration
       const storeName = data.business_details.store_name;
-      const storeUrl = result.data?.store_url || null; // Extract store URL from response
+      const storeUrl = result.data?.store_url || null;
+      
+      // Extract store ID from store URL
+      let storeId = result.data?.store_id || null; // Try to get from response first
+      if (!storeId && storeUrl) {
+        storeId = extractStoreIdFromUrl(storeUrl);
+      }
+
+      console.log(`[REGISTER] Store details - Name: ${storeName}, ID: ${storeId}, URL: ${storeUrl}`);
       
       const nextResponse = NextResponse.json(
         {
@@ -126,7 +154,8 @@ export async function POST(request: Request) {
           data: {
             ...result.data,
             store_name: storeName,
-            store_url: storeUrl
+            store_url: storeUrl,
+            store_id: storeId // Include extracted store_id in response
           }
         },
         { status: 201 }
@@ -141,8 +170,10 @@ export async function POST(request: Request) {
         secure: process.env.NODE_ENV === "production",
       };
 
+      // Set access token
       if (result.data?.token) {
         nextResponse.cookies.set("accessToken", result.data.token, cookieOptions);
+        console.log("[REGISTER] Access token cookie set");
       }
 
       // Set store_name cookie (httpOnly: false so client can access)
@@ -151,27 +182,33 @@ export async function POST(request: Request) {
         httpOnly: false,
         maxAge: 2592000, // 30 days
       });
+      console.log(`[REGISTER] Store name saved to cookie: ${storeName}`);
 
-      // Set store_id if available
-      if (result.data?.store_id) {
-        nextResponse.cookies.set("store_id", result.data.store_id, {
+      // Set store_id cookie if available
+      if (storeId) {
+        nextResponse.cookies.set("store_id", storeId, {
           ...cookieOptions,
           httpOnly: false,
+          maxAge: 2592000, // 30 days
         });
+        console.log(`[REGISTER] Store ID saved to cookie: ${storeId}`);
+      } else {
+        console.warn("[REGISTER] No store ID available to save to cookie");
       }
 
-      // Set store_url if available (same as login)
+      // Set store_url cookie if available
       if (storeUrl) {
         nextResponse.cookies.set("store_url", storeUrl, {
           ...cookieOptions,
           httpOnly: false,
+          maxAge: 2592000, // 30 days
         });
         console.log(`[REGISTER] Store URL saved to cookie: ${storeUrl}`);
       }
 
       return nextResponse;
 
-    }  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    }  // eslint-disable-next-line @typescript-eslint/no-explicit-any 
     catch (fetchError: any) {
       clearTimeout(timeoutId);
       
@@ -190,8 +227,8 @@ export async function POST(request: Request) {
       );
     }
 
-  } // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  catch (error: any) {
+  }  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   catch (error: any) {
     console.error("Unexpected error in register API:", error);
     return NextResponse.json(
       { status: "error", message: "Internal server error", success: false },
