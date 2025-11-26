@@ -210,7 +210,6 @@ export async function POST(request: NextRequest) {
     const storeId = cookieStore.get('store_id')?.value;
     
     console.log('🔍 Logo Upload - Store ID from cookies:', storeId);
-    console.log('🔍 Logo Upload - INTERNAL_SECRET exists:', !!INTERNAL_SECRET);
     
     if (!storeId) {
       console.error('❌ Logo Upload Error: No store ID found in cookies');
@@ -220,11 +219,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!INTERNAL_SECRET) {
-      console.error('❌ Logo Upload Error: INTERNAL_SECRET not configured');
+    // Get access token from cookies - THIS WAS MISSING
+    const accessToken = cookieStore.get('accessToken')?.value;
+    
+    if (!accessToken) {
+      console.error('❌ Logo Upload Error: No access token found');
       return NextResponse.json(
-        { error: 'Server configuration error' },
-        { status: 500 }
+        { error: 'Authentication required. Please login again.' },
+        { status: 401 }
       );
     }
 
@@ -264,23 +266,17 @@ export async function POST(request: NextRequest) {
     const backendFormData = new FormData();
     backendFormData.append('logo', logoFile);
 
-    // Debug: Log the request details
-    console.log('🔍 Logo Upload - Request details:', {
-      url: `${API_BASE_URL}/api/stores/${storeId}/logo`,
-      hasInternalSecret: !!INTERNAL_SECRET,
-      internalSecretLength: INTERNAL_SECRET?.length,
-      storeId: storeId
-    });
-
     // Upload to backend API with timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/stores/${storeId}/logo`, {
         method: 'POST',
         headers: {
-          'X-Internal-Secret': INTERNAL_SECRET,
+          'Authorization': `Bearer ${accessToken}`, // ADD THIS
+          // Only include X-Internal-Secret if your backend actually requires it
+          ...(INTERNAL_SECRET ? { 'X-Internal-Secret': INTERNAL_SECRET } : {}),
         },
         body: backendFormData,
         signal: controller.signal,
@@ -290,7 +286,6 @@ export async function POST(request: NextRequest) {
 
       const responseText = await response.text();
       console.log('🔍 Logo Upload - Backend response status:', response.status);
-      console.log('🔍 Logo Upload - Backend response headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         console.error('❌ Backend logo upload error:', {
@@ -305,11 +300,6 @@ export async function POST(request: NextRequest) {
           errorMessage = errorData.message || errorData.error || errorMessage;
         } catch {
           errorMessage = responseText || errorMessage;
-        }
-        
-        // Special handling for 401 - likely authentication issue
-        if (response.status === 401) {
-          errorMessage = 'Authentication failed. Please check server configuration.';
         }
         
         return NextResponse.json(
@@ -329,7 +319,7 @@ export async function POST(request: NextRequest) {
       
       return NextResponse.json(data, { status: 200 });
       
-    }     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } // eslint-disable-next-line @typescript-eslint/no-explicit-any 
     catch (fetchError: any) {
       clearTimeout(timeoutId);
       
