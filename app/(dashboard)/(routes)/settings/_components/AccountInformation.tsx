@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,7 @@ import AddStoreModal from "./AddStoreModal";
 import DeleteStoreModal from "./DeleteStoreModal";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Store {
   id: string;
@@ -41,6 +42,7 @@ function AccountInformation() {
   const [showDeleteSection, setShowDeleteSection] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isFetching, setIsFetching] = useState(true);
   const router = useRouter();
 
   // Updated form data structure for API integration
@@ -100,6 +102,72 @@ function AccountInformation() {
   const [isEditStoreMode, setIsEditStoreMode] = useState(false);
   const [isDeleteStoreModalOpen, setIsDeleteStoreModalOpen] = useState(false);
   const [storeToDelete, setStoreToDelete] = useState<Store | null>(null);
+
+  // Fetch store data from API for profile section
+  useEffect(() => {
+    const fetchStoreData = async () => {
+      try {
+        setIsFetching(true);
+        console.log('🔄 Starting to fetch store data for profile...');
+        
+        const response = await fetch('/api/store');
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to fetch store data');
+        }
+        
+        const result = await response.json();
+        
+        console.log('📦 Profile - Full API response:', result);
+        console.log('📦 Profile - Store details data:', result.data?.storeDetails);
+        
+        if (result.status === 'success' && result.data?.storeDetails) {
+          const storeDetails = result.data.storeDetails;
+          const metadata = storeDetails.metadata || {};
+          
+          console.log('🎯 Profile - Extracted store details:', {
+            owner_name: metadata.owner_name,
+            phone: metadata.phone,
+            address: metadata.address,
+            city: metadata.city,
+            state: metadata.state,
+            country: metadata.country,
+            post_code: metadata.post_code,
+            address_line_2: metadata.address_line_2
+          });
+          
+          // Populate form data with API response
+          setFormData(prev => ({
+            ...prev,
+            owner_name: metadata.owner_name || "",
+            phone: metadata.phone || "",
+            address: metadata.address || "",
+            address_line_2: metadata.address_line_2 || "",
+            city: metadata.city || "",
+            state: metadata.state || "",
+            post_code: metadata.post_code || "",
+            country: metadata.country || "NG",
+            // You can also populate business info if available
+            cacNumber: storeDetails.cac || "",
+            taxId: storeDetails.tin || "",
+            documentType: storeDetails.doctype || ""
+          }));
+          
+          console.log('✅ Profile data loaded successfully');
+        } else {
+          console.warn('⚠️ No store details found in response for profile');
+        }
+      } catch (error) {
+        console.error('❌ Error fetching store data for profile:', error);
+        toast.error(error instanceof Error ? error.message : 'Failed to load profile data');
+      } finally {
+        setIsFetching(false);
+      }
+    };
+
+    fetchStoreData();
+  }, []);
 
   // Geocoding function - EXACTLY as provided by backend dev
   async function geocode(address: string): Promise<GeocodeResult | null> {
@@ -267,6 +335,75 @@ function AccountInformation() {
     }
   };
 
+  // Skeleton Loading State for Profile Section
+  if (isFetching) {
+    return (
+      <div className="w-full space-y-6">
+        {/* Profile Section Skeleton */}
+        <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
+          <CardContent>
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-5 w-32" />
+                <Skeleton className="h-9 w-20" />
+              </div>
+              
+              <div className="flex items-center gap-4">
+                <Skeleton className="w-20 h-20 rounded-full" />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-11 w-full" />
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-11 w-full" />
+                </div>
+              </div>
+
+              <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div className="space-y-2 w-full">
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-11 w-full" />
+                </div>
+                <div className="space-y-2 w-full">
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-11 w-full" />
+                </div>
+              </div>
+
+              <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div className="space-y-2 w-full">
+                  <Skeleton className="h-4 w-12" />
+                  <Skeleton className="h-11 w-full" />
+                </div>
+                <div className="space-y-2 w-full">
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-11 w-full" />
+                </div>
+              </div>
+
+              <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div className="space-y-2 w-full">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-11 w-full" />
+                </div>
+                <div className="space-y-2 w-full">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-11 w-full" />
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Other sections skeleton can be added here if needed */}
+      </div>
+    );
+  }
+
   return (
     <div className="w-full space-y-6">
       {/* Profile Section */}
@@ -311,7 +448,9 @@ function AccountInformation() {
               <div className="relative">
                 <Avatar className="w-20 h-20">
                   <AvatarImage src="/placeholder-avatar.jpg" alt="Profile" />
-                  <AvatarFallback>CK</AvatarFallback>
+                  <AvatarFallback>
+                    {formData.owner_name ? formData.owner_name.substring(0, 2).toUpperCase() : 'CK'}
+                  </AvatarFallback>
                 </Avatar>
                 {isEditingProfile && (
                   <button className="absolute bottom-0 right-0 w-6 h-6 bg-primary rounded-full flex items-center justify-center text-white">

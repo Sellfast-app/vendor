@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Camera, Trash2, Copy, ExternalLink, PlusIcon, Loader2 } from "lucide-react";
+import { Camera, Trash2, Copy, ExternalLink, PlusIcon, Loader2, ImageIcon } from "lucide-react";
 import EditIcon from "@/components/svgIcons/Edit";
 import SaveIcon from "@/components/svgIcons/SaveIcon";
 import { Card, CardContent } from "@/components/ui/card";
@@ -37,6 +37,7 @@ interface StoreDetails {
   bio: string;
   customUrl: string;
   logo?: string | null;
+  banner?: string | null;
 }
 
 function StorefrontComponent() {
@@ -48,7 +49,9 @@ function StorefrontComponent() {
   const [storefrontUrl, setStorefrontUrl] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [isUploadingBanner, setIsUploadingBanner] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
 
   const [storefrontData, setStorefrontData] = useState<StoreDetails>({
     storeName: "",
@@ -59,6 +62,7 @@ function StorefrontComponent() {
     bio: "",
     customUrl: "www.swiftree.com/cassandrakitchen",
     logo: null,
+    banner: null,
   });
 
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
@@ -94,7 +98,8 @@ function StorefrontComponent() {
             bio: storeDetails.store_description,
             phone: metadata.phone,
             city: metadata.city,
-            logo: storeDetails.logo
+            logo: storeDetails.logo,
+            banner: storeDetails.banner
           });
           
           // Determine country code based on phone number
@@ -129,7 +134,8 @@ function StorefrontComponent() {
             whatsappNumber: formattedPhone,
             countryCode: countryCode,
             location: metadata.city || "Lagos",
-            logo: storeDetails.logo || null
+            logo: storeDetails.logo || null,
+            banner: storeDetails.banner || null
           }));
           
           console.log('✅ Store data loaded successfully into state:', {
@@ -139,7 +145,8 @@ function StorefrontComponent() {
             whatsappNumber: formattedPhone,
             countryCode: countryCode,
             location: metadata.city,
-            logo: storeDetails.logo
+            logo: storeDetails.logo,
+            banner: storeDetails.banner
           });
           toast.success('Store data loaded successfully');
         } else {
@@ -216,7 +223,7 @@ function StorefrontComponent() {
       const formData = new FormData();
       formData.append('logo', file);
 
-      const response = await fetch('/api/store', {
+      const response = await fetch('/api/store/logo', {
         method: 'POST',
         body: formData,
       });
@@ -248,6 +255,71 @@ function StorefrontComponent() {
       toast.error(error instanceof Error ? error.message : 'Failed to upload logo');
     } finally {
       setIsUploadingLogo(false);
+    }
+  };
+
+  // Handle banner upload
+  const handleBannerUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Please select a JPEG, PNG, or WebP image file');
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Banner size must be less than 10MB');
+      return;
+    }
+
+    setIsUploadingBanner(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('banner', file);
+
+      const response = await fetch('/api/store/banner', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to upload banner');
+      }
+
+      // Update the banner in local state
+      if (result.data?.banner) {
+        setStorefrontData(prev => ({
+          ...prev,
+          banner: result.data.banner
+        }));
+        toast.success('Banner uploaded successfully!');
+      } else if (result.data?.store?.banner) {
+        setStorefrontData(prev => ({
+          ...prev,
+          banner: result.data.store.banner
+        }));
+        toast.success('Banner uploaded successfully!');
+      } else {
+        toast.success('Banner updated successfully!');
+      }
+
+      // Clear the file input
+      if (bannerInputRef.current) {
+        bannerInputRef.current.value = '';
+      }
+
+    } catch (error) {
+      console.error('❌ Banner upload error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to upload banner');
+    } finally {
+      setIsUploadingBanner(false);
     }
   };
 
@@ -393,6 +465,10 @@ function StorefrontComponent() {
               <div className="space-y-2">
                 <Skeleton className="h-4 w-16" />
                 <Skeleton className="h-24 w-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-32 w-full" />
               </div>
             </div>
           </CardContent>
@@ -601,10 +677,50 @@ function StorefrontComponent() {
               </div>
             </div>
 
+            {/* Banner Upload Section - NEW */}
+            <div className="space-y-2">
+              <Label htmlFor="banner" className="text-xs">Store Banner</Label>
+              <input
+                type="file"
+                ref={bannerInputRef}
+                onChange={handleBannerUpload}
+                accept="image/jpeg,image/jpg,image/png,image/webp"
+                className="hidden"
+              />
+              <div 
+                className="border-1 border-dashed border-primary rounded-2xl p-8 text-center cursor-pointer hover:bg-primary/5 transition-colors"
+                onClick={() => isEditingStorefront && bannerInputRef.current?.click()}
+              >
+                {isUploadingBanner ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    <p className="text-sm font-medium">Uploading banner...</p>
+                  </div>
+                ) : storefrontData.banner ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-20 h-12 bg-cover bg-center rounded-md border" 
+                         style={{ backgroundImage: `url(${storefrontData.banner})` }} />
+                    <p className="text-sm font-medium">Banner uploaded</p>
+                    <p className="text-xs text-muted-foreground">Click to change banner</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2">
+                    <ImageIcon className="w-8 h-8 text-primary" />
+                    <p className="text-sm font-medium">
+                      {isEditingStorefront ? 'Upload store banner' : 'No banner uploaded'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {isEditingStorefront ? 'Max 10MB, JPEG, PNG, WebP' : 'Edit to upload banner'}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="customUrl" className="text-xs">Custom Storefront URL *</Label>
-              <div className="flex gap-2 ">
-                <div className="flex items-center gap-2 flex-1 px-2 py-1.5 border rounded-md dark:bg-background">
+              <div className="flex flex-col md:flex-row gap-2 ">
+                <div className="flex items-center gap-2 flex-1 px-2 py-1.5 border rounded-md dark:bg-background overflow-auto">
                   <ExternalLink className="w-4 h-4 text-muted-foreground" />
                   <span className="text-sm">{storefrontUrl || storefrontData.customUrl}</span>
                 </div>
