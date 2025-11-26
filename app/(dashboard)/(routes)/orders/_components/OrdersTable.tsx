@@ -70,12 +70,10 @@ interface Order {
 interface ApiResponse {
   status: string;
   message: string;
-  data: Order[];
-  pagination?: {
-    current_page: number;
-    total_pages: number;
-    total_count: number;
-    page_size: number;
+  data: {
+    items: Order[];       
+    total: number;        
+    totalPages: number;    
   };
 }
 
@@ -111,13 +109,21 @@ export default function OrderTable() {
         ...(filterDateRange.from && { startDate: filterDateRange.from.toISOString().split('T')[0] }),
         ...(filterDateRange.to && { endDate: filterDateRange.to.toISOString().split('T')[0] }),
       });
-
+  
       const response = await fetch(`/api/orders?${queryParams}`);
       const result: ApiResponse = await response.json();
-
+  
+      console.log('API Response:', result); // Add this for debugging
+  
       if (result.status === 'success') {
-        setOrders(result.data || []);
-        setTotalCount(result.pagination?.total_count || result.data?.length || 0);
+        // FIX: Access result.data.items instead of result.data
+        const ordersData = result.data.items || [];
+        setOrders(ordersData);
+        
+        // FIX: Use result.data.total for total count
+        setTotalCount(result.data.total || ordersData.length || 0);
+        
+        console.log(`Loaded ${ordersData.length} orders`);
       } else {
         toast.error(result.message || 'Failed to fetch orders');
         setOrders([]);

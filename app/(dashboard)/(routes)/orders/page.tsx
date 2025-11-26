@@ -31,7 +31,7 @@ function OrdersPage() {
 
   const overviewMetrics: OverviewMetric[] = [
     {
-      id: "total-products",
+      id: "total-orders",
       icon1: <ProductsIcon />,
       title: "Total Orders",
       value: "0",
@@ -49,7 +49,7 @@ function OrdersPage() {
       icon2: <PendingOrdersChart />,
     },
     {
-      id: "total-orders",
+      id: "cancelled-orders",
       icon1: <CancelledOrders />,
       title: "Cancelled Orders",
       value: "0",

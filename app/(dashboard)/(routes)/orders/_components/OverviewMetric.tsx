@@ -3,9 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Loader2 } from "lucide-react";
-
-import { JSX, useState } from "react";
-
+import { JSX, useState, useEffect } from "react";
 
 interface OverviewMetric {
     id: string;
@@ -22,96 +20,83 @@ interface MetricCardProps {
 }
 
 export function OverviewMetric({ metric }: MetricCardProps) {
-    const [value,] = useState<string | number>(metric.value);
-    const [change,] = useState<number>(metric.change);
-    const [changeType,] = useState<"positive" | "negative">(metric.changeType);
-    const [loading,] = useState(false);
-    const [error,] = useState<string | null>(null);
+    const [value, setValue] = useState<string | number>(metric.value);
+    const [change, setChange] = useState<number>(metric.change);
+    const [changeType, setChangeType] = useState<"positive" | "negative">(metric.changeType);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            setError(null);
 
+            try {
+                // Add default startDate parameter as required by the API
+                const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+                const queryParams = new URLSearchParams({ startDate });
+                const url = `/api/analytics?${queryParams}`;
+                
+                const res = await fetch(url, {
+                    method: "GET",
+                    headers: { "Content-Type": "application/json" },
+                });
+                const result = await res.json();
 
-    // const fetchMetric = async (
-    //   endpoint: string,
-    //   startDate: string,
-    //   endDate: string
-    // ) => {
-    //   const query = new URLSearchParams({ startDate, endDate });
-    //   const url = `${endpoint}?${query.toString()}`;
-    //   const res = await fetch(url, {
-    //     method: "GET",
-    //     headers: { "Content-Type": "application/json" },
-    //   });
-    //   const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(result.message || 'Failed to fetch analytics data');
+                }
 
-    //   // Accept both number and string, as some APIs might return formatted string
-    //   if (res.ok && data.status && (typeof data.data === "number" || typeof data.data === "string")) {
-    //     return data.data;
-    //   } else {
-    //     throw new Error(data.message || `Failed to fetch metric from ${endpoint}`);
-    //   }
-    // };
+                const data = result.data;
+                console.log(`📊 Processing metric ${metric.id}:`, data.ordersOverview);
 
-    //   useEffect(() => {
-    //     const supported = {
-    //       "generated-vnubans": "/api/analytics/vnuban/total",
-    //       "processed-transactions": "/api/analytics/transactions/successful-volume",
-    //       "active-vnubans": "/api/analytics/vnuban/total-dynamic"
-    //     };
+                let currentValue: string | number = "0";
+                let changePercent = 0;
 
-    //     if (!Object.keys(supported).includes(metric.id)) {
-    //       setValue(metric.value);
-    //       setChange(metric.change);
-    //       setChangeType(metric.changeType);
-    //       return;
-    //     }
+                // Extract the correct value for each specific metric
+                switch (metric.id) {
+                    case "total-orders":
+                        currentValue = data.ordersOverview?.total_orders || "0";
+                        changePercent = parseFloat(data.ordersOverview?.total_orders_percent_from_last_month || "0");
+                        break;
+                    case "pending-orders":
+                        currentValue = data.ordersOverview?.pending_orders || "0";
+                        changePercent = parseFloat(data.ordersOverview?.pending_orders_percent_from_last_month || "0");
+                        break;
+                    case "cancelled-orders":
+                        currentValue = data.ordersOverview?.cancelled_orders || "0";
+                        changePercent = parseFloat(data.ordersOverview?.cancelled_orders_percent_from_last_month || "0");
+                        break;
+                    case "fulfilled-orders":
+                        currentValue = data.ordersOverview?.fulfilled_orders || "0";
+                        changePercent = parseFloat(data.ordersOverview?.fulfilled_orders_percent_from_last_month || "0");
+                        break;
+                    default:
+                        currentValue = "0";
+                        changePercent = 0;
+                }
 
-    //     const fetchData = async () => {
-    //       setLoading(true);
-    //       setError(null);
+                console.log(`📊 Final values for ${metric.id}:`, { currentValue, changePercent });
 
-    //       try {
-    //         const { startDate, endDate } = getDateRange(period);
-    //         const { startDate: prevStart, endDate: prevEnd } = adjustPreviousPeriod(
-    //           startDate,
-    //           endDate
-    //         );
+                // Format the value
+                const formattedValue = currentValue.toString();
 
-    //         const url = supported[metric.id as keyof typeof supported];
-    //         // Always use current response data for value
-    //         const current = await fetchMetric(url, startDate, endDate);
-    //         const previous = await fetchMetric(url, prevStart, prevEnd);
+                setValue(formattedValue);
+                setChange(Math.round(Math.abs(changePercent) * 10) / 10);
+                setChangeType(changePercent >= 0 ? "positive" : "negative");
+            } catch (err) {
+                console.error("Client-side: Fetch error:", err);
+                setError("Failed to load metric");
+                setValue(metric.value);
+                setChange(metric.change);
+                setChangeType(metric.changeType);
+            } finally {
+                setLoading(false);
+            }
+        };
 
-    //         // If backend returns the display string, just show it. Else, format as currency or number.
-    //         let formattedValue: string;
-    //         if (typeof current === "string") {
-    //           formattedValue = current;
-    //         } else if (["processed-transactions", "successful-amount", "payouts-processed"].includes(metric.id)) {
-    //           formattedValue = `₦${current.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
-    //         } else {
-    //           formattedValue = current.toLocaleString("en-NG");
-    //         }
-
-    //         const changePercent =
-    //           previous && Number(previous) !== 0
-    //             ? ((Number(current) - Number(previous)) / Math.abs(Number(previous))) * 100
-    //             : 0;
-
-    //         setValue(formattedValue);
-    //         setChange(Math.round(Math.abs(changePercent) * 10) / 10);
-    //         setChangeType(changePercent >= 0 ? "positive" : "negative");
-    //       } catch (err) {
-    //         console.error("Client-side: Fetch error:", err);
-    //         setError("Failed to load metric");
-    //         setValue("₦0.00");
-    //         setChange(0);
-    //         setChangeType("positive");
-    //       } finally {
-    //         setLoading(false);
-    //       }
-    //     };
-
-    //     fetchData();
-    //   }, [metric.id, period]);
+        fetchData();
+    }, [metric.id, metric.value, metric.change, metric.changeType]);
 
     return (
         <Card className="relative shadow-none hover:border-[#4FCA6A] dark:hover:border-[#4FCA6A] hover:shadow-lg hover:shadow-[#005B1414] border-[#F5F5F5] dark:border-[#1F1F1F]">

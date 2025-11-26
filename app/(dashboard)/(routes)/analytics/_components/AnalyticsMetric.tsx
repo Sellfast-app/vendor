@@ -3,9 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Loader2 } from "lucide-react";
-
-import { JSX, useState } from "react";
-
+import { JSX, useState, useEffect } from "react";
 
 interface OverviewMetric {
     id: string;
@@ -23,96 +21,122 @@ interface MetricCardProps {
 }
 
 export function AnalyticsMetric({ metric }: MetricCardProps) {
-    const [value,] = useState<string | number>(metric.value);
-    const [change,] = useState<number>(metric.change);
-    const [changeType,] = useState<"positive" | "negative">(metric.changeType);
-    const [loading,] = useState(false);
-    const [error,] = useState<string | null>(null);
+    const [value, setValue] = useState<string | number>(metric.value);
+    const [change, setChange] = useState<number>(metric.change);
+    const [changeType, setChangeType] = useState<"positive" | "negative">(metric.changeType);
+    const [title2, setTitle2] = useState<string>(metric.title2);
+    const [value2, setValue2] = useState<string | number>(metric.value2);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            setError(null);
 
+            try {
+                // Add default startDate parameter as required by the API
+                const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+                const queryParams = new URLSearchParams({ startDate });
+                const url = `/api/analytics?${queryParams}`;
+                
+                const res = await fetch(url, {
+                    method: "GET",
+                    headers: { "Content-Type": "application/json" },
+                });
+                const result = await res.json();
 
-    // const fetchMetric = async (
-    //   endpoint: string,
-    //   startDate: string,
-    //   endDate: string
-    // ) => {
-    //   const query = new URLSearchParams({ startDate, endDate });
-    //   const url = `${endpoint}?${query.toString()}`;
-    //   const res = await fetch(url, {
-    //     method: "GET",
-    //     headers: { "Content-Type": "application/json" },
-    //   });
-    //   const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(result.message || 'Failed to fetch analytics data');
+                }
 
-    //   // Accept both number and string, as some APIs might return formatted string
-    //   if (res.ok && data.status && (typeof data.data === "number" || typeof data.data === "string")) {
-    //     return data.data;
-    //   } else {
-    //     throw new Error(data.message || `Failed to fetch metric from ${endpoint}`);
-    //   }
-    // };
+                const data = result.data;
+                console.log(`📊 Processing metric ${metric.id}:`, data);
 
-    //   useEffect(() => {
-    //     const supported = {
-    //       "generated-vnubans": "/api/analytics/vnuban/total",
-    //       "processed-transactions": "/api/analytics/transactions/successful-volume",
-    //       "active-vnubans": "/api/analytics/vnuban/total-dynamic"
-    //     };
+                let currentValue: string | number = "0";
+                let changePercent = 0;
+                const currentTitle2 = metric.title2;
+                let currentValue2: string | number = metric.value2;
 
-    //     if (!Object.keys(supported).includes(metric.id)) {
-    //       setValue(metric.value);
-    //       setChange(metric.change);
-    //       setChangeType(metric.changeType);
-    //       return;
-    //     }
+                // Extract the correct value for each specific metric
+                switch (metric.id) {
+                    case "total-revenue":
+                        currentValue = data.totalRevenue || "0";
+                        changePercent = 0; // Not provided in API
+                        break;
+                    case "processed-orders":
+                        currentValue = data.processedOrders || "0";
+                        changePercent = 0; // Not provided in API
+                        break;
+                    case "out-for-delivery":
+                        currentValue = data.outForDelivery || 0;
+                        changePercent = 0; // Not provided in API
+                        break;
+                    case "total-views":
+                        currentValue = data.totalViews || 0;
+                        changePercent = 0; // Not provided in API
+                        break;
+                    case "avg-order-value":
+                        currentValue = data.avgOrderValue || "0";
+                        changePercent = 0; // Not provided in API
+                        break;
+                    case "total-orders":
+                        currentValue = data.ordersOverview?.total_orders || "0";
+                        changePercent = parseFloat(data.ordersOverview?.total_orders_percent_from_last_month || "0");
+                        currentValue2 = data.customerAnalytics?.avg_items_per_order || "0";
+                        break;
+                    default:
+                        currentValue = "0";
+                        changePercent = 0;
+                }
 
-    //     const fetchData = async () => {
-    //       setLoading(true);
-    //       setError(null);
+                console.log(`📊 Final values for ${metric.id}:`, { 
+                    currentValue, 
+                    changePercent,
+                    currentTitle2,
+                    currentValue2 
+                });
 
-    //       try {
-    //         const { startDate, endDate } = getDateRange(period);
-    //         const { startDate: prevStart, endDate: prevEnd } = adjustPreviousPeriod(
-    //           startDate,
-    //           endDate
-    //         );
+                // Format the value
+                let formattedValue: string;
+                if (typeof currentValue === "string") {
+                    formattedValue = currentValue;
+                } else if (["total-revenue", "avg-order-value"].includes(metric.id)) {
+                    formattedValue = `₦${parseInt(currentValue.toString()).toLocaleString("en-NG")}`;
+                } else {
+                    formattedValue = currentValue.toString();
+                }
 
-    //         const url = supported[metric.id as keyof typeof supported];
-    //         // Always use current response data for value
-    //         const current = await fetchMetric(url, startDate, endDate);
-    //         const previous = await fetchMetric(url, prevStart, prevEnd);
+                // Format value2 if it's a number with decimals
+                let formattedValue2: string;
+                if (typeof currentValue2 === "string" && currentValue2.includes(".")) {
+                    // Format decimal numbers to show only 1-2 decimal places
+                    const numValue = parseFloat(currentValue2);
+                    formattedValue2 = numValue.toFixed(1);
+                } else {
+                    formattedValue2 = currentValue2.toString();
+                }
 
-    //         // If backend returns the display string, just show it. Else, format as currency or number.
-    //         let formattedValue: string;
-    //         if (typeof current === "string") {
-    //           formattedValue = current;
-    //         } else if (["processed-transactions", "successful-amount", "payouts-processed"].includes(metric.id)) {
-    //           formattedValue = `₦${current.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
-    //         } else {
-    //           formattedValue = current.toLocaleString("en-NG");
-    //         }
+                setValue(formattedValue);
+                setChange(Math.round(Math.abs(changePercent) * 10) / 10);
+                setChangeType(changePercent >= 0 ? "positive" : "negative");
+                setTitle2(currentTitle2);
+                setValue2(formattedValue2);
+            } catch (err) {
+                console.error("Client-side: Fetch error:", err);
+                setError("Failed to load metric");
+                setValue(metric.value);
+                setChange(metric.change);
+                setChangeType(metric.changeType);
+                setTitle2(metric.title2);
+                setValue2(metric.value2);
+            } finally {
+                setLoading(false);
+            }
+        };
 
-    //         const changePercent =
-    //           previous && Number(previous) !== 0
-    //             ? ((Number(current) - Number(previous)) / Math.abs(Number(previous))) * 100
-    //             : 0;
-
-    //         setValue(formattedValue);
-    //         setChange(Math.round(Math.abs(changePercent) * 10) / 10);
-    //         setChangeType(changePercent >= 0 ? "positive" : "negative");
-    //       } catch (err) {
-    //         console.error("Client-side: Fetch error:", err);
-    //         setError("Failed to load metric");
-    //         setValue("₦0.00");
-    //         setChange(0);
-    //         setChangeType("positive");
-    //       } finally {
-    //         setLoading(false);
-    //       }
-    //     };
-
-    //     fetchData();
-    //   }, [metric.id, period]);
+        fetchData();
+    }, [metric.id, metric.value, metric.change, metric.changeType, metric.title2, metric.value2]);
 
     return (
         <Card className="relative shadow-none hover:border-[#4FCA6A] dark:hover:border-[#4FCA6A] hover:shadow-lg hover:shadow-[#005B1414] border-[#F5F5F5] dark:border-[#1F1F1F]">
@@ -153,8 +177,8 @@ export function AnalyticsMetric({ metric }: MetricCardProps) {
                     </div>
                 </div>
                 <div className="flex flex-col items-end">
-                  <span className="text-xs text-[#A0A0A0]">{metric.title2}</span>  
-                 <span className="text-xs text-[#A0A0A0]"> {metric.value2}</span>  
+                  <span className="text-xs text-[#A0A0A0]">{title2}</span>  
+                 <span className="text-xs text-[#A0A0A0]"> {value2}</span>  
                 </div>
             </CardContent>
         </Card>

@@ -1,9 +1,8 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import React, { JSX, useState } from "react";
+import React, { JSX, useState, useEffect } from "react";
 import { RiShare2Fill } from "react-icons/ri";
-// import { ExportModal } from "../../_components/ExportModal";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import ProductsIcon from "@/components/svgIcons/ProductsIcon";
 import LowStock from "@/components/svgIcons/LowStock";
@@ -42,14 +41,59 @@ interface LocationData {
   coordinates: [number, number]
 }
 
+interface ViewPerformanceData {
+  totalViews: number;
+  viewsToday: number;
+  avgViewsPerDay: number;
+}
+
 export default function AnalyticsPage() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isCustomerInsightsOpen, setIsCustomerInsightsOpen] = useState(false);
   const [isViewPerformanceOpen, setIsViewPerformanceOpen] = useState(false);
+  const [viewPerformance, setViewPerformance] = useState<ViewPerformanceData>({
+    totalViews: 0,
+    viewsToday: 0,
+    avgViewsPerDay: 0
+  });
+  const [loading, setLoading] = useState(false);
+
+  // Fetch view performance data
+  const fetchViewPerformance = async () => {
+    setLoading(true);
+    try {
+      const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const queryParams = new URLSearchParams({ startDate });
+      const url = `/api/analytics?${queryParams}`;
+      
+      const res = await fetch(url, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
+      const result = await res.json();
+
+      if (res.ok && result.status === 'success') {
+        const data = result.data;
+        setViewPerformance({
+          totalViews: data.totalViews || 0,
+          viewsToday: data.viewsToday || 0,
+          avgViewsPerDay: data.avgViewsPerDay || 0
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching view performance:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchViewPerformance();
+  }, []);
 
   const overviewMetrics: OverviewMetric[] = [
     {
-      id: "total-products",
+      id: "total-revenue",
       icon1: <ProductsIcon />,
       title: "Total Revenue",
       value: "0",
@@ -59,7 +103,7 @@ export default function AnalyticsPage() {
       value2: "17,900,890"
     },
     {
-      id: "low-stock",
+      id: "processed-orders",
       icon1: <LowStock />,
       title: "Processed Orders",
       value: "0",
@@ -69,7 +113,7 @@ export default function AnalyticsPage() {
       value2: "Short Cake"
     },
     {
-      id: "total-orders",
+      id: "out-for-delivery",
       icon1: <OutOfStock />,
       title: "Out for Delivery",
       value: "0",
@@ -79,9 +123,9 @@ export default function AnalyticsPage() {
       value2: "2 days(Kwik:1day)"
     },
     {
-      id: "total-revenue",
+      id: "total-views",
       icon1: <PendingDispatch />,
-      title: "Customer Growth",
+      title: "Total Views",
       value: "0",
       change: 22.7,
       changeType: "positive",
@@ -89,7 +133,7 @@ export default function AnalyticsPage() {
       value2: "45%(repeat buyers)"
     },
     {
-      id: "total-orders",
+      id: "avg-order-value",
       icon1: <OutOfStock />,
       title: "Avg. Order Value",
       value: "0",
@@ -99,13 +143,13 @@ export default function AnalyticsPage() {
       value2: "50,900,890"
     },
     {
-      id: "total-revenue",
+      id: "total-orders",
       icon1: <PendingDispatch />,
-      title: "Total Sales",
+      title: "Total Orders",
       value: "0",
       change: 22.7,
       changeType: "positive",
-      title2: "Avg.sales/day:",
+      title2: "Avg.items/order:",
       value2: "120(1,000,000)"
     },
   ];
@@ -147,6 +191,12 @@ export default function AnalyticsPage() {
     { label: "Customer Insights", value: "Customer Insights" },
     { label: "Active Customers in Location", value: "Active Customers in Location" },
   ];
+
+  // Calculate progress values based on actual data
+  const calculateProgressValue = (current: number, max: number = 1000) => {
+    return Math.min((current / max) * 100, 100);
+  };
+
   return (
     <div className="min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <div className="mb-6 flex items-center justify-between">
@@ -215,9 +265,18 @@ export default function AnalyticsPage() {
                 <Map />
               </div>
               <div className="flex flex-col items-center justify-center ">
-                <Progress value={70} className="mb-2" />
-                <Progress value={70} className="mb-2" />
-                <span className="text-center text-lg font-medium">126K</span>
+                <Progress 
+                  value={calculateProgressValue(viewPerformance.totalViews, 1000)} 
+                  className="mb-2" 
+                />
+                <Progress 
+                  value={calculateProgressValue(viewPerformance.avgViewsPerDay, 100)} 
+                  className="mb-2" 
+                />
+                {/* what we will have here is total views */}
+                <span className="text-center text-lg font-medium">
+                  {loading ? "Loading..." : viewPerformance.totalViews.toLocaleString()}
+                </span>
                 <span className="text-[#A0A0A0] text-xs">Since Yesterday</span>
               </div>
             </CardHeader>
@@ -228,14 +287,16 @@ export default function AnalyticsPage() {
                     <span className="w-5 h-2 bg-primary rounded-lg" />
                     <p >Total Views per day</p>
                   </span>
-                  <span>9,008</span>
+                  {/* what we will have here is viewsToday */}
+                  <span>{loading ? "..." : viewPerformance.viewsToday.toLocaleString()}</span>
                 </div>
                 <div className="flex items-center justify-between  text-xs">
                   <span className="flex items-center gap-2">
                     <span className="w-5 h-2 bg-primary/20 rounded-lg" />
-                    <p >Avg. Views per product</p>
+                    {/* what we will have here is avgViewsPerDay */}
+                    <p >Avg. Views per day</p>
                   </span>
-                  <span>2,990</span>
+                  <span>{loading ? "..." : viewPerformance.avgViewsPerDay.toLocaleString()}</span>
                 </div>
               </div>
             </CardContent>
