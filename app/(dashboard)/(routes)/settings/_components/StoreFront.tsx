@@ -416,6 +416,7 @@ function StorefrontComponent() {
             <AvatarImage 
               src={storefrontData.logo || "/placeholder-store.jpg"} 
               alt="Store Logo" 
+              className="object-cover"
             />
             <AvatarFallback>
               {storefrontData.storeName ? storefrontData.storeName.substring(0, 2).toUpperCase() : 'ST'}
@@ -467,6 +468,7 @@ function StorefrontComponent() {
                   <AvatarImage 
                     src={storefrontData.logo || "/placeholder-store.jpg"} 
                     alt="Store Logo" 
+                    className="object-cover"
                   />
                   <AvatarFallback>
                     {storefrontData.storeName ? storefrontData.storeName.substring(0, 2).toUpperCase() : 'ST'}
