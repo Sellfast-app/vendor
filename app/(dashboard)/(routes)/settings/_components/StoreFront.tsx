@@ -1,19 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Camera, Trash2, Copy, ExternalLink, PlusIcon } from "lucide-react";
+import { Camera, Trash2, Copy, ExternalLink, PlusIcon, Loader2 } from "lucide-react";
 import EditIcon from "@/components/svgIcons/Edit";
 import SaveIcon from "@/components/svgIcons/SaveIcon";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,7 +17,8 @@ import LinkIcon from "@/components/svgIcons/LinkIcon";
 import ThemeIcon from "@/components/svgIcons/ThemeIcon";
 import AddBankModal from "../../payouts/_components/AddBankModal";
 import Accessbank from "@/components/svgIcons/Accessbank";
-
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 
 interface BankAccount {
   id: string;
@@ -33,6 +28,16 @@ interface BankAccount {
   icon: React.ReactNode;
 }
 
+interface StoreDetails {
+  storeName: string;
+  storeType: string;
+  whatsappNumber: string;
+  countryCode: string;
+  location: string;
+  bio: string;
+  customUrl: string;
+  logo?: string | null;
+}
 
 function StorefrontComponent() {
   const [isEditingStorefront, setIsEditingStorefront] = useState(false);
@@ -41,44 +46,134 @@ function StorefrontComponent() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [isAddBankModalOpen, setIsAddBankModalOpen] = useState(false);
   const [storefrontUrl, setStorefrontUrl] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [storefrontData, setStorefrontData] = useState({
-    storeName: "Pizza Cafe",
-    storeType: "Food & Restaurant",
-    whatsappNumber: "809 789 7891",
-    countryCode: "+254",
+  const [storefrontData, setStorefrontData] = useState<StoreDetails>({
+    storeName: "",
+    storeType: "",
+    whatsappNumber: "",
+    countryCode: "+234",
     location: "Lagos",
-    bio: "Welcome to Pizza Cafe, where flavorful taste and food meets exceptional culinary experience with tasty treats that's guaranteed to warm your buds.",
+    bio: "",
     customUrl: "www.swiftree.com/cassandrakitchen",
+    logo: null,
   });
 
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([
-    {
-      id: "1",
-      accountNumber: "0102798098",
-      bankName: "Access Bank",
-      accountHolder: "Olasandra Kayla .A.",
-      icon: "/access-bank-icon.png",
-    },
-    {
-      id: "2",
-      accountNumber: "9027895098",
-      bankName: "Unity",
-      accountHolder: "Olasandra Kayla .A.",
-      icon: "/unity-bank-icon.png",
-    },
-    {
-      id: "3",
-      accountNumber: "2025092169",
-      bankName: "Kuda Bank",
-      accountHolder: "Olasandra Kayla .A.",
-      icon: "/kuda-bank-icon.png",
-    },
-  ]);
-
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [themeColor, setThemeColor] = useState("Surge Green");
   const [availabilityEnabled, setAvailabilityEnabled] = useState(true);
 
+  // Fetch store data from API
+  useEffect(() => {
+    const fetchStoreData = async () => {
+      try {
+        setIsLoading(true);
+        console.log('🔄 Starting to fetch store data...');
+        
+        const response = await fetch('/api/store');
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to fetch store data');
+        }
+        
+        const result = await response.json();
+        
+        console.log('📦 Full API response:', result);
+        console.log('📦 Store details data:', result.data?.storeDetails);
+        
+        if (result.status === 'success' && result.data?.storeDetails) {
+          const storeDetails = result.data.storeDetails;
+          const metadata = storeDetails.metadata || {};
+          
+          console.log('🎯 Extracted store details:', {
+            name: storeDetails.store_name,
+            type: storeDetails.business_type,
+            bio: storeDetails.store_description,
+            phone: metadata.phone,
+            city: metadata.city,
+            logo: storeDetails.logo
+          });
+          
+          // Determine country code based on phone number
+          let countryCode = "+234"; // Default to Nigeria
+          if (metadata.phone) {
+            if (metadata.phone.startsWith('+1')) {
+              countryCode = "+1";
+            } else if (metadata.phone.startsWith('+254')) {
+              countryCode = "+254";
+            } else if (metadata.phone.startsWith('0') || metadata.phone.startsWith('+234')) {
+              countryCode = "+234";
+            }
+          }
+
+          // Format phone number (remove country code if present)
+          let formattedPhone = metadata.phone || "";
+          if (formattedPhone.startsWith('+234')) {
+            formattedPhone = formattedPhone.replace('+234', '0');
+          } else if (formattedPhone.startsWith('234')) {
+            formattedPhone = '0' + formattedPhone.slice(3);
+          } else if (formattedPhone.startsWith('+1')) {
+            formattedPhone = formattedPhone.slice(2);
+          } else if (formattedPhone.startsWith('+254')) {
+            formattedPhone = formattedPhone.slice(4);
+          }
+
+          setStorefrontData(prev => ({
+            ...prev,
+            storeName: storeDetails.store_name || "",
+            storeType: storeDetails.business_type || "",
+            bio: storeDetails.store_description || "",
+            whatsappNumber: formattedPhone,
+            countryCode: countryCode,
+            location: metadata.city || "Lagos",
+            logo: storeDetails.logo || null
+          }));
+          
+          console.log('✅ Store data loaded successfully into state:', {
+            storeName: storeDetails.store_name,
+            storeType: storeDetails.business_type,
+            bio: storeDetails.store_description,
+            whatsappNumber: formattedPhone,
+            countryCode: countryCode,
+            location: metadata.city,
+            logo: storeDetails.logo
+          });
+          toast.success('Store data loaded successfully');
+        } else {
+          console.warn('⚠️ No store details found in response');
+          toast.warning('No store data found');
+        }
+      } catch (error) {
+        console.error('❌ Error fetching store data:', error);
+        toast.error(error instanceof Error ? error.message : 'Failed to load store data');
+        
+        // Set fallback values
+        setStorefrontData(prev => ({
+          ...prev,
+          storeName: "Pizza Cafe",
+          storeType: "Food & Restaurant",
+          bio: "Welcome to Pizza Cafe, where flavorful taste and food meets exceptional culinary experience with tasty treats that's guaranteed to warm your buds.",
+          whatsappNumber: "809 789 7891",
+          countryCode: "+234",
+          location: "Lagos"
+        }));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStoreData();
+  }, []);
+
+  // Debug effect to log when storefrontData changes
+  useEffect(() => {
+    console.log('🔄 storefrontData updated:', storefrontData);
+  }, [storefrontData]);
+
+  // Existing storefront URL effect
   useEffect(() => {
     const getCookie = (name: string) => {
       const value = `; ${document.cookie}`;
@@ -89,7 +184,6 @@ function StorefrontComponent() {
 
     const urlFromCookie = getCookie("store_url");
     if (urlFromCookie) {
-      // Decode the URL if it's encoded
       try {
         const decodedUrl = decodeURIComponent(urlFromCookie);
         setStorefrontUrl(decodedUrl);
@@ -99,41 +193,97 @@ function StorefrontComponent() {
     }
   }, []);
 
+  // Handle logo upload
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size must be less than 5MB');
+      return;
+    }
+
+    setIsUploadingLogo(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('logo', file);
+
+      const response = await fetch('/api/store', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to upload logo');
+      }
+
+      // Update the logo in local state
+      if (result.data?.logo) {
+        setStorefrontData(prev => ({
+          ...prev,
+          logo: result.data.logo
+        }));
+        toast.success('Logo uploaded successfully!');
+      } else {
+        toast.success('Logo updated successfully!');
+      }
+
+      // Clear the file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+
+    } catch (error) {
+      console.error('❌ Logo upload error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to upload logo');
+    } finally {
+      setIsUploadingLogo(false);
+    }
+  };
+
   const handleEditStorefront = () => setIsEditingStorefront(true);
   const handleCancelStorefront = () => setIsEditingStorefront(false);
   const handleSaveStorefront = () => {
     setIsEditingStorefront(false);
-    // Save logic here
+    toast.success('Changes saved successfully!');
+    // TODO: Add PATCH API call here for other store details
   };
 
   const handleEditTheme = () => setIsEditingTheme(true);
   const handleCancelTheme = () => setIsEditingTheme(false);
   const handleSaveTheme = () => {
     setIsEditingTheme(false);
-    // Save logic here
+    toast.success('Theme updated successfully!');
   };
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: keyof StoreDetails, value: string) => {
     setStorefrontData((prev) => ({ ...prev, [field]: value }));
   };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    // Add toast notification here
+    toast.success('Copied to clipboard!');
   };
 
   const handleVisitStorefront = () => {
     if (storefrontUrl) {
-      // Ensure the URL has the proper protocol and is not encoded
       let fullUrl = storefrontUrl;
       if (!storefrontUrl.startsWith('http')) {
         fullUrl = `https://${storefrontUrl}`;
       }
-      // Clean the URL - remove any encoding
       fullUrl = fullUrl.replace(/%3A/g, ':').replace(/%2F/g, '/');
       window.open(fullUrl, '_blank', 'noopener,noreferrer');
     } else {
-      // Fallback to the custom URL if storefront URL is not available
       const fallbackUrl = storefrontData.customUrl.startsWith('http')
         ? storefrontData.customUrl
         : `https://${storefrontData.customUrl}`;
@@ -143,7 +293,6 @@ function StorefrontComponent() {
 
   const copyStorefrontUrl = () => {
     let urlToCopy = storefrontUrl || storefrontData.customUrl;
-    // Clean the URL before copying
     urlToCopy = urlToCopy.replace(/%3A/g, ':').replace(/%2F/g, '/');
     copyToClipboard(urlToCopy);
   };
@@ -153,12 +302,10 @@ function StorefrontComponent() {
     accountNumber: string;
     accountHolder: string;
   }) => {
-    // Generate bank icon based on bank name
     const getBankIcon = (bankName: string) => {
       if (bankName === 'Access Bank') {
         return <Accessbank />;
       }
-      // For other banks, use colored circles with abbreviations
       const colors: { [key: string]: string } = {
         'GTBank': 'bg-orange-500',
         'Zenith Bank': 'bg-red-600',
@@ -196,17 +343,87 @@ function StorefrontComponent() {
 
     setBankAccounts([...bankAccounts, newBank]);
   };
+
+  // Skeleton Loading State
+  if (isLoading) {
+    return (
+      <div className="w-full space-y-6">
+        {/* Header Skeleton */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Skeleton className="w-20 h-20 rounded-lg" />
+            <div className="flex flex-col gap-2">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-4 w-24" />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-40" />
+            <Skeleton className="h-10 w-40" />
+          </div>
+        </div>
+
+        {/* Main Card Skeleton */}
+        <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
+          <CardContent>
+            <div className="space-y-6 pt-6">
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-5 w-32" />
+                <Skeleton className="h-9 w-20" />
+              </div>
+              <Skeleton className="w-20 h-20 rounded-lg" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-11 w-full" />
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-11 w-full" />
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-11 w-full" />
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-11 w-full" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-24 w-full" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Additional Cards Skeleton */}
+        <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
+          <CardContent className="pt-6">
+            <Skeleton className="h-10 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Avatar className="w-20 h-20 rounded-lg">
-            <AvatarImage src="/placeholder-store.jpg" alt="Store Logo" />
-            <AvatarFallback>PC</AvatarFallback>
+            <AvatarImage 
+              src={storefrontData.logo || "/placeholder-store.jpg"} 
+              alt="Store Logo" 
+            />
+            <AvatarFallback>
+              {storefrontData.storeName ? storefrontData.storeName.substring(0, 2).toUpperCase() : 'ST'}
+            </AvatarFallback>
           </Avatar>
           <div className="flex flex-col">
-            <h3 className="font-medium">Cassie&apos;s Kitchen</h3>
-            <span className="text-xs">Food & Restaurant</span>
+            <h3 className="font-medium">{storefrontData.storeName || "Store Name"}</h3>
+            <span className="text-xs">{storefrontData.storeType || "Store Type"}</span>
           </div>
         </div>
         <div className="flex gap-2 items-center">
@@ -214,11 +431,11 @@ function StorefrontComponent() {
           <Button variant={"outline"} onClick={handleVisitStorefront}> <span className="hidden sm:inline">Visit Storefront</span>  <LinkIcon /></Button>
         </div>
       </div>
-      {/* Storefront Setup */}
+      
+      {/* Storefront Setup Card */}
       <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
         <CardContent>
           <div className="space-y-6 pt-6">
-            {/* Header */}
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-medium">Storefront Setup</h2>
               {!isEditingStorefront ? (
@@ -244,42 +461,57 @@ function StorefrontComponent() {
               )}
             </div>
 
-            {/* Store Logo */}
             <div className="flex items-center gap-4">
               <div className="relative">
                 <Avatar className="w-20 h-20 rounded-lg">
-                  <AvatarImage src="/placeholder-store.jpg" alt="Store Logo" />
-                  <AvatarFallback>PC</AvatarFallback>
+                  <AvatarImage 
+                    src={storefrontData.logo || "/placeholder-store.jpg"} 
+                    alt="Store Logo" 
+                  />
+                  <AvatarFallback>
+                    {storefrontData.storeName ? storefrontData.storeName.substring(0, 2).toUpperCase() : 'ST'}
+                  </AvatarFallback>
                 </Avatar>
                 {isEditingStorefront && (
-                  <button className="absolute bottom-0 right-0 w-6 h-6 bg-primary rounded-full flex items-center justify-center text-white">
-                    <Camera className="w-3 h-3" />
-                  </button>
+                  <>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleLogoUpload}
+                      accept="image/*"
+                      className="hidden"
+                    />
+                    <button 
+                      className="absolute bottom-0 right-0 w-6 h-6 bg-primary rounded-full flex items-center justify-center text-white hover:bg-primary/90 transition-colors"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploadingLogo}
+                    >
+                      {isUploadingLogo ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <Camera className="w-3 h-3" />
+                      )}
+                    </button>
+                  </>
                 )}
               </div>
             </div>
 
-            {/* Form Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Store Name */}
               <div className="space-y-2">
-                <Label htmlFor="storeName" className="text-xs">
-                  Store Name *
-                </Label>
+                <Label htmlFor="storeName" className="text-xs">Store Name *</Label>
                 <Input
                   id="storeName"
                   value={storefrontData.storeName}
                   onChange={(e) => handleInputChange("storeName", e.target.value)}
                   disabled={!isEditingStorefront}
                   className="dark:bg-background"
+                  placeholder="Enter store name"
                 />
               </div>
 
-              {/* WhatsApp Business Number */}
               <div className="space-y-2">
-                <Label htmlFor="whatsapp" className="text-xs">
-                  WhatsApp Business Number *
-                </Label>
+                <Label htmlFor="whatsapp" className="text-xs">WhatsApp Business Number *</Label>
                 <div className="flex gap-2">
                   <Select
                     value={storefrontData.countryCode}
@@ -290,9 +522,9 @@ function StorefrontComponent() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="+254">+254</SelectItem>
-                      <SelectItem value="+234">+234</SelectItem>
-                      <SelectItem value="+1">+1</SelectItem>
+                      <SelectItem value="+234">+234 (NG)</SelectItem>
+                      <SelectItem value="+254">+254 (KE)</SelectItem>
+                      <SelectItem value="+1">+1 (US)</SelectItem>
                     </SelectContent>
                   </Select>
                   <Input
@@ -301,58 +533,58 @@ function StorefrontComponent() {
                     onChange={(e) => handleInputChange("whatsappNumber", e.target.value)}
                     disabled={!isEditingStorefront}
                     className="flex-1 dark:bg-background"
+                    placeholder="Enter WhatsApp number"
                   />
                 </div>
               </div>
 
-              {/* Store Type */}
               <div className="space-y-2">
-                <Label htmlFor="storeType" className="text-xs">
-                  Store Type *
-                </Label>
+                <Label htmlFor="storeType" className="text-xs">Store Type *</Label>
                 <Select
                   value={storefrontData.storeType}
                   onValueChange={(value) => handleInputChange("storeType", value)}
                   disabled={!isEditingStorefront}
                 >
                   <SelectTrigger className="w-full dark:bg-background">
-                    <SelectValue />
+                    <SelectValue placeholder="Select store type" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Food & Restaurant">Food & Restaurant</SelectItem>
                     <SelectItem value="Bakery">Bakery</SelectItem>
                     <SelectItem value="Cafe">Cafe</SelectItem>
+                    <SelectItem value="Fashion">Fashion</SelectItem>
+                    <SelectItem value="Electronics">Electronics</SelectItem>
+                    <SelectItem value="Beauty & Cosmetics">Beauty & Cosmetics</SelectItem>
+                    <SelectItem value="Home & Garden">Home & Garden</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              {/* Location */}
               <div className="space-y-2">
-                <Label htmlFor="location" className="text-xs">
-                  Location *
-                </Label>
+                <Label htmlFor="location" className="text-xs">Location *</Label>
                 <Select
                   value={storefrontData.location}
                   onValueChange={(value) => handleInputChange("location", value)}
                   disabled={!isEditingStorefront}
                 >
                   <SelectTrigger className="w-full dark:bg-background">
-                    <SelectValue />
+                    <SelectValue placeholder="Select location" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Lagos">Lagos</SelectItem>
                     <SelectItem value="Abuja">Abuja</SelectItem>
                     <SelectItem value="Port Harcourt">Port Harcourt</SelectItem>
+                    <SelectItem value="Ibadan">Ibadan</SelectItem>
+                    <SelectItem value="Kano">Kano</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            {/* Bio */}
             <div className="space-y-2">
-              <Label htmlFor="bio" className="text-xs">
-                Bio *
-              </Label>
+              <Label htmlFor="bio" className="text-xs">Bio *</Label>
               <Textarea
                 id="bio"
                 value={storefrontData.bio}
@@ -360,28 +592,21 @@ function StorefrontComponent() {
                 disabled={!isEditingStorefront}
                 className="min-h-[100px] dark:bg-background resize-none"
                 maxLength={500}
+                placeholder="Tell customers about your store..."
               />
               <div className="text-right text-xs text-muted-foreground">
                 {storefrontData.bio.length}/500
               </div>
             </div>
 
-            {/* Custom Storefront URL */}
             <div className="space-y-2">
-              <Label htmlFor="customUrl" className="text-xs">
-                Custom Storefront URL *
-              </Label>
+              <Label htmlFor="customUrl" className="text-xs">Custom Storefront URL *</Label>
               <div className="flex gap-2 ">
                 <div className="flex items-center gap-2 flex-1 px-2 py-1.5 border rounded-md dark:bg-background">
                   <ExternalLink className="w-4 h-4 text-muted-foreground" />
                   <span className="text-sm">{storefrontUrl || storefrontData.customUrl}</span>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={copyStorefrontUrl}
-                  className="dark:bg-background"
-                >
+                <Button variant="outline" size="sm" onClick={copyStorefrontUrl} className="dark:bg-background">
                   <span className="hidden sm:inline">Copy Link </span>  <Copy className="w-4 h-4" />
                 </Button>
               </div>
@@ -396,10 +621,7 @@ function StorefrontComponent() {
           <div className="space-y-4 pt-6">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium">Availability Setup</h3>
-              <Switch
-                checked={availabilityEnabled}
-                onCheckedChange={setAvailabilityEnabled}
-              />
+              <Switch checked={availabilityEnabled} onCheckedChange={setAvailabilityEnabled} />
             </div>
           </div>
         </CardContent>
@@ -418,13 +640,9 @@ function StorefrontComponent() {
 
             <div className="space-y-3">
               {bankAccounts.map((account) => (
-                <div
-                  key={account.id}
-                  className="flex items-center justify-between p-4 rounded-lg"
-                >
+                <div key={account.id} className="flex items-center justify-between p-4 rounded-lg">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-                      {/* Bank icon placeholder */}
                       <span className="text-xs font-bold">{account.bankName.slice(0, 2)}</span>
                     </div>
                     <div>
@@ -448,20 +666,13 @@ function StorefrontComponent() {
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium">Theme & Customization</h3>
               {!isEditingTheme ? (
-                <Button
-                  onClick={handleEditTheme}
-                  variant="outline"
-                  size="sm"
-                  className="dark:bg-background"
-                >
+                <Button onClick={handleEditTheme} variant="outline" size="sm" className="dark:bg-background">
                   <span className="hidden sm:inline mr-2">Edit</span>
                   <EditIcon />
                 </Button>
               ) : (
                 <div className="flex gap-2">
-                  <Button onClick={handleCancelTheme} variant="outline" size="sm">
-                    Cancel
-                  </Button>
+                  <Button onClick={handleCancelTheme} variant="outline" size="sm">Cancel</Button>
                   <Button onClick={handleSaveTheme} variant="default" size="sm">
                     <SaveIcon />
                     <span className="hidden sm:inline ml-2">Save Changes</span>
@@ -475,11 +686,7 @@ function StorefrontComponent() {
                 <ThemeIcon />
                 <span className="text-sm">Theme</span>
               </div>
-              <Select
-                value={themeColor}
-                onValueChange={setThemeColor}
-                disabled={!isEditingTheme}
-              >
+              <Select value={themeColor} onValueChange={setThemeColor} disabled={!isEditingTheme}>
                 <SelectTrigger className="w-[180px] dark:bg-background">
                   <SelectValue />
                 </SelectTrigger>
@@ -505,11 +712,7 @@ function StorefrontComponent() {
                   After making a deletion request, you will have &quot;6 months&quot; to maintain this account.
                 </p>
               </div>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => setShowDeleteSection(!showDeleteSection)}
-              >
+              <Button variant="destructive" size="sm" onClick={() => setShowDeleteSection(!showDeleteSection)}>
                 <Trash2 className="w-4 h-4 mr-2" />
                 Delete Store
               </Button>
@@ -565,6 +768,7 @@ function StorefrontComponent() {
           </div>
         </CardContent>
       </Card>
+      
       <AddBankModal
         isOpen={isAddBankModalOpen}
         onClose={() => setIsAddBankModalOpen(false)}
