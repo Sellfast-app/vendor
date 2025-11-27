@@ -296,7 +296,7 @@ export default function PayoutsPage() {
                   Connect Account <Withdrawal />
                 </Button>
               </div>
-              <h3 className='text-2xl font-bold mt-2'>₦2,945,090.50</h3>
+              <h3 className='text-2xl font-bold mt-2'>₦0</h3>
               <span className="text-xs">+15% from last payout • Last updated 2 minutes ago</span>
               {/* <div className='flex items-center justify-between mt-2 gap-3'>
                 <Button className='w-[50%]' onClick={() => setIsDepositModalOpen(true)}> Deposit <Withdrawal color='white' /></Button>
