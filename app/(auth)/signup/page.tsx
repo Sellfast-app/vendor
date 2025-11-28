@@ -234,6 +234,10 @@ export default function MultiStepSignupPage() {
           toast.error('Password is required');
           return false;
         }
+        if (formData.user_details.password.length < 8) {
+          toast.error('Password must be at least 8 characters long');
+          return false;
+        }
         if (!formData.agreeToTerms) {
           toast.error('Please agree to the terms and conditions');
           return false;
@@ -501,12 +505,13 @@ export default function MultiStepSignupPage() {
               id="password"
               type={showPassword ? 'text' : 'password'}
               value={formData.user_details.password}
-              placeholder="e.g., Password123#"
+              placeholder="e.g., Password123# (min. 8 characters)"
               onChange={(e) => handleInputChange('user_details', e.target.value, 'password')}
               onFocus={() => setPasswordFocused(true)}
               onBlur={() => setPasswordFocused(false)}
               className="w-full h-11 bg-muted border-0 pr-10 rounded-lg focus:ring-2 transition-all duration-200"
             />
+            <small className='text-2xs text-gray-500'>Password must be up to 8 characters</small>
             <div className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer" onClick={togglePasswordVisibility}>
               {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
             </div>
@@ -535,6 +540,8 @@ export default function MultiStepSignupPage() {
           formData.user_details.lastName &&
           formData.user_details.email &&
           formData.user_details.password &&
+          formData.user_details.password.length >= 8 &&
+          formData.agreeToTerms &&
           !isLoading
             ? 'default'
             : 'secondary'
@@ -545,6 +552,8 @@ export default function MultiStepSignupPage() {
           !formData.user_details.lastName ||
           !formData.user_details.email ||
           !formData.user_details.password ||
+          formData.user_details.password.length < 8 ||
+          !formData.agreeToTerms ||
           isLoading
         }
       >
