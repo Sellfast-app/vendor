@@ -223,7 +223,7 @@ function StorefrontComponent() {
       const formData = new FormData();
       formData.append('logo', file);
 
-      const response = await fetch('/api/store/logo', {
+      const response = await fetch('/api/store', {
         method: 'POST',
         body: formData,
       });
