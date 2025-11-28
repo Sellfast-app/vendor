@@ -409,7 +409,7 @@ export default function MultiStepSignupPage() {
     <div className="space-y-6">
       <div className="flex flex-col">
         <h1 className="text-2xl font-semibold text-primary">Create Account</h1>
-        <p className="text-xs text-muted-foreground">Increase your sales revenue by 15-30% with SellFast</p>
+        <p className="text-xs text-muted-foreground">Increase your sales revenue by 15-30% with swiftree</p>
       </div>
 
       <div className="space-y-4">
@@ -558,7 +558,7 @@ export default function MultiStepSignupPage() {
     <div className="space-y-6">
       <div className="flex flex-col">
         <h1 className="text-2xl font-semibold text-primary">Business Information</h1>
-        <p className="text-xs text-muted-foreground">Supercharge your operations using SellFast</p>
+        <p className="text-xs text-muted-foreground">Supercharge your operations using swiftree</p>
       </div>
 
       <div className="space-y-4">
@@ -639,7 +639,7 @@ export default function MultiStepSignupPage() {
     <div className="space-y-6">
       <div className="flex flex-col">
         <h1 className="text-2xl font-semibold text-primary">WhatsApp Setup</h1>
-        <p className="text-xs text-muted-foreground">SellFast&apos;s bot helps with customer communication and order management</p>
+        <p className="text-xs text-muted-foreground">swiftree&apos;s bot helps with customer communication and order management</p>
       </div>
 
       <div className="space-y-4">
