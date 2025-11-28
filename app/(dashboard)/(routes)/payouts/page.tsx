@@ -71,24 +71,24 @@ export default function PayoutsPage() {
   const [isUpdateBillingModalOpen, setIsUpdateBillingModalOpen] = useState(false);
   const [isAddBankModalOpen, setIsAddBankModalOpen] = useState(false);
   const [creditCards, setCreditCards] = useState<CreditCard[]>([
-    {
-      id: "card-1",
-      image: CC1,
-      cardNumber: "4664 4664 4664 1678",
-      cardHolder: "John Doe",
-      expiryDate: "10/27",
-      cardType: "Credit",
-      icon: <MastersCardIcon />
-    },
-    {
-      id: "card-2",
-      image: CC2,
-      cardNumber: "5234 5234 5234 9876",
-      cardHolder: "John Doe",
-      expiryDate: "08/29",
-      cardType: "Debit",
-      icon: <MastersCardIcon />
-    }
+    // {
+    //   id: "card-1",
+    //   image: CC1,
+    //   cardNumber: "4664 4664 4664 1678",
+    //   cardHolder: "John Doe",
+    //   expiryDate: "10/27",
+    //   cardType: "Credit",
+    //   icon: <MastersCardIcon />
+    // },
+    // {
+    //   id: "card-2",
+    //   image: CC2,
+    //   cardNumber: "5234 5234 5234 9876",
+    //   cardHolder: "John Doe",
+    //   expiryDate: "08/29",
+    //   cardType: "Debit",
+    //   icon: <MastersCardIcon />
+    // }
   ]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([
   ]);
@@ -114,6 +114,7 @@ export default function PayoutsPage() {
       value: "0",
     },
   ];
+  
 
   const toggleCardNumberVisibility = () => {
     setShowCardNumber(!showCardNumber);
@@ -276,11 +277,11 @@ export default function PayoutsPage() {
               <Payoutmetrics key={metric.id} metric={metric} />
             ))}
           </div>
-          <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
+          {/* <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
             <CardContent>
               <TransactionInflowChart />
             </CardContent>
-          </Card>
+          </Card> */}
           <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
             <CardContent>
               <PayoutsTab />
@@ -291,13 +292,13 @@ export default function PayoutsPage() {
           <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
             <CardHeader className='border-b'>
               <div className='flex justify-between items-center'>
-                <p className='text-sm'>Available Balance</p>
+                {/* <p className='text-sm'>Available Balance</p> */}
                 <Button variant={"outline"} onClick={() => setIsAddBankModalOpen(true)}>
                   Connect Account <Withdrawal />
                 </Button>
               </div>
-              <h3 className='text-2xl font-bold mt-2'>₦0</h3>
-              <span className="text-xs">+15% from last payout • Last updated 2 minutes ago</span>
+              {/* <h3 className='text-2xl font-bold mt-2'>₦0</h3>
+              <span className="text-xs">+15% from last payout • Last updated 2 minutes ago</span> */}
               {/* <div className='flex items-center justify-between mt-2 gap-3'>
                 <Button className='w-[50%]' onClick={() => setIsDepositModalOpen(true)}> Deposit <Withdrawal color='white' /></Button>
                 <Button className='bg-[#5BA3F8] hover:bg-[#5BA3F8]/90 w-[50%]' onClick={() => setIsWithdrawalModalOpen(true)}> Withdraw <Withdrawal color='white' /></Button>
@@ -338,7 +339,7 @@ export default function PayoutsPage() {
             <CardContent className='border-b pb-3'>
               <div className='flex justify-between items-center'>
                 <p className='text-sm'>Billing Information</p>
-                <Button variant={"outline"} onClick={() => setIsUpdateBillingModalOpen(true)}>
+                <Button variant={"outline"} onClick={() => setIsUpdateBillingModalOpen(true)} disabled>
                   Edit <Settings />
                 </Button>
               </div>
@@ -373,7 +374,7 @@ export default function PayoutsPage() {
                   onClick={() => {
                     setEditingCard(creditCards[currentCardIndex]);
                     setIsAddCardModalOpen(true);
-                  }}
+                  }} disabled
                 >Edit <Settings /></Button>
               </div>
 
@@ -417,7 +418,7 @@ export default function PayoutsPage() {
                   </SwiperSlide>
                 ))}
               </Swiper>
-              <Button variant={"outline"} className="w-full" onClick={() => setIsAddCardModalOpen(true)}>
+              <Button variant={"outline"} className="w-full" onClick={() => setIsAddCardModalOpen(true)} disabled>
                 Add Card <PlusIcon />
               </Button>
             </CardContent>

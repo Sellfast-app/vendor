@@ -172,8 +172,8 @@ function DashboardPage() {
           ))}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4 mt-8">
-          <SalesRevenueChart />
-          <BestSellingProducts />
+          {/* <SalesRevenueChart /> */}
+          {/* <BestSellingProducts /> */}
         </div>
       </div>
       <AddProductModal
