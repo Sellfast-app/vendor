@@ -24,7 +24,8 @@ import {
     AccordionTrigger,
 } from "@/components/ui/accordion";
 
-interface Product {
+interface FrontendProduct {
+    id: string;
     sku: string;
     productName: string;
     description?: string;
@@ -33,31 +34,30 @@ interface Product {
     sales: number;
     status: string;
     createdAt: string;
-    thumbnail: string | string[]; // Can be string or array of strings
+    thumbnail: string | string[];
     variants?: { id: string; size: string | number; color: string; price: number; quantity: number }[];
 }
 
 interface ProductDetailsModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onEdit: (product: Product) => void;
-    onDelete: (sku: string) => void;
-    product: Product | null;
-    isEditMode?: boolean; // True if opened directly for editing from table
+    onEdit: (product: FrontendProduct) => void;
+    onDelete: (product: FrontendProduct) => void; // Changed from (sku: string) to (product: FrontendProduct)
+    product: FrontendProduct | null;
+    isEditMode?: boolean;
 }
 
 export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete, product, isEditMode = false }: ProductDetailsModalProps) {
-    const [localProduct, setLocalProduct] = useState<Product | null>(null);
+    const [localProduct, setLocalProduct] = useState<FrontendProduct | null>(null);
     const [editMode, setEditMode] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
     useEffect(() => {
         console.log("ProductDetailsModal updating with product:", product, "Initial Edit Mode:", isEditMode);
         setLocalProduct(product);
-        setEditMode(isEditMode); // Set edit mode if opened directly for editing
-        setCurrentImageIndex(0); // Reset image index when product changes
+        setEditMode(isEditMode);
+        setCurrentImageIndex(0);
     }, [product, isEditMode]);
-
 
     // Helper function to get current image URL for slider
     const getCurrentImageUrl = (): string => {
@@ -69,7 +69,7 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
         return localProduct.thumbnail;
     };
 
-    const handleInputChange = (field: keyof Product, value: string | number) => {
+    const handleInputChange = (field: keyof FrontendProduct, value: string | number) => {
         if (localProduct) {
             setLocalProduct(prev => prev ? { ...prev, [field]: value } : null);
         }
@@ -78,13 +78,13 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
     const handleSave = () => {
         if (localProduct) {
             onEdit(localProduct);
-            setEditMode(false); // Exit edit mode after saving
+            setEditMode(false);
         }
     };
 
     const handleCancel = () => {
-        setEditMode(false); // Revert to view mode
-        setLocalProduct(product); // Reset to original product data
+        setEditMode(false);
+        setLocalProduct(product);
     };
 
     const getStatusClass = (status: string) => {
@@ -101,7 +101,7 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
     };
 
     const handleDeleteClick = () => {
-        if (localProduct) onDelete(localProduct.sku);
+        if (localProduct) onDelete(localProduct);
     };
 
     // Image slider navigation

@@ -131,7 +131,8 @@ export async function POST(request: NextRequest) {
       
       return NextResponse.json(data, { status: 200 });
       
-    } catch (fetchError: any) {
+    } // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     catch (fetchError: any) {
       clearTimeout(timeoutId);
       
       if (fetchError.name === 'AbortError') {

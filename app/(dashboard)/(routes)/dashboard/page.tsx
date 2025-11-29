@@ -25,6 +25,8 @@ import SalesRevenueChart from "./_components/SalesRevenueChart";
 import BestSellingProducts from "./_components/BestSellingProducts";
 import { ExportModal } from "@/components/ExportModal";
 import AddProductModal from "../products/_components/AddProductModal";
+import { Card, CardContent } from "@/components/ui/card";
+import RecentOrdersTable from "./_components/RecentOrdersTable";
 
 interface OverviewMetric {
   id: string;
@@ -120,7 +122,7 @@ function DashboardPage() {
     {
       id: "average-rating",
       icon1: <Rating />,
-      title: "Average Store Rating",
+      title: "Average Rating",
       value: "0",
       change: 22.7,
       changeType: "negative",
@@ -172,9 +174,14 @@ function DashboardPage() {
           ))}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4 mt-8">
-          {/* <SalesRevenueChart /> */}
-          {/* <BestSellingProducts /> */}
+          <SalesRevenueChart />
+          <BestSellingProducts />
         </div>
+        <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
+          <CardContent>
+            <RecentOrdersTable/>
+          </CardContent>
+        </Card>
       </div>
       <AddProductModal
         isOpen={isProductModalOpen}

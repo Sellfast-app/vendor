@@ -99,7 +99,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result);
 
-  } catch (error: any) {
+  } // eslint-disable-next-line @typescript-eslint/no-explicit-any 
+  catch (error: any) {
     console.error("❌ Error fetching bank accounts:", error);
     return NextResponse.json(
       { 

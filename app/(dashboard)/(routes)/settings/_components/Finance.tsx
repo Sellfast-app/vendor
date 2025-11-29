@@ -75,24 +75,24 @@ function Finance() {
   ]);
 
   const [creditCards, setCreditCards] = useState<CreditCard[]>([
-    {
-      id: "card-1",
-      image: CC1,
-      cardNumber: "4664 4664 4664 1678",
-      cardHolder: "John Doe",
-      expiryDate: "10/27",
-      cardType: "Credit",
-      icon: <MastersCardIcon />
-    },
-    {
-      id: "card-2",
-      image: CC2,
-      cardNumber: "5234 5234 5234 9876",
-      cardHolder: "John Doe",
-      expiryDate: "08/29",
-      cardType: "Debit",
-      icon: <MastersCardIcon />
-    }
+    // {
+    //   id: "card-1",
+    //   image: CC1,
+    //   cardNumber: "4664 4664 4664 1678",
+    //   cardHolder: "John Doe",
+    //   expiryDate: "10/27",
+    //   cardType: "Credit",
+    //   icon: <MastersCardIcon />
+    // },
+    // {
+    //   id: "card-2",
+    //   image: CC2,
+    //   cardNumber: "5234 5234 5234 9876",
+    //   cardHolder: "John Doe",
+    //   expiryDate: "08/29",
+    //   cardType: "Debit",
+    //   icon: <MastersCardIcon />
+    // }
   ]);
 
   // Billing History Mock Data - 12 samples
@@ -312,7 +312,7 @@ function Finance() {
           </div>
         </CardContent>
       </Card>
-      <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
+      {/* <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
         <CardHeader>
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-medium">Card Setup</h3>
@@ -354,7 +354,7 @@ function Finance() {
             ))}
           </div>
         </CardContent>
-      </Card>
+      </Card> */}
       {/* Billing History Section */}
       <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
         <CardHeader className='border-b border-b-[#F5F5F5] dark:border-b-[#1F1F1F]'>

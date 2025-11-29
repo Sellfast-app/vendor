@@ -31,28 +31,47 @@ export function ExportModal({ isOpen, onClose, endpointPrefix, fieldOptions, dat
   const handleExport = async () => {
     const startDate = dateRangeFrom ? dateRangeFrom.toISOString().split("T")[0] : "";
     const endDate = dateRangeTo ? dateRangeTo.toISOString().split("T")[0] : "";
-
+  
+    // Validate date range
+    if (!startDate || !endDate) {
+      toast.error("Please select both start and end dates");
+      return;
+    }
+  
     const selectedFieldValues = Object.entries(selectedFields)
-      .filter(([ isSelected]) => isSelected)
+      .filter(([, isSelected]) => isSelected)
       .map(([value]) => value);
+    
     const fieldsParam = selectedFieldValues.length > 0 ? `&fields=${encodeURIComponent(selectedFieldValues.join(","))}` : "";
-
-    const apiUrl = `/api/exports/${endpointPrefix}/${format.toLowerCase()}?${startDate ? `startDate=${encodeURIComponent(startDate)}` : ""}${endDate ? `&endDate=${encodeURIComponent(endDate)}` : ""}${fieldsParam}`;
-
+  
+    // Determine the endpoint based on dataName
+    let endpoint = "";
+    if (dataName.toLowerCase().includes("product")) {
+      endpoint = "products";
+    } else if (dataName.toLowerCase().includes("order")) {
+      endpoint = "orders";
+    } else {
+      // Default to dashboard data (you might want to create a separate endpoint for this)
+      endpoint = "dashboard";
+    }
+  
+    const apiUrl = `/api/exports/${endpoint}?format=${format.toLowerCase()}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}${fieldsParam}`;
+  
     try {
       const response = await fetch(apiUrl, {
         method: "GET",
       });
-
+  
       if (!response.ok) {
-        throw new Error("Failed to export data");
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.message || "Failed to export data");
       }
-
+  
       const blob = await response.blob();
       const filename =
         response.headers.get("content-disposition")?.match(/filename="(.+)"/)?.[1] ||
-        `${endpointPrefix}_${new Date().toISOString().split("T")[0]}.${format.toLowerCase()}`;
-
+        `${endpoint}_export_${startDate}_to_${endDate}.${format.toLowerCase()}`;
+  
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -61,12 +80,12 @@ export function ExportModal({ isOpen, onClose, endpointPrefix, fieldOptions, dat
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-
+  
       toast.success(`Exported ${filename} successfully`);
       onClose();
     } catch (error) {
       console.error("Export error:", error);
-      toast.error("Failed to export data. Please try again.");
+      toast.error(`Failed to export data: ${error instanceof Error ? error.message : 'Please try again.'}`);
     }
   };
 

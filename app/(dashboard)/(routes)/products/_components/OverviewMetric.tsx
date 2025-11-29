@@ -3,9 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Loader2 } from "lucide-react";
-
-import { JSX, useState } from "react";
-
+import { JSX, useState, useEffect } from "react";
 
 interface OverviewMetric {
     id: string;
@@ -22,96 +20,112 @@ interface MetricCardProps {
 }
 
 export function OverviewMetric({ metric }: MetricCardProps) {
-    const [value,] = useState<string | number>(metric.value);
-    const [change,] = useState<number>(metric.change);
-    const [changeType,] = useState<"positive" | "negative">(metric.changeType);
-    const [loading,] = useState(false);
-    const [error,] = useState<string | null>(null);
+    const [value, setValue] = useState<string | number>(metric.value);
+    const [change, setChange] = useState<number>(metric.change);
+    const [changeType, setChangeType] = useState<"positive" | "negative">(metric.changeType);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            setError(null);
 
+            try {
+                // Use the new stores overview endpoint
+                const url = `/api/store/overview`;
+                console.log(`📊 Fetching store overview for metric: ${metric.id}`);
+                
+                const res = await fetch(url, {
+                    method: "GET",
+                    headers: { "Content-Type": "application/json" },
+                });
+                
+                const result = await res.json();
 
-    // const fetchMetric = async (
-    //   endpoint: string,
-    //   startDate: string,
-    //   endDate: string
-    // ) => {
-    //   const query = new URLSearchParams({ startDate, endDate });
-    //   const url = `${endpoint}?${query.toString()}`;
-    //   const res = await fetch(url, {
-    //     method: "GET",
-    //     headers: { "Content-Type": "application/json" },
-    //   });
-    //   const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(result.message || 'Failed to fetch store overview data');
+                }
 
-    //   // Accept both number and string, as some APIs might return formatted string
-    //   if (res.ok && data.status && (typeof data.data === "number" || typeof data.data === "string")) {
-    //     return data.data;
-    //   } else {
-    //     throw new Error(data.message || `Failed to fetch metric from ${endpoint}`);
-    //   }
-    // };
+                if (result.status !== 'success') {
+                    throw new Error(result.message || 'API returned error status');
+                }
 
-    //   useEffect(() => {
-    //     const supported = {
-    //       "generated-vnubans": "/api/analytics/vnuban/total",
-    //       "processed-transactions": "/api/analytics/transactions/successful-volume",
-    //       "active-vnubans": "/api/analytics/vnuban/total-dynamic"
-    //     };
+                const data = result.data;
+                console.log(`📊 Processing metric ${metric.id}:`, data);
 
-    //     if (!Object.keys(supported).includes(metric.id)) {
-    //       setValue(metric.value);
-    //       setChange(metric.change);
-    //       setChangeType(metric.changeType);
-    //       return;
-    //     }
+                let currentValue: string | number = "0";
+                let changePercent = 0;
 
-    //     const fetchData = async () => {
-    //       setLoading(true);
-    //       setError(null);
+                // Extract the correct value for each specific metric from the new endpoint
+                switch (metric.id) {
+                    case "total-products":
+                        currentValue = data.total_products || 0;
+                        changePercent = 0; // Not provided in this endpoint for products
+                        break;
+                    
+                    case "low-stock":
+                        currentValue = data.low_stock || 0;
+                        changePercent = 0; // Not provided in this endpoint for low stock
+                        break;
+                    
+                    case "total-orders":
+                        currentValue = data.total_orders || 0;
+                        changePercent = parseFloat(data.total_orders_percent_from_last_month || "0");
+                        break;
+                    
+                    case "total-revenue":
+                        currentValue = data.total_revenue || "0";
+                        changePercent = parseFloat(data.total_revenue_percent_from_last_month || "0");
+                        break;
+                    
+                    default:
+                        currentValue = "0";
+                        changePercent = 0;
+                }
 
-    //       try {
-    //         const { startDate, endDate } = getDateRange(period);
-    //         const { startDate: prevStart, endDate: prevEnd } = adjustPreviousPeriod(
-    //           startDate,
-    //           endDate
-    //         );
+                console.log(`📊 Final values for ${metric.id}:`, { 
+                    currentValue, 
+                    changePercent 
+                });
 
-    //         const url = supported[metric.id as keyof typeof supported];
-    //         // Always use current response data for value
-    //         const current = await fetchMetric(url, startDate, endDate);
-    //         const previous = await fetchMetric(url, prevStart, prevEnd);
+                // Format the value based on metric type
+                let formattedValue: string;
+                if (typeof currentValue === "string") {
+                    // Handle currency formatting for revenue
+                    if (["total-revenue"].includes(metric.id)) {
+                        const numValue = parseFloat(currentValue) || 0;
+                        formattedValue = `₦${numValue.toLocaleString("en-NG")}`;
+                    } else {
+                        formattedValue = currentValue;
+                    }
+                } else {
+                    // Handle number values
+                    if (["total-revenue"].includes(metric.id)) {
+                        formattedValue = `₦${currentValue.toLocaleString("en-NG")}`;
+                    } else {
+                        formattedValue = currentValue.toLocaleString();
+                    }
+                }
 
-    //         // If backend returns the display string, just show it. Else, format as currency or number.
-    //         let formattedValue: string;
-    //         if (typeof current === "string") {
-    //           formattedValue = current;
-    //         } else if (["processed-transactions", "successful-amount", "payouts-processed"].includes(metric.id)) {
-    //           formattedValue = `₦${current.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
-    //         } else {
-    //           formattedValue = current.toLocaleString("en-NG");
-    //         }
+                setValue(formattedValue);
+                setChange(Math.round(Math.abs(changePercent) * 10) / 10);
+                setChangeType(changePercent >= 0 ? "positive" : "negative");
+                
+            } catch (err) {
+                console.error("Client-side: Fetch error:", err);
+                setError("Failed to load metric");
+                // Fallback to default values
+                setValue(metric.value);
+                setChange(metric.change);
+                setChangeType(metric.changeType);
+            } finally {
+                setLoading(false);
+            }
+        };
 
-    //         const changePercent =
-    //           previous && Number(previous) !== 0
-    //             ? ((Number(current) - Number(previous)) / Math.abs(Number(previous))) * 100
-    //             : 0;
-
-    //         setValue(formattedValue);
-    //         setChange(Math.round(Math.abs(changePercent) * 10) / 10);
-    //         setChangeType(changePercent >= 0 ? "positive" : "negative");
-    //       } catch (err) {
-    //         console.error("Client-side: Fetch error:", err);
-    //         setError("Failed to load metric");
-    //         setValue("₦0.00");
-    //         setChange(0);
-    //         setChangeType("positive");
-    //       } finally {
-    //         setLoading(false);
-    //       }
-    //     };
-
-    //     fetchData();
-    //   }, [metric.id, period]);
+        fetchData();
+    }, [metric.id, metric.value, metric.change, metric.changeType]);
 
     return (
         <Card className="relative shadow-none hover:border-[#4FCA6A] dark:hover:border-[#4FCA6A] hover:shadow-lg hover:shadow-[#005B1414] border-[#F5F5F5] dark:border-[#1F1F1F]">

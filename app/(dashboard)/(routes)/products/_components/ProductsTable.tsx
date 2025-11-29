@@ -36,6 +36,7 @@ import { format } from "date-fns";
 import { Label } from "@/components/ui/label";
 import ProductDetailsModal from "./ProductDetailsModal";
 import Loading from "@/components/Loading";
+import { toast } from "sonner";
 
 interface Product {
   id: string;
@@ -67,6 +68,7 @@ interface ApiResponse {
 }
 
 interface FrontendProduct {
+  id: string;
   sku: string;
   productName: string;
   description?: string;
@@ -81,6 +83,7 @@ interface FrontendProduct {
 
 // Transform API product to frontend format
 const transformProduct = (product: Product): FrontendProduct => ({
+  id: product.id,
   sku: product.product_sku,
   productName: product.product_name,
   description: product.product_description,
@@ -168,6 +171,7 @@ export default function ProductTable() {
     } catch (error) {
       console.error('Error fetching products:', error);
       setProducts([]);
+      toast.error('Failed to fetch products');
     } finally {
       setIsLoading(false);
     }
@@ -246,11 +250,40 @@ export default function ProductTable() {
     }
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (selectedProduct) {
-      setProducts(products.filter((p) => p.sku !== selectedProduct.sku));
-      setIsDeleteModalOpen(false);
-      setSelectedProduct(null);
+      try {
+        setIsLoading(true);
+        
+        const response = await fetch(`/api/products/${selectedProduct.id}`, {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.message || `Failed to delete product: ${response.status}`);
+        }
+
+        if (result.status === 'success') {
+          // Remove the product from local state
+          setProducts(products.filter((p) => p.id !== selectedProduct.id));
+          console.log("✅ Product deleted successfully:", result);
+          toast.success('Product deleted successfully!');
+        } else {
+          throw new Error(result.message || 'Failed to delete product');
+        }
+      } catch (error) {
+        console.error('Error deleting product:', error);
+        toast.error(`Failed to delete product: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      } finally {
+        setIsDeleteModalOpen(false);
+        setSelectedProduct(null);
+        setIsLoading(false);
+      }
     }
   };
 
@@ -259,6 +292,7 @@ export default function ProductTable() {
       console.log(`Archiving product: ${selectedProduct.sku}`);
       setIsArchiveModalOpen(false);
       setSelectedProduct(null);
+      toast.info('Archive functionality coming soon!');
     }
   };
 
@@ -279,11 +313,13 @@ export default function ProductTable() {
     setSortBy("default");
     setIsFilterOpen(false);
     setSearchTerm("");
+    toast.info('Filters cleared');
   };
 
   const handleAddProduct = (newProduct: FrontendProduct) => {
     window.dispatchEvent(new CustomEvent("productAdded", { detail: newProduct }));
     setCurrentPage(0);
+    toast.success('Product added successfully!');
   };
 
   const openDetailsModal = (product: FrontendProduct) => {
@@ -301,11 +337,40 @@ export default function ProductTable() {
   const handleEdit = (product: FrontendProduct) => {
     setProducts((prev) => prev.map((p) => (p.sku === product.sku ? product : p)));
     setIsDetailsModalOpen(false);
+    toast.success('Product updated successfully!');
   };
 
-  const handleDelete = (sku: string) => {
-    setProducts((prev) => prev.filter((p) => p.sku !== sku));
-    setIsDetailsModalOpen(false);
+  const handleDelete = async (product: FrontendProduct) => {
+    try {
+      setIsLoading(true);
+      
+      const response = await fetch(`/api/products/${product.id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to delete product');
+      }
+
+      if (result.status === 'success') {
+        setProducts((prev) => prev.filter((p) => p.id !== product.id));
+        console.log("✅ Product deleted successfully:", result);
+        toast.success('Product deleted successfully!');
+      } else {
+        throw new Error(result.message || 'Failed to delete product');
+      }
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      toast.error(`Failed to delete product: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsDetailsModalOpen(false);
+      setIsLoading(false);
+    }
   };
 
   return (

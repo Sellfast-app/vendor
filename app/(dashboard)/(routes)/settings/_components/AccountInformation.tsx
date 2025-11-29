@@ -582,7 +582,7 @@ function AccountInformation() {
 
       {/* REST OF THE CODE REMAINS EXACTLY THE SAME */}
       {/* Linked Stores */}
-      <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
+      {/* <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
         <CardContent>
           <div className="space-y-4 pt-6">
             <div className="flex items-center justify-between">
@@ -663,7 +663,7 @@ function AccountInformation() {
             </div>
           </div>
         </CardContent>
-      </Card>
+      </Card> */}
 
       <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
         <CardContent>

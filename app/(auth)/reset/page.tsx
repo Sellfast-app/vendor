@@ -13,6 +13,9 @@ export default function ResetPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isValidatingToken, setIsValidatingToken] = useState(true);
+  const [tokenValid, setTokenValid] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
@@ -27,6 +30,49 @@ export default function ResetPasswordPage() {
   const [hasLowercase, setHasLowercase] = useState(false);
   const [hasNumber, setHasNumber] = useState(false);
   const [hasSpecialChar, setHasSpecialChar] = useState(false);
+
+  // Validate token on component mount
+  useEffect(() => {
+    const validateToken = async () => {
+      if (!token) {
+        setError("Invalid reset link. Please request a new password reset.");
+        setIsValidatingToken(false);
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/auth/validate-reset-token?token=${encodeURIComponent(token)}`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        const data = await res.json();
+        
+        if (res.ok && data.success && data.data.valid) {
+          setTokenValid(true);
+          setUserEmail(data.data.email || "");
+          toast.success("Token validated! You can now reset your password.");
+        } else {
+          setTokenValid(false);
+          const errorMessage = data.message || "Invalid or expired reset token";
+          setError(errorMessage);
+          toast.error(errorMessage);
+        }
+      } catch (err) {
+        setTokenValid(false);
+        const errorMessage = "Failed to validate reset token. Please try again.";
+        setError(errorMessage);
+        toast.error(errorMessage);
+        console.error("Token validation error:", err);
+      } finally {
+        setIsValidatingToken(false);
+      }
+    };
+
+    validateToken();
+  }, [token]);
 
   // Validate password rules on change
   useEffect(() => {
@@ -53,6 +99,11 @@ export default function ResetPasswordPage() {
     
     if (!token) {
       setError("Invalid reset link. Please request a new password reset.");
+      return;
+    }
+
+    if (!tokenValid) {
+      setError("Reset token is invalid or expired. Please request a new password reset.");
       return;
     }
 
@@ -107,12 +158,61 @@ export default function ResetPasswordPage() {
     }
   };
 
+  // Show loading state while validating token
+  if (isValidatingToken) {
+    return (
+      <div className="w-full max-w-lg mx-auto space-y-6 p-6">
+        <Logo />
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+          <h2 className="text-lg font-semibold text-primary">Validating reset token...</h2>
+          <p className="text-sm text-muted-foreground mt-2">Please wait while we verify your reset link</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error if token is invalid
+  if (!tokenValid) {
+    return (
+      <div className="w-full max-w-lg mx-auto space-y-6 p-6">
+        <Logo />
+        <div className="flex flex-col">
+          <h1 className="text-2xl font-semibold text-primary">Invalid Reset Link</h1>
+          <p className="text-xs text-[#A0A0A0]">This password reset link is invalid or has expired</p>
+        </div>
+        
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-600 text-center">{error}</p>
+        </div>
+
+        <div className="space-y-4">
+          <Button
+            onClick={() => router.push("/forgot")}
+            className="w-full py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors duration-200"
+          >
+            Request New Reset Link
+          </Button>
+          <Button
+            onClick={() => router.push("/login")}
+            variant="outline"
+            className="w-full py-3 rounded-lg transition-colors duration-200"
+          >
+            Back to Login
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-lg mx-auto space-y-6 p-6">
       <Logo />
       <div className="flex flex-col">
         <h1 className="text-2xl font-semibold text-primary">Reset Password</h1>
-        <p className="text-xs text-[#A0A0A0]">Enter your new password</p>
+        <p className="text-xs text-[#A0A0A0]">
+          {userEmail ? `Reset password for ${userEmail}` : "Enter your new password"}
+        </p>
       </div>
       
       <form onSubmit={handleSubmit} className="space-y-6">
