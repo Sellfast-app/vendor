@@ -1,7 +1,7 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import Withdrawals from "./Withdrawals";
+import Transactions from "./Transactions";
 import SubscriptionBillings from "./SubscriptionBillings";
 import EscrowTransactions from "./EscrowTransactions";
 import { PiHandWithdraw } from "react-icons/pi";
@@ -16,7 +16,7 @@ export default function PayoutsTab() {
           value="withdraw" 
           className="bg-transparent data-[state=active]:bg-primary dark:data-[state=active]:bg-primary data-[state=active]:text-white border border-input"
         >
-        <PiHandWithdraw className="md:hidden"/> <span className="hidden sm:inline ml-2"> Withdrawals</span>
+        <PiHandWithdraw className="md:hidden"/> <span className="hidden sm:inline ml-2"> Transactions</span>
         </TabsTrigger>
         <TabsTrigger 
           value="billings" 
@@ -33,7 +33,7 @@ export default function PayoutsTab() {
       </TabsList>
       
       <TabsContent value="withdraw">
-        <Withdrawals />
+        <Transactions />
       </TabsContent>
       
       <TabsContent value="billings">

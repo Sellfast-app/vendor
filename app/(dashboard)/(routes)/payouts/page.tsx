@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import React, { JSX, useState } from 'react'
+import React, { JSX, useEffect, useState } from 'react'
 import { RiShare2Fill } from 'react-icons/ri';
 import { PlusIcon, Settings } from 'lucide-react';
 import { Payoutmetrics } from './_components/PayoutMetrics';
@@ -36,6 +36,8 @@ import { Navigation, Scrollbar } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/scrollbar';
+import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from 'sonner';
 
 interface OverviewMetric {
   id: string;
@@ -63,44 +65,105 @@ interface CreditCard {
   icon: JSX.Element;
 }
 
+interface StoreBankDetails {
+  subaccount_code: string;
+  business_name: string;
+  settlement_bank: string;
+  account_number: string;
+  percentage_charge: number;
+  active: boolean;
+  currency: string;
+}
+
 export default function PayoutsPage() {
-   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [selectedBankAccount, setSelectedBankAccount] = useState<string>("access-bank-1");
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [selectedBankAccount, setSelectedBankAccount] = useState<string>("");
   const [showCardNumber, setShowCardNumber] = useState<boolean>(false);
   const [isAddCardModalOpen, setIsAddCardModalOpen] = useState(false);
   const [isUpdateBillingModalOpen, setIsUpdateBillingModalOpen] = useState(false);
   const [isAddBankModalOpen, setIsAddBankModalOpen] = useState(false);
-  const [creditCards, setCreditCards] = useState<CreditCard[]>([
-    // {
-    //   id: "card-1",
-    //   image: CC1,
-    //   cardNumber: "4664 4664 4664 1678",
-    //   cardHolder: "John Doe",
-    //   expiryDate: "10/27",
-    //   cardType: "Credit",
-    //   icon: <MastersCardIcon />
-    // },
-    // {
-    //   id: "card-2",
-    //   image: CC2,
-    //   cardNumber: "5234 5234 5234 9876",
-    //   cardHolder: "John Doe",
-    //   expiryDate: "08/29",
-    //   cardType: "Debit",
-    //   icon: <MastersCardIcon />
-    // }
-  ]);
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([
-  ]);
+  const [creditCards, setCreditCards] = useState<CreditCard[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [editingCard, setEditingCard] = useState<CreditCard | null>(null);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const [isWithdrawalModalOpen, setIsWithdrawalModalOpen] = useState(false);
   const [subscriptionPlan, setSubscriptionPlan] = useState('premium');
-  const [billingCardId, setBillingCardId] = useState('card-1');
+  const [billingCardId, setBillingCardId] = useState('');
+  const [isLoadingBankDetails, setIsLoadingBankDetails] = useState(true);
+
+  // Fetch store bank details
+  useEffect(() => {
+    const fetchBankDetails = async () => {
+      setIsLoadingBankDetails(true);
+      try {
+        const response = await fetch('/api/payments/bank-details');
+        const result = await response.json();
+
+        if (result.status === 'success' && result.data) {
+          const bankData: StoreBankDetails = result.data;
+          
+          // Generate bank icon based on bank name
+          const getBankIcon = (bankName: string) => {
+            if (bankName.toLowerCase().includes('access')) {
+              return <Accessbank />;
+            }
+            // For other banks, use colored circles with abbreviations
+            const colors: { [key: string]: string } = {
+              'gtbank': 'bg-orange-500',
+              'zenith': 'bg-red-600',
+              'uba': 'bg-red-700',
+              'first bank': 'bg-blue-800',
+              'fidelity': 'bg-purple-600',
+              'sterling': 'bg-blue-700',
+              'union bank': 'bg-blue-600',
+              'wema': 'bg-purple-700',
+              'unity': 'bg-green-600',
+              'polaris': 'bg-indigo-600',
+              'stanbic': 'bg-blue-500',
+              'ecobank': 'bg-red-500',
+              'fcmb': 'bg-yellow-600',
+              'keystone': 'bg-teal-600',
+            };
+
+            const abbreviation = bankName.split(' ').map(word => word[0]).join('').slice(0, 3).toUpperCase();
+            const color = colors[bankName.toLowerCase()] || 'bg-gray-500';
+
+            return (
+              <div className={`w-8 h-8 ${color} rounded-full flex items-center justify-center text-white text-xs font-bold`}>
+                {abbreviation}
+              </div>
+            );
+          };
+
+          const bankAccount: BankAccount = {
+            id: `bank-${bankData.subaccount_code}`,
+            icon: getBankIcon(bankData.settlement_bank),
+            accountNumber: bankData.account_number,
+            bankName: bankData.settlement_bank,
+            accountHolder: bankData.business_name
+          };
+
+          setBankAccounts([bankAccount]);
+          setSelectedBankAccount(bankAccount.id);
+          console.log("✅ Bank details loaded successfully:", bankData);
+        } else {
+          console.log("ℹ️ No bank details found or empty response");
+          setBankAccounts([]);
+        }
+      } catch (error) {
+        console.error('Error fetching bank details:', error);
+        toast.error('Failed to load bank details');
+        setBankAccounts([]);
+      } finally {
+        setIsLoadingBankDetails(false);
+      }
+    };
+
+    fetchBankDetails();
+  }, []);
 
   const overviewMetrics: OverviewMetric[] = [
-    
     {
       id: "total-earnings",
       icon1: <EarningsIcon />,
@@ -114,7 +177,6 @@ export default function PayoutsPage() {
       value: "0",
     },
   ];
-  
 
   const toggleCardNumberVisibility = () => {
     setShowCardNumber(!showCardNumber);
@@ -238,6 +300,7 @@ export default function PayoutsPage() {
     };
 
     setBankAccounts([...bankAccounts, newBank]);
+    setSelectedBankAccount(newBank.id);
   };
 
   // Get billing card details
@@ -254,6 +317,19 @@ export default function PayoutsPage() {
     { label: "Connected Bank Accounts", value: "Connected Bank Accounts" },
     { label: "Billing Information", value: "Billing Information" },
   ];
+
+  const BankAccountSkeleton = () => (
+    <div className="flex items-center justify-between gap-3 py-2">
+      <div className="flex items-center gap-3 flex-1">
+        <Skeleton className="w-8 h-8 rounded-full" />
+        <div className="flex flex-col space-y-1">
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-3 w-32" />
+        </div>
+      </div>
+      <Skeleton className="w-4 h-4 rounded-full" />
+    </div>
+  );
 
   return (
     <div className="min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -309,31 +385,42 @@ export default function PayoutsPage() {
                 <p className='text-sm'>Connected Bank Accounts</p>
               </div>
               <div className="max-h-32 overflow-y-auto px-6">
-                <RadioGroup
-                  value={selectedBankAccount}
-                  onValueChange={setSelectedBankAccount}
-                  className="space-y-1"
-                >
-                  {bankAccounts.map((bank) => (
-                    <div key={bank.id} className="flex items-center justify-between gap-3 py-2">
-                      <Label
-                        htmlFor={bank.id}
-                        className="flex items-center gap-3 flex-1 cursor-pointer"
-                      >
-                        {bank.icon}
-                        <div className="flex flex-col">
-                          <span className='text-sm'>{bank.accountNumber}</span>
-                          <p className="text-xs">{bank.bankName} . {bank.accountHolder}</p>
-                        </div>
-                      </Label>
-                      <RadioGroupItem
-                        value={bank.id}
-                        id={bank.id}
-                        className="flex-shrink-0"
-                      />
-                    </div>
-                  ))}
-                </RadioGroup>
+                {isLoadingBankDetails ? (
+                  <div className="space-y-1">
+                    <BankAccountSkeleton />
+                  </div>
+                ) : bankAccounts.length > 0 ? (
+                  <RadioGroup
+                    value={selectedBankAccount}
+                    onValueChange={setSelectedBankAccount}
+                    className="space-y-1"
+                  >
+                    {bankAccounts.map((bank) => (
+                      <div key={bank.id} className="flex items-center justify-between gap-3 py-2">
+                        <Label
+                          htmlFor={bank.id}
+                          className="flex items-center gap-3 flex-1 cursor-pointer"
+                        >
+                          {bank.icon}
+                          <div className="flex flex-col">
+                            <span className='text-sm'>{bank.accountNumber}</span>
+                            <p className="text-xs">{bank.bankName} . {bank.accountHolder}</p>
+                          </div>
+                        </Label>
+                        <RadioGroupItem
+                          value={bank.id}
+                          id={bank.id}
+                          className="flex-shrink-0"
+                        />
+                      </div>
+                    ))}
+                  </RadioGroup>
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground">
+                    <p className="text-sm">No bank account connected</p>
+                    <p className="text-xs">Connect a bank account to receive payouts</p>
+                  </div>
+                )}
               </div>
             </CardContent>
             <CardContent className='border-b pb-3'>
