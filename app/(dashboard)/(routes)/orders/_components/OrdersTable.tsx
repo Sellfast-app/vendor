@@ -262,7 +262,7 @@ const handleCreateOrder = (order: any) => {
           <Button 
             variant="outline" 
             className="border-[#4FCA6A] text-[#4FCA6A] dark:bg-background"
-            onClick={() => setIsCreateOrderModalOpen(true)}
+            onClick={() => setIsCreateOrderModalOpen(true)} disabled
           >
             <PlusIcon className="text-[#4FCA6A]" />
             <span className="hidden sm:inline ml-2">Add Order</span>

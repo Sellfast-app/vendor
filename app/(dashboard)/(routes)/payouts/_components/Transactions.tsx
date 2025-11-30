@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChevronLeft, ChevronRight, DownloadIcon, FilterIcon, SearchIcon } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { BsThreeDots } from "react-icons/bs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -14,6 +14,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import MarkIcon from "@/components/svgIcons/MarkIcon";
 
 // Interface for Transaction based on actual API response
 interface Transaction {
@@ -66,6 +67,30 @@ interface ApiResponse {
     total: number;
     totalPages: number;
   };
+}
+
+// Add Payment Verification Result interface
+interface PaymentVerificationResult {
+  status: string;
+  message: string;
+  data: {
+    reference: string;
+    verified: boolean;
+    amount: number;
+    transaction_status: number;
+    transaction: {
+      id: number;
+      store_id: number;
+      amount: string;
+      currency: string;
+      transaction_status: number;
+      reference: string;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      meta_data: Record<string, any>;
+      created_at: string;
+      updated_at: string;
+    };
+  } | null;
 }
 
 function DatePicker({
@@ -133,6 +158,9 @@ export default function TransactionsTable() {
   const [isLoading, setIsLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
+  const [verifyingPayment, setVerifyingPayment] = useState<string | null>(null);
+  const [autoVerifying, setAutoVerifying] = useState<Set<string>>(new Set()); // Track auto-verifying transactions
+  const verifiedRef = useRef<Set<string>>(new Set()); // Track already verified transactions
 
   // Fetch transactions from API
   const fetchTransactions = async () => {
@@ -159,6 +187,9 @@ export default function TransactionsTable() {
         setTotalPages(result.data.totalPages || 0);
         
         console.log(`Loaded ${transactionsData.length} transactions`);
+        
+        // Auto-verify pending transactions that haven't been verified yet
+        autoVerifyPendingTransactions(transactionsData);
       } else {
         toast.error(result.message || 'Failed to fetch transactions');
         setTransactions([]);
@@ -174,6 +205,115 @@ export default function TransactionsTable() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Auto-verify pending transactions
+  const autoVerifyPendingTransactions = async (transactionsData: Transaction[]) => {
+    const pendingTransactions = transactionsData.filter(
+      transaction => transaction.transaction_status === 0 && !verifiedRef.current.has(transaction.id)
+    );
+
+    console.log(`🔄 Found ${pendingTransactions.length} pending transactions to auto-verify`);
+
+    for (const transaction of pendingTransactions) {
+      // Skip if already being verified
+      if (autoVerifying.has(transaction.id)) continue;
+      
+      console.log(`🔄 Auto-verifying transaction: ${transaction.reference}`);
+      setAutoVerifying(prev => new Set(prev).add(transaction.id));
+      
+      try {
+        await verifyPaymentTransaction(transaction, true);
+      } catch (error) {
+        console.error(`Auto-verification failed for ${transaction.reference}:`, error);
+      } finally {
+        setAutoVerifying(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(transaction.id);
+          return newSet;
+        });
+      }
+      
+      // Add small delay between verifications to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  };
+
+  // Payment Verification Function
+  const verifyPaymentTransaction = async (transaction: Transaction, isAutoVerify = false) => {
+    const paymentReference = transaction.reference;
+    
+    if (!isAutoVerify) {
+      setVerifyingPayment(transaction.id);
+    }
+
+    console.log(`🔍 ${isAutoVerify ? 'Auto-' : ''}Verifying payment:`, paymentReference);
+
+    try {
+      const response = await fetch(`/api/payments/verify/${paymentReference}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ Payment verification error for ${paymentReference}:`, response.status, errorText);
+        
+        if (!isAutoVerify) {
+          let errorMessage = 'Failed to verify payment';
+          try {
+            const errorData = JSON.parse(errorText);
+            errorMessage = errorData.message || errorMessage;
+          } catch {
+            errorMessage = errorText || errorMessage;
+          }
+          toast.error(errorMessage);
+        }
+        return;
+      }
+      
+      const result: PaymentVerificationResult = await response.json();
+      console.log(`🔍 ${isAutoVerify ? 'Auto-' : ''}Verification result for ${paymentReference}:`, result);
+      
+      if (result.status === 'success' && result.data) {
+        const { verified, transaction_status, amount, reference } = result.data;
+        
+        if (verified && transaction_status === 1) {
+          // Mark as verified to prevent future verifications
+          verifiedRef.current.add(transaction.id);
+          
+          if (!isAutoVerify) {
+            toast.success(`Payment verified! Amount: ₦${(amount / 100).toLocaleString()}`);
+          }
+          
+          console.log(`✅ ${isAutoVerify ? 'Auto-' : ''}Payment verified for ${reference}`);
+          
+          // Refresh transactions to update status
+          await fetchTransactions();
+        } else {
+          if (!isAutoVerify) {
+            toast.warning(`Payment not verified. Status: ${transaction_status}`);
+          }
+          console.log(`⚠️ ${isAutoVerify ? 'Auto-' : ''}Payment not verified for ${reference}`);
+        }
+      } else {
+        if (!isAutoVerify) {
+          toast.error(result.message || 'Payment verification failed');
+        }
+      }
+      
+    } catch (error) {
+      console.error(`❌ ${isAutoVerify ? 'Auto-' : ''}Network error verifying payment:`, error);
+      if (!isAutoVerify) {
+        toast.error('Network error while verifying payment');
+      }
+    } finally {
+      if (!isAutoVerify) {
+        setVerifyingPayment(null);
+      }
+    }
+  };
+
+  // Manual payment verification
+  const handleVerifyPayment = async (transaction: Transaction) => {
+    await verifyPaymentTransaction(transaction, false);
   };
 
   useEffect(() => {
@@ -215,7 +355,7 @@ export default function TransactionsTable() {
   };
 
   const handleApplyFilters = () => {
-    setCurrentPage(1); // Reset to first page when filters change
+    setCurrentPage(1);
     fetchTransactions();
   };
 
@@ -237,15 +377,15 @@ export default function TransactionsTable() {
 
   const getStatusClass = (status: number) => {
     switch (status) {
-      case 1: // Success/Completed
-        return "bg-[#EFFFE9] rounded-xl text-[#53DC19]";
-      case 0: // Pending
-        return "bg-[#FFF5E8] rounded-xl text-[#FFB347]";
-      case 2: // Failed/Cancelled
+      case 1:
+        return "bg-[#EFFFE9] text-[#065F46]";
+      case 0: 
+        return "bg-[#FFF5E8] text-[#9A3412]";
+      case 2: 
       case 3:
-        return "bg-[#FFEFEF] rounded-xl text-[#E40101]";
+        return "bg-[#FFEFEF] text-[#991B1B]";
       default:
-        return "bg-gray-100 rounded-xl text-gray-600";
+        return "bg-gray-100 text-gray-600";
     }
   };
 
@@ -472,6 +612,9 @@ export default function TransactionsTable() {
                 </TableCell>
                 <TableCell className="font-medium">
                   {transaction.meta_data.email}
+                  <div className="text-xs text-muted-foreground">
+                    Ref: {transaction.reference}
+                  </div>
                 </TableCell>
                 <TableCell className="font-semibold">
                   {formatCurrency(transaction.amount, transaction.currency)}
@@ -492,12 +635,12 @@ export default function TransactionsTable() {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <span className={`flex items-center px-2 py-1 rounded text-sm capitalize ${getStatusClass(transaction.transaction_status)}`}>
+                  <span className={`flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusClass(transaction.transaction_status)}`}>
                     <span className={`w-2 h-2 rounded-full mr-2 ${
                       transaction.transaction_status === 1 ? "bg-[#53DC19]" :
                       transaction.transaction_status === 0 ? "bg-[#FFB347]" : "bg-[#E40101]"
                     }`} />
-                    {getStatusText(transaction.transaction_status)}
+                    {autoVerifying.has(transaction.id) ? 'Verifying...' : getStatusText(transaction.transaction_status)}
                   </span>
                 </TableCell>
                 <TableCell>
@@ -508,11 +651,19 @@ export default function TransactionsTable() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => window.open(`/transactions/${transaction.id}`, "_blank")}>
-                        <EyeIcon /> View Details
-                      </DropdownMenuItem>
+                      {/* Verify Payment - Show for pending transactions */}
+                      {transaction.transaction_status === 0 && (
+                        <DropdownMenuItem 
+                          onClick={() => handleVerifyPayment(transaction)}
+                          disabled={verifyingPayment === transaction.id || autoVerifying.has(transaction.id)}
+                        >
+                          <MarkIcon className="mr-2 h-4 w-4" />
+                          {verifyingPayment === transaction.id || autoVerifying.has(transaction.id) ? 'Verifying...' : 'Verify Payment'}
+                        </DropdownMenuItem>
+                      )}
+                      
                       <DropdownMenuItem onClick={() => handleDownloadReceipt(transaction)} className="text-primary">
-                        <DownloadIcon className="text-primary" /> Download Receipt
+                        <DownloadIcon className="mr-2 h-4 w-4" /> Download Receipt
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
