@@ -1,14 +1,9 @@
-
-
+import { OnboardingModal } from "@/components/OnboardingModal";
 import { MobileSidebar } from "./_components/Mobile-sidebar";
 import { Navbar } from "./_components/navbar";
 import { Sidebar } from "./_components/sidebar";
 
-
-
 const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
-
-
   return (
     <div className="h-full">
       <div className="h-[80px] md:pl-62.5 fixed inset-y-0 w-full z-50">
@@ -21,6 +16,9 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
         {children}
       </main>
       <MobileSidebar />
+      
+      {/* Onboarding Modal - shows automatically when needed */}
+      <OnboardingModal />
     </div>
   );
 };
