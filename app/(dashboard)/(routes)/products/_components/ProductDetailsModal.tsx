@@ -103,7 +103,7 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
           est_prod_days_from: localProduct.est_prod_days_from,
           est_prod_days_to: localProduct.est_prod_days_to
         });
-
+    
         // Validate that we have a product ID
         if (!localProduct.id) {
             console.error('❌ Product ID is missing!');
@@ -116,10 +116,6 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
           // Prepare form data for PATCH request
           const formData = new FormData();
       
-          // NOTE: The store_id should NOT be the product ID!
-          // The API will get the store_id from cookies in the backend
-          // We only need to pass the product-specific fields
-          
           // Required fields from API docs - status is required
           formData.append('status', mapStatusToApi(localProduct.status));
           
@@ -150,7 +146,6 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
             newImages: newImages.length
           });
       
-          // Log the actual URL being called - FIXED: use localProduct.id instead of product.id
           const apiUrl = `/api/products/${localProduct.id}`;
           console.log('🔗 Calling API URL:', apiUrl);
       
@@ -164,7 +159,6 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
             }
           }
       
-          // Use the dynamic route: /api/products/[productId]
           const response = await fetch(apiUrl, {
             method: 'PATCH',
             body: formData,
@@ -172,7 +166,7 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
       
           console.log('📡 API Response Status:', response.status);
           console.log('📡 API Response URL:', response.url);
-
+    
           if (!response.ok) {
             const errorData = await response.json();
             console.error('❌ API Error Response:', errorData);
@@ -180,21 +174,37 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
           }
       
           const result = await response.json();
-          console.log('✅ API Success Response:', result);
+          console.log('✅ Full API Response:', result);
+          console.log('✅ Result keys:', Object.keys(result));
       
           if (result.status === 'success') {
+            // FIX: Backend is returning "datat" instead of "data" (typo in backend)
+            // Handle both cases for backwards compatibility
+            const productData = result.data || result.datat;
+            
+            console.log('✅ Product data extracted:', productData);
+            
+            if (!productData) {
+              console.error('❌ No product data found in response:', result);
+              throw new Error('No product data returned from server');
+            }
+            
             // Update local product with the response data
-            const updatedProduct = transformProduct(result.data);
+            const updatedProduct = transformProduct(productData);
+            console.log('✅ Transformed product:', updatedProduct);
+            
             onEdit(updatedProduct);
             setEditMode(false);
             setNewImages([]);
             setRemovedImages([]);
             toast.success('Product updated successfully!');
           } else {
+            console.error('❌ Status is not success:', result);
             throw new Error(result.message || 'Failed to update product');
           }
         } catch (error) {
-          console.error('Error updating product:', error);
+          console.error('❌ Error updating product:', error);
+          console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
           toast.error(`Failed to update product: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
           setIsLoading(false);
