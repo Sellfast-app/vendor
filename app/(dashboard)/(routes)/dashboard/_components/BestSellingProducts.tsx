@@ -268,10 +268,15 @@ const BestSellingProducts = () => {
         ) : (
           // Products List
           <div className="space-y-4">
+           {products.length > 0 && (
+          // Products List
+          <div className="space-y-4">
             {products.map((product) => (
-              <div key={product.product_id} className="flex items-center justify-between">
-                <div className="flex items-center space-x-3 flex-1">
-                  <div className="w-12 h-12 bg-gradient-to-br from-orange-100 to-orange-200 rounded-lg flex items-center justify-center overflow-hidden">
+              <div key={product.product_id} className="flex items-start justify-between gap-4"> 
+                
+                <div className="flex items-center space-x-3 flex-1 min-w-0">
+                  
+                  <div className="w-12 h-12 bg-gradient-to-br from-orange-100 to-orange-200 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
                     {product.image || product.product_image ? (
                       <Image 
                         src={product.image || product.product_image || ''} 
@@ -280,7 +285,6 @@ const BestSellingProducts = () => {
                         height={48}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          // Fallback to gradient if image fails to load
                           e.currentTarget.style.display = 'none';
                         }}
                       />
@@ -290,8 +294,8 @@ const BestSellingProducts = () => {
                       </div>
                     )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-medium truncate">
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium"> 
                       {product.name}
                     </h4>
                     <p className="text-xs text-green-600 font-medium">
@@ -299,7 +303,8 @@ const BestSellingProducts = () => {
                     </p>
                   </div>
                 </div>
-                <div className="text-right">
+                
+                <div className="text-right w-24 flex-shrink-0">
                   <p className="text-sm font-semibold">
                     {formatQuantity(product.total_quantity)}
                   </p>
@@ -309,6 +314,8 @@ const BestSellingProducts = () => {
                 </div>
               </div>
             ))}
+          </div>
+        )}
           </div>
         )}
       </CardContent>

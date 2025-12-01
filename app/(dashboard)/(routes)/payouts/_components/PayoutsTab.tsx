@@ -18,12 +18,12 @@ export default function PayoutsTab() {
         >
         <PiHandWithdraw className="md:hidden"/> <span className="hidden sm:inline ml-2"> Transactions</span>
         </TabsTrigger>
-        <TabsTrigger 
+        {/* <TabsTrigger 
           value="billings" 
           className="bg-transparent data-[state=active]:bg-primary dark:data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-input"
         >
         <FaCreditCard className="md:hidden"/>  <span className="hidden sm:inline ml-2">Subscription Billings</span>
-        </TabsTrigger>
+        </TabsTrigger> */}
         {/* <TabsTrigger 
           value="escrow" 
           className="bg-transparent data-[state=active]:bg-primary dark:data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-input space-x-2"

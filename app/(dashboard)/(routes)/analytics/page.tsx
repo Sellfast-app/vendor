@@ -20,6 +20,8 @@ import { ExportModal } from "@/components/ExportModal";
 import CustomerInsightsModal from './_components/CustomerInsightsModal';
 import ViewPerformanceModal from './_components/ViewPerformanceModal';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DateRangeKey, calculateDateRange } from "./utils";
 
 interface OverviewMetric {
   id: string;
@@ -51,12 +53,15 @@ export default function AnalyticsPage() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isCustomerInsightsOpen, setIsCustomerInsightsOpen] = useState(false);
   const [isViewPerformanceOpen, setIsViewPerformanceOpen] = useState(false);
+  const [selectedRangeKey, setSelectedRangeKey] = useState<DateRangeKey>('30_days');
   const [viewPerformance, setViewPerformance] = useState<ViewPerformanceData>({
     totalViews: 0,
     viewsToday: 0,
     avgViewsPerDay: 0
   });
   const [loading, setLoading] = useState(false);
+
+  const { startDate, endDate } = calculateDateRange(selectedRangeKey);
 
   // Fetch view performance data
   const fetchViewPerformance = async () => {
@@ -89,7 +94,17 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     fetchViewPerformance();
-  }, []);
+  }, [selectedRangeKey]);
+
+  const dateRangeOptions = [
+    { key: 'today', label: 'Today' },
+    { key: '24hrs', label: 'Last 24 Hours' },
+    { key: 'last_week', label: 'Last Week' },
+    { key: '30_days', label: 'Last 30 Days' },
+    { key: 'last_month', label: 'Last Month' },
+    { key: '6_months', label: 'Last 6 Months' },
+    { key: 'last_year', label: 'Last Year' },
+  ];
 
   const overviewMetrics: OverviewMetric[] = [
     {
@@ -99,8 +114,8 @@ export default function AnalyticsPage() {
       value: "0",
       change: 22.7,
       changeType: "positive",
-      title2: "Net after refunds:",
-      value2: "17,900,890"
+      title2: "",
+      value2: ""
     },
     {
       id: "processed-orders",
@@ -109,8 +124,8 @@ export default function AnalyticsPage() {
       value: "0",
       change: 22.7,
       changeType: "positive",
-      title2: "Top category",
-      value2: "Short Cake"
+      title2: "",
+      value2: ""
     },
     {
       id: "out-for-delivery",
@@ -119,8 +134,8 @@ export default function AnalyticsPage() {
       value: "0",
       change: 22.7,
       changeType: "positive",
-      title2: "Average time:",
-      value2: "2 days(Kwik:1day)"
+      title2: "",
+      value2: ""
     },
     {
       id: "total-views",
@@ -129,8 +144,8 @@ export default function AnalyticsPage() {
       value: "0",
       change: 22.7,
       changeType: "positive",
-      title2: "Retention:",
-      value2: "45%(repeat buyers)"
+      title2: "",
+      value2: ""
     },
     {
       id: "avg-order-value",
@@ -139,8 +154,8 @@ export default function AnalyticsPage() {
       value: "0",
       change: 22.7,
       changeType: "positive",
-      title2: "Total Order Value:",
-      value2: "50,900,890"
+      title2: "",
+      value2: ""
     },
     {
       id: "total-orders",
@@ -204,15 +219,21 @@ export default function AnalyticsPage() {
           <h3 className="text-sm font-bold">Analytics</h3>
         </div>
         <div className="flex gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline">Last 30 Days</Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem>Last Week</DropdownMenuItem>
-              <DropdownMenuItem>Custom</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        <Select 
+            onValueChange={(value: string) => setSelectedRangeKey(value as DateRangeKey)}
+            defaultValue={selectedRangeKey}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Select date range" />
+            </SelectTrigger>
+            <SelectContent>
+              {dateRangeOptions.map(option => (
+                <SelectItem key={option.key} value={option.key}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button onClick={() => setIsExportModalOpen(true)}>
             <RiShare2Fill /> <span className="hidden sm:inline ml-2">Export</span>
           </Button>
@@ -277,7 +298,7 @@ export default function AnalyticsPage() {
                 <span className="text-center text-lg font-medium">
                   {loading ? "Loading..." : viewPerformance.totalViews.toLocaleString()}
                 </span>
-                <span className="text-[#A0A0A0] text-xs">Since Yesterday</span>
+                <span className="text-[#A0A0A0] text-xs">Total views</span>
               </div>
             </CardHeader>
             <CardContent>
@@ -300,12 +321,15 @@ export default function AnalyticsPage() {
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="text-sm flex items-center justify-center gap-1 text-primary border-t"
-              onClick={() => setIsViewPerformanceOpen(true)}>
-              <span>
+            <CardFooter className="text-sm flex items-center justify-center border-t"
+              >
+                <Button variant={"ghost"} className="text-sm flex items-center justify-center gap-1 text-primary" onClick={() => setIsViewPerformanceOpen(true)} disabled>
+                <span>
                 See Details
               </span>
               <ArrowRight className="w-4 h-4" />
+                </Button>
+  
             </CardFooter>
           </Card>
           {/* <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]"><StorefrontVisitsChart />
@@ -314,14 +338,15 @@ export default function AnalyticsPage() {
         <div className="space-y-8 w-full xl:w-[65%]">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-2">
             {overviewMetrics.map((metric) => (
-              <AnalyticsMetric key={metric.id} metric={metric} />
+              <AnalyticsMetric key={metric.id} metric={metric} startDate={startDate} 
+              endDate={endDate}/>
             ))}
           </div>
-          <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
+          {/* <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
             <CardContent>
               <AnalyticsTabs />
             </CardContent>
-          </Card>
+          </Card> */}
         </div>
       </div>
       <ExportModal

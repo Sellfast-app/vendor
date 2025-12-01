@@ -13,29 +13,35 @@ import { MdInsights } from "react-icons/md";
 
 export default function AnalyticsTabs() {
   return (
-    <Tabs defaultValue="sales" className="w-full">
-      <TabsList className="grid grid-cols-4 mb-6 bg-transparent gap-2">
+    // Added 'relative' to the main container for better context
+    <Tabs defaultValue="sales" className="w-full relative"> 
+      {/* The key classes are:
+        - flex, overflow-x-auto, whitespace-nowrap (for scrollability)
+        - p-1 (Added padding to ensure the scrollbar is inside the component area)
+        - ring-offset-background (Inherited from radix-ui/shadcn default styling for tabs list)
+      */}
+      <TabsList className="w-full overflow-x-auto flex-nowrap gap-2 bg-background justify-start scrollbar-hide p-1 ring-offset-background">
         <TabsTrigger 
           value="sales" 
-          className="bg-transparent data-[state=active]:bg-primary dark:data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-input"
+          className="flex-shrink-0 bg-transparent data-[state=active]:bg-primary dark:data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-input"
         >
         <FaChartLine/><span className="hidden sm:inline ml-2"> Sales Breakdown</span>
         </TabsTrigger>
         <TabsTrigger 
           value="payouts" 
-          className="bg-transparent data-[state=active]:bg-primary  dark:data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-input"
+          className="flex-shrink-0 bg-transparent data-[state=active]:bg-primary  dark:data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-input"
         >
          <PiHandCoinsDuotone/> <span className="hidden sm:inline ml-2"> Payouts Revenue</span>
         </TabsTrigger>
         <TabsTrigger 
           value="inventory" 
-          className="bg-transparent data-[state=active]:bg-primary dark:data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-input"
+          className="flex-shrink-0 bg-transparent data-[state=active]:bg-primary dark:data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-input"
         >
          < MdOutlineInventory /> <span className="hidden sm:inline ml-2"> Inventory Trends</span>
         </TabsTrigger>
         <TabsTrigger 
           value="customer" 
-          className="bg-transparent data-[state=active]:bg-primary dark:data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-input"
+          className="flex-shrink-0 bg-transparent data-[state=active]:bg-primary dark:data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-input"
         >
         <MdInsights/> <span className="hidden sm:inline ml-2"> Customer Insights</span>
         </TabsTrigger>

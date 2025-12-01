@@ -12,9 +12,9 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronRight, Edit, Trash, ChevronLeft } from "lucide-react";
+import { ChevronRight, Edit, Trash, ChevronLeft, Upload, X } from "lucide-react";
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import FlashIcon from "@/components/svgIcons/FlashIcon";
 import SaveIcon from "@/components/svgIcons/SaveIcon";
 import {
@@ -23,6 +23,7 @@ import {
     AccordionItem,
     AccordionTrigger,
 } from "@/components/ui/accordion";
+import { toast } from "sonner";
 
 interface FrontendProduct {
     id: string;
@@ -36,13 +37,18 @@ interface FrontendProduct {
     createdAt: string;
     thumbnail: string | string[];
     variants?: { id: string; size: string | number; color: string; price: number; quantity: number }[];
+    // New fields for API
+    product_weight?: number;
+    est_prod_days_from?: number;
+    est_prod_days_to?: number;
+    product_type?: string;
 }
 
 interface ProductDetailsModalProps {
     isOpen: boolean;
     onClose: () => void;
     onEdit: (product: FrontendProduct) => void;
-    onDelete: (product: FrontendProduct) => void; // Changed from (sku: string) to (product: FrontendProduct)
+    onDelete: (product: FrontendProduct) => void;
     product: FrontendProduct | null;
     isEditMode?: boolean;
 }
@@ -51,12 +57,18 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
     const [localProduct, setLocalProduct] = useState<FrontendProduct | null>(null);
     const [editMode, setEditMode] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const [isLoading, setIsLoading] = useState(false);
+    const [newImages, setNewImages] = useState<File[]>([]);
+    const [removedImages, setRemovedImages] = useState<string[]>([]);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         console.log("ProductDetailsModal updating with product:", product, "Initial Edit Mode:", isEditMode);
         setLocalProduct(product);
         setEditMode(isEditMode);
         setCurrentImageIndex(0);
+        setNewImages([]);
+        setRemovedImages([]);
     }, [product, isEditMode]);
 
     // Helper function to get current image URL for slider
@@ -64,7 +76,8 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
         if (!localProduct?.thumbnail) return '/thumbnails/default.png';
         
         if (Array.isArray(localProduct.thumbnail)) {
-            return localProduct.thumbnail[currentImageIndex] || '/thumbnails/default.png';
+            const availableImages = localProduct.thumbnail.filter(img => !removedImages.includes(img));
+            return availableImages[currentImageIndex] || '/thumbnails/default.png';
         }
         return localProduct.thumbnail;
     };
@@ -75,26 +88,134 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
         }
     };
 
-    const handleSave = () => {
-        if (localProduct) {
-            onEdit(localProduct);
-            setEditMode(false);
+    const handleSave = async () => {
+        if (!localProduct) return;
+      
+        console.log('🔄 Starting product update process...');
+        console.log('📝 Local Product Data:', {
+          id: localProduct.id,
+          productName: localProduct.productName,
+          sales: localProduct.sales,
+          stock: localProduct.stock,
+          status: localProduct.status,
+          description: localProduct.description,
+          product_weight: localProduct.product_weight,
+          est_prod_days_from: localProduct.est_prod_days_from,
+          est_prod_days_to: localProduct.est_prod_days_to
+        });
+
+        // Validate that we have a product ID
+        if (!localProduct.id) {
+            console.error('❌ Product ID is missing!');
+            toast.error('Product ID is missing. Cannot update product.');
+            return;
         }
-    };
+      
+        setIsLoading(true);
+        try {
+          // Prepare form data for PATCH request
+          const formData = new FormData();
+      
+          // NOTE: The store_id should NOT be the product ID!
+          // The API will get the store_id from cookies in the backend
+          // We only need to pass the product-specific fields
+          
+          // Required fields from API docs - status is required
+          formData.append('status', mapStatusToApi(localProduct.status));
+          
+          // Optional fields - only include if they have values
+          if (localProduct.productName) formData.append('name', localProduct.productName);
+          if (localProduct.sales) formData.append('price', localProduct.sales.toString());
+          if (localProduct.stock) formData.append('quantity', localProduct.stock.toString());
+          if (localProduct.description) formData.append('description', localProduct.description);
+          if (localProduct.est_prod_days_from) formData.append('est_prod_days_from', localProduct.est_prod_days_from.toString());
+          if (localProduct.est_prod_days_to) formData.append('est_prod_days_to', localProduct.est_prod_days_to.toString());
+          if (localProduct.product_weight) formData.append('weight', localProduct.product_weight.toString());
+      
+          // Add new images
+          newImages.forEach((file) => {
+            formData.append('files', file);
+          });
+      
+          console.log('🔄 Updating product with data:', {
+            productId: localProduct.id,
+            status: mapStatusToApi(localProduct.status),
+            name: localProduct.productName,
+            price: localProduct.sales,
+            quantity: localProduct.stock,
+            description: localProduct.description,
+            est_prod_days_from: localProduct.est_prod_days_from,
+            est_prod_days_to: localProduct.est_prod_days_to,
+            weight: localProduct.product_weight,
+            newImages: newImages.length
+          });
+      
+          // Log the actual URL being called - FIXED: use localProduct.id instead of product.id
+          const apiUrl = `/api/products/${localProduct.id}`;
+          console.log('🔗 Calling API URL:', apiUrl);
+      
+          // Log form data being sent
+          console.log('📦 FormData contents:');
+          for (const [key, value] of formData.entries()) {
+            if (value instanceof File) {
+              console.log(`  ${key}: File - ${value.name}`);
+            } else {
+              console.log(`  ${key}:`, value);
+            }
+          }
+      
+          // Use the dynamic route: /api/products/[productId]
+          const response = await fetch(apiUrl, {
+            method: 'PATCH',
+            body: formData,
+          });
+      
+          console.log('📡 API Response Status:', response.status);
+          console.log('📡 API Response URL:', response.url);
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error('❌ API Error Response:', errorData);
+            throw new Error(errorData.message || 'Failed to update product');
+          }
+      
+          const result = await response.json();
+          console.log('✅ API Success Response:', result);
+      
+          if (result.status === 'success') {
+            // Update local product with the response data
+            const updatedProduct = transformProduct(result.data);
+            onEdit(updatedProduct);
+            setEditMode(false);
+            setNewImages([]);
+            setRemovedImages([]);
+            toast.success('Product updated successfully!');
+          } else {
+            throw new Error(result.message || 'Failed to update product');
+          }
+        } catch (error) {
+          console.error('Error updating product:', error);
+          toast.error(`Failed to update product: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        } finally {
+          setIsLoading(false);
+        }
+      };
 
     const handleCancel = () => {
         setEditMode(false);
         setLocalProduct(product);
+        setNewImages([]);
+        setRemovedImages([]);
     };
 
     const getStatusClass = (status: string) => {
         switch (status) {
             case "Ready Stock":
-                return "bg-[#EFFFE9] text-[#53DC19]";
+                return "bg-[#EFFFE9] text-[#065F46]";
             case "Made-to-order":
-                return "bg-[#FFF5E8] text-[#FFB347]";
+                return "bg-[#FFF5E8] text-[#9A3412]";
             case "Out of Stock":
-                return "bg-[#FFEFEF] text-[#E40101]";
+                return "bg-[#FFEFEF] text-[#991B1B]";
             default:
                 return "";
         }
@@ -107,24 +228,92 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
     // Image slider navigation
     const handleNextImage = () => {
         if (localProduct && localProduct.thumbnail && Array.isArray(localProduct.thumbnail)) {
-            setCurrentImageIndex((prev) => (prev + 1) % localProduct.thumbnail.length);
+            const availableImages = localProduct.thumbnail.filter(img => !removedImages.includes(img));
+            setCurrentImageIndex((prev) => (prev + 1) % availableImages.length);
         }
     };
 
     const handlePrevImage = () => {
         if (localProduct && localProduct.thumbnail && Array.isArray(localProduct.thumbnail)) {
-            setCurrentImageIndex((prev) => (prev - 1 + localProduct.thumbnail.length) % localProduct.thumbnail.length);
+            const availableImages = localProduct.thumbnail.filter(img => !removedImages.includes(img));
+            setCurrentImageIndex((prev) => (prev - 1 + availableImages.length) % availableImages.length);
         }
     };
 
-    // Determine if thumbnail is an array (multiple images) or a single string
-    const isMultipleImages = localProduct?.thumbnail && Array.isArray(localProduct.thumbnail);
+    // Image management functions
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (files) {
+            const newFiles = Array.from(files);
+            setNewImages(prev => [...prev, ...newFiles]);
+        }
+    };
+
+    const handleRemoveNewImage = (index: number) => {
+        setNewImages(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleRemoveExistingImage = (imageUrl: string) => {
+        setRemovedImages(prev => [...prev, imageUrl]);
+    };
+
+    const triggerFileInput = () => {
+        fileInputRef.current?.click();
+    };
+
+   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const transformProduct = (apiProduct: any): FrontendProduct => ({
+        id: apiProduct.id,
+        sku: apiProduct.product_sku,
+        productName: apiProduct.product_name,
+        description: apiProduct.product_description,
+        stock: apiProduct.product_quantity,
+        remanent: apiProduct.product_quantity,
+        sales: parseFloat(apiProduct.product_price) || 0,
+        status: mapStatusFromApi(apiProduct.product_status),
+        createdAt: apiProduct.created_at,
+        thumbnail: apiProduct.product_images || [],
+        variants: Array.isArray(apiProduct.variants) ? apiProduct.variants : [],
+        product_weight: apiProduct.product_weight ? parseFloat(apiProduct.product_weight) : undefined,
+        est_prod_days_from: apiProduct.est_prod_days_from,
+        est_prod_days_to: apiProduct.est_prod_days_to,
+        product_type: apiProduct.product_type,
+    });
+
+    const mapStatusFromApi = (status: string): string => {
+        const statusMap: { [key: string]: string } = {
+            'ready': 'Ready Stock',
+            'made-to-order': 'Made-to-order',
+            'out-of-stock': 'Out of Stock'
+        };
+        return statusMap[status] || 'Ready Stock';
+    };
+
+    const mapStatusToApi = (status: string): string => {
+        const statusMap: { [key: string]: string } = {
+            'Ready Stock': 'ready',
+            'Made-to-order': 'made-to-order',
+            'Out of Stock': 'out-of-stock'
+        };
+        return statusMap[status] || 'ready';
+    };
+
+    // Get all images (existing + new)
+    const existingImages = localProduct?.thumbnail && Array.isArray(localProduct.thumbnail) 
+        ? localProduct.thumbnail.filter(img => !removedImages.includes(img))
+        : [];
+    
+    const allImages = [
+        ...existingImages,
+        ...newImages.map(file => URL.createObjectURL(file))
+    ];
+
     const currentImageUrl = getCurrentImageUrl();
-    const totalImages = isMultipleImages ? localProduct.thumbnail.length : 0;
+    const totalImages = allImages.length;
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[750px] border-none rounded-lg p-6 bg-card overflow-y-auto max-h-[90vh]">
+            <DialogContent className="sm:max-w-[800px] border-none rounded-lg p-6 bg-card overflow-y-auto max-h-[90vh]">
                 <DialogHeader>
                     <DialogTitle className="text-sm">
                         {editMode ? "Edit Product" : "Product Details"}
@@ -147,7 +336,7 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                     sizes="(max-width: 768px) 100vw, 50vw"
                                     onError={(e) => { (e.target as HTMLImageElement).src = '/thumbnails/default.png'; }}
                                 />
-                                {isMultipleImages && totalImages > 1 && (
+                                {totalImages > 1 && (
                                     <>
                                         <Button
                                             variant="ghost"
@@ -172,6 +361,80 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                     </>
                                 )}
                             </div>
+
+                            {/* Image Management in Edit Mode */}
+                            {editMode && (
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <Label className="text-sm font-medium">Product Images</Label>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={triggerFileInput}
+                                        >
+                                            <Upload className="h-4 w-4 mr-2" />
+                                            Add Images
+                                        </Button>
+                                        <input
+                                            type="file"
+                                            ref={fileInputRef}
+                                            onChange={handleImageUpload}
+                                            multiple
+                                            accept="image/*"
+                                            className="hidden"
+                                        />
+                                    </div>
+                                    
+                                    {/* Image Thumbnails */}
+                                    <div className="grid grid-cols-4 gap-2">
+                                        {/* Existing images */}
+                                        {localProduct.thumbnail && Array.isArray(localProduct.thumbnail) && 
+                                            localProduct.thumbnail.map((img, index) => (
+                                                !removedImages.includes(img) && (
+                                                    <div key={index} className="relative group">
+                                                        <Image
+                                                            src={img}
+                                                            alt={`Product image ${index + 1}`}
+                                                            width={80}
+                                                            height={80}
+                                                            className="rounded-md object-cover"
+                                                        />
+                                                        <Button
+                                                            variant="destructive"
+                                                            size="icon"
+                                                            className="absolute -top-2 -right-2 h-5 w-5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            onClick={() => handleRemoveExistingImage(img)}
+                                                        >
+                                                            <X className="h-3 w-3" />
+                                                        </Button>
+                                                    </div>
+                                                )
+                                            ))
+                                        }
+                                        {/* New images */}
+                                        {newImages.map((file, index) => (
+                                            <div key={`new-${index}`} className="relative group">
+                                                <Image
+                                                    src={URL.createObjectURL(file)}
+                                                    alt={`New image ${index + 1}`}
+                                                    width={80}
+                                                    height={80}
+                                                    className="rounded-md object-cover"
+                                                />
+                                                <Button
+                                                    variant="destructive"
+                                                    size="icon"
+                                                    className="absolute -top-2 -right-2 h-5 w-5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    onClick={() => handleRemoveNewImage(index)}
+                                                >
+                                                    <X className="h-3 w-3" />
+                                                </Button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Product Insight */}
                             <div className="p-4 bg-muted rounded-lg">
@@ -227,37 +490,69 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                     value={localProduct.description || ''}
                                     onChange={(e) => handleInputChange('description', e.target.value)}
                                     readOnly={!editMode}
-                                    className={`bg-muted min-h-[100px] resize-none ${!editMode ? 'bg-muted' : ''}`}
+                                    className={`min-h-[100px] resize-none ${!editMode ? 'bg-muted' : ''}`}
                                 />
                             </div>
                             <div className="grid grid-cols-3 gap-4">
                                 <div>
-                                    <Label htmlFor="price" className="text-xs mb-1">Price</Label>
+                                    <Label htmlFor="price" className="text-xs mb-1">Price (₦)</Label>
                                     <Input
                                         id="price"
-                                        value={localProduct.sales.toLocaleString()}
-                                        onChange={(e) => handleInputChange('sales', parseInt(e.target.value.replace(/[^0-9]/g, '')) || 0)}
+                                        type="number"
+                                        value={localProduct.sales}
+                                        onChange={(e) => handleInputChange('sales', parseInt(e.target.value) || 0)}
                                         readOnly={!editMode}
-                                        className={`bg-muted ${!editMode ? 'bg-muted' : ''}`}
-                                    />
-                                </div>
-                                <div>
-                                    <Label htmlFor="discount" className="text-xs mb-1">Discount</Label>
-                                    <Input
-                                        id="discount"
-                                        value="10%"
-                                        readOnly
-                                        className="bg-muted"
+                                        className={!editMode ? 'bg-muted' : ''}
                                     />
                                 </div>
                                 <div>
                                     <Label htmlFor="quantity" className="text-xs mb-1">Quantity</Label>
                                     <Input
                                         id="quantity"
-                                        value={localProduct.stock.toString()}
+                                        type="number"
+                                        value={localProduct.stock}
                                         onChange={(e) => handleInputChange('stock', parseInt(e.target.value) || 0)}
                                         readOnly={!editMode}
-                                        className={`bg-muted ${!editMode ? 'bg-muted' : ''}`}
+                                        className={!editMode ? 'bg-muted' : ''}
+                                    />
+                                </div>
+                                <div>
+                                    <Label htmlFor="weight" className="text-xs mb-1">Weight (kg)</Label>
+                                    <Input
+                                        id="weight"
+                                        type="number"
+                                        step="0.01"
+                                        value={localProduct.product_weight || ''}
+                                        onChange={(e) => handleInputChange('product_weight', parseFloat(e.target.value) || 0)}
+                                        readOnly={!editMode}
+                                        className={!editMode ? 'bg-muted' : ''}
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <Label htmlFor="est_prod_days_from" className="text-xs mb-1">Production Days (From)</Label>
+                                    <Input
+                                        id="est_prod_days_from"
+                                        type="number"
+                                        value={localProduct.est_prod_days_from || ''}
+                                        onChange={(e) => handleInputChange('est_prod_days_from', parseInt(e.target.value) || 0)}
+                                        readOnly={!editMode}
+                                        className={!editMode ? 'bg-muted' : ''}
+                                        placeholder="Minimum days"
+                                    />
+                                </div>
+                                <div>
+                                    <Label htmlFor="est_prod_days_to" className="text-xs mb-1">Production Days (To)</Label>
+                                    <Input
+                                        id="est_prod_days_to"
+                                        type="number"
+                                        value={localProduct.est_prod_days_to || ''}
+                                        onChange={(e) => handleInputChange('est_prod_days_to', parseInt(e.target.value) || 0)}
+                                        readOnly={!editMode}
+                                        className={!editMode ? 'bg-muted' : ''}
+                                        placeholder="Maximum days"
                                     />
                                 </div>
                             </div>
@@ -285,17 +580,6 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                         <SelectItem value="Out of Stock">Out of Stock</SelectItem>
                                     </SelectContent>
                                 </Select>
-                            </div>
-                            <div>
-                                <Label htmlFor="deliveryNote" className="text-xs mb-1">Delivery Note</Label>
-                                <Textarea
-                                    id="deliveryNote"
-                                    value={localProduct.description || ''}
-                                    onChange={(e) => handleInputChange('description', e.target.value)}
-                                    readOnly={!editMode}
-                                    className={`bg-muted min-h-[100px] resize-none ${!editMode ? 'bg-muted' : ''}`}
-                                    placeholder="Tell us about your product..."
-                                />
                             </div>
 
                             {/* Variants Accordion */}
@@ -331,11 +615,16 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                 <div className="flex justify-end gap-2 border-t pt-3.5">
                     {editMode ? (
                         <>
-                            <Button variant="outline" size="sm" onClick={handleCancel}>
+                            <Button variant="outline" size="sm" onClick={handleCancel} disabled={isLoading}>
                                 Cancel
                             </Button>
-                            <Button variant="default" size="sm" onClick={handleSave}>
-                                <SaveIcon /> Save
+                            <Button variant="default" size="sm" onClick={handleSave} disabled={isLoading}>
+                                {isLoading ? (
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                ) : (
+                                    <SaveIcon />
+                                )}
+                                {isLoading ? 'Saving...' : 'Save'}
                             </Button>
                         </>
                     ) : (

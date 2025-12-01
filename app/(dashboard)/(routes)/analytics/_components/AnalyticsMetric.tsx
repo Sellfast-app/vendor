@@ -18,9 +18,11 @@ interface OverviewMetric {
 
 interface MetricCardProps {
     metric: OverviewMetric;
+    startDate: string; 
+    endDate: string;
 }
 
-export function AnalyticsMetric({ metric }: MetricCardProps) {
+export function AnalyticsMetric({ metric,startDate, endDate }: MetricCardProps) {
     const [value, setValue] = useState<string | number>(metric.value);
     const [change, setChange] = useState<number>(metric.change);
     const [changeType, setChangeType] = useState<"positive" | "negative">(metric.changeType);
@@ -36,8 +38,10 @@ export function AnalyticsMetric({ metric }: MetricCardProps) {
 
             try {
                 // Add default startDate parameter as required by the API
-                const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-                const queryParams = new URLSearchParams({ startDate });
+                const queryParams = new URLSearchParams({ 
+                    startDate, 
+                    endDate 
+                });
                 const url = `/api/analytics?${queryParams}`;
                 
                 const res = await fetch(url, {
@@ -100,11 +104,20 @@ export function AnalyticsMetric({ metric }: MetricCardProps) {
                 // Format the value
                 let formattedValue: string;
                 if (typeof currentValue === "string") {
-                    formattedValue = currentValue;
-                } else if (["total-revenue", "avg-order-value"].includes(metric.id)) {
-                    formattedValue = `₦${parseInt(currentValue.toString()).toLocaleString("en-NG")}`;
+                    // Handle currency formatting for revenue
+                    if (["total-revenue", "avg-order-value"].includes(metric.id)) {
+                        const numValue = parseFloat(currentValue) || 0;
+                        formattedValue = `₦${numValue.toLocaleString("en-NG")}`;
+                    } else {
+                        formattedValue = currentValue;
+                    }
                 } else {
-                    formattedValue = currentValue.toString();
+                    // Handle number values
+                    if (["total-revenue", "avg-order-value"].includes(metric.id)) {
+                        formattedValue = `₦${currentValue.toLocaleString("en-NG")}`;
+                    } else {
+                        formattedValue = currentValue.toLocaleString();
+                    }
                 }
 
                 // Format value2 if it's a number with decimals
@@ -136,7 +149,7 @@ export function AnalyticsMetric({ metric }: MetricCardProps) {
         };
 
         fetchData();
-    }, [metric.id, metric.value, metric.change, metric.changeType, metric.title2, metric.value2]);
+    }, [metric.id, metric.value, metric.change, metric.changeType, metric.title2, metric.value2,startDate, endDate]);
 
     return (
         <Card className="relative shadow-none hover:border-[#4FCA6A] dark:hover:border-[#4FCA6A] hover:shadow-lg hover:shadow-[#005B1414] border-[#F5F5F5] dark:border-[#1F1F1F]">
