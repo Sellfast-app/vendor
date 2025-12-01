@@ -36,6 +36,7 @@ interface StoreDetails {
   location: string;
   bio: string;
   customUrl: string;
+  botUrl: string;
   logo?: string | null;
   banner?: string | null;
 }
@@ -61,6 +62,7 @@ function StorefrontComponent() {
     location: "Lagos",
     bio: "",
     customUrl: "www.swiftree.com/cassandrakitchen",
+    botUrl: "",
     logo: null,
     banner: null,
   });
@@ -75,23 +77,23 @@ function StorefrontComponent() {
       try {
         setIsLoading(true);
         console.log('🔄 Starting to fetch store data...');
-        
+
         const response = await fetch('/api/store');
-        
+
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.message || 'Failed to fetch store data');
         }
-        
+
         const result = await response.json();
-        
+
         console.log('📦 Full API response:', result);
         console.log('📦 Store details data:', result.data?.storeDetails);
-        
+
         if (result.status === 'success' && result.data?.storeDetails) {
           const storeDetails = result.data.storeDetails;
           const metadata = storeDetails.metadata || {};
-          
+
           console.log('🎯 Extracted store details:', {
             name: storeDetails.store_name,
             type: storeDetails.business_type,
@@ -101,7 +103,7 @@ function StorefrontComponent() {
             logo: storeDetails.logo,
             banner: storeDetails.banner
           });
-          
+
           // Determine country code based on phone number
           let countryCode = "+234"; // Default to Nigeria
           if (metadata.phone) {
@@ -135,9 +137,10 @@ function StorefrontComponent() {
             countryCode: countryCode,
             location: metadata.city || "Lagos",
             logo: storeDetails.logo || null,
-            banner: storeDetails.banner || null
+            banner: storeDetails.banner || null,
+            botUrl: storeDetails.bot_url || ""
           }));
-          
+
           console.log('✅ Store data loaded successfully into state:', {
             storeName: storeDetails.store_name,
             storeType: storeDetails.business_type,
@@ -156,7 +159,7 @@ function StorefrontComponent() {
       } catch (error) {
         console.error('❌ Error fetching store data:', error);
         toast.error(error instanceof Error ? error.message : 'Failed to load store data');
-        
+
         // Set fallback values
         setStorefrontData(prev => ({
           ...prev,
@@ -489,9 +492,9 @@ function StorefrontComponent() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Avatar className="w-20 h-20 rounded-lg">
-            <AvatarImage 
-              src={storefrontData.logo || "/placeholder-store.jpg"} 
-              alt="Store Logo" 
+            <AvatarImage
+              src={storefrontData.logo || "/placeholder-store.jpg"}
+              alt="Store Logo"
               className="object-cover"
             />
             <AvatarFallback>
@@ -508,7 +511,7 @@ function StorefrontComponent() {
           <Button variant={"outline"} onClick={handleVisitStorefront}> <span className="hidden sm:inline">Visit Storefront</span>  <LinkIcon /></Button>
         </div>
       </div>
-      
+
       {/* Storefront Setup Card */}
       <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
         <CardContent>
@@ -541,9 +544,9 @@ function StorefrontComponent() {
             <div className="flex items-center gap-4">
               <div className="relative">
                 <Avatar className="w-20 h-20 rounded-lg">
-                  <AvatarImage 
-                    src={storefrontData.logo || "/placeholder-store.jpg"} 
-                    alt="Store Logo" 
+                  <AvatarImage
+                    src={storefrontData.logo || "/placeholder-store.jpg"}
+                    alt="Store Logo"
                     className="object-cover"
                   />
                   <AvatarFallback>
@@ -559,7 +562,7 @@ function StorefrontComponent() {
                       accept="image/*"
                       className="hidden"
                     />
-                    <button 
+                    <button
                       className="absolute bottom-0 right-0 w-6 h-6 bg-primary rounded-full flex items-center justify-center text-white hover:bg-primary/90 transition-colors"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isUploadingLogo}
@@ -687,7 +690,7 @@ function StorefrontComponent() {
                 accept="image/jpeg,image/jpg,image/png,image/webp"
                 className="hidden"
               />
-              <div 
+              <div
                 className="border-1 border-dashed border-primary rounded-2xl p-8 text-center cursor-pointer hover:bg-primary/5 transition-colors"
                 onClick={() => isEditingStorefront && bannerInputRef.current?.click()}
               >
@@ -698,8 +701,8 @@ function StorefrontComponent() {
                   </div>
                 ) : storefrontData.banner ? (
                   <div className="flex flex-col items-center gap-2">
-                    <div className="w-20 h-12 bg-cover bg-center rounded-md border" 
-                         style={{ backgroundImage: `url(${storefrontData.banner})` }} />
+                    <div className="w-20 h-12 bg-cover bg-center rounded-md border"
+                      style={{ backgroundImage: `url(${storefrontData.banner})` }} />
                     <p className="text-sm font-medium">Banner uploaded</p>
                     <p className="text-xs text-muted-foreground">Click to change banner</p>
                   </div>
@@ -729,6 +732,24 @@ function StorefrontComponent() {
                 </Button>
               </div>
             </div>
+            <div className="space-y-2">
+  <Label htmlFor="botUrl" className="text-xs">Custom WhatsApp Bot URL *</Label>
+  <div className="flex flex-col md:flex-row gap-2 ">
+    <div className="flex items-center gap-2 flex-1 px-2 py-1.5 border rounded-md dark:bg-background overflow-auto">
+      <ExternalLink className="w-4 h-4 text-muted-foreground" />
+      <span className="text-sm">{storefrontData.botUrl || "No bot URL available"}</span>
+    </div>
+    <Button 
+      variant="outline" 
+      size="sm" 
+      onClick={() => copyToClipboard(storefrontData.botUrl)} 
+      className="dark:bg-background"
+      disabled={!storefrontData.botUrl}
+    >
+      <span className="hidden sm:inline">Copy Link </span>  <Copy className="w-4 h-4" />
+    </Button>
+  </div>
+</div>
           </div>
         </CardContent>
       </Card>
@@ -886,7 +907,7 @@ function StorefrontComponent() {
           </div>
         </CardContent>
       </Card>
-      
+
       <AddBankModal
         isOpen={isAddBankModalOpen}
         onClose={() => setIsAddBankModalOpen(false)}
