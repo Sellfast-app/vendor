@@ -14,6 +14,7 @@ import Payouts from "./svgIcons/Payouts";
 import Settings from "./svgIcons/Settings";
 import Logout from "./svgIcons/Logout";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import { OnboardingProgress } from "./OnboardingModal";
 
 interface RouteLink {
   label: string;
@@ -140,6 +141,7 @@ export const SidebarRoutes = () => {
 
   return (
     <div className="flex flex-col w-full">
+        <OnboardingProgress/>
       {adminRoutes.map((route) => (
         <SidebarItem
           key={route.href!}
@@ -148,8 +150,9 @@ export const SidebarRoutes = () => {
           href={route.href}
         />
       ))}
-      <div className="mt-[340px] w-full">
+      <div className="mt-[300px] w-full">
         <div className="w-full border-b border-[#F5F5F5] dark:border-[#1F1F1F]">
+        
           {updatedActionRoutes.map((route) => (
             <SidebarItem
               key={route.label}

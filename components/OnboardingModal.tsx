@@ -54,6 +54,119 @@ const Confetti = () => {
   );
 };
 
+// In your OnboardingModal component, update the checkTasksCompletion function
+async function checkTasksCompletion() {
+  const tasks = {
+    bankAccount: false,
+    pickupAddress: false,
+    logoAndBanner: false,
+    products: false,
+  };
+
+  try {
+    // Check bank account
+    const bankResponse = await fetch('/api/payments/bank-details');
+    const bankResult = await bankResponse.json();
+    if (bankResult.status === 'success' && bankResult.data) {
+      tasks.bankAccount = true;
+      console.log('✅ Bank account detected');
+    }
+  } catch (error) {
+    console.log('ℹ️ No bank account found');
+  }
+
+  try {
+    // Check pickup address
+    const storeResponse = await fetch('/api/store');
+    const storeResult = await storeResponse.json();
+    if (storeResult.status === 'success' && storeResult.data?.storeDetails?.metadata) {
+      const metadata = storeResult.data.storeDetails.metadata;
+      // Check if address fields are filled
+      if (metadata.address && metadata.city && metadata.state && metadata.country) {
+        tasks.pickupAddress = true;
+        console.log('✅ Pickup address detected');
+      }
+    }
+  } catch (error) {
+    console.log('ℹ️ No pickup address found');
+  }
+
+  try {
+    // Check logo AND banner (both required)
+    const storeResponse = await fetch('/api/store');
+    const storeResult = await storeResponse.json();
+    
+    if (storeResult.status === 'success' && storeResult.data?.storeDetails) {
+      const store = storeResult.data.storeDetails;
+      
+      // Check if both logo and banner exist
+      const hasLogo = !!store.logo || !!store.logo_url;
+      const hasBanner = !!store.banner || !!store.banner_url;
+      
+      console.log('🖼️ Logo/Banner check:', {
+        logo: store.logo || store.logo_url,
+        banner: store.banner || store.banner_url,
+        hasLogo,
+        hasBanner
+      });
+      
+      if (hasLogo && hasBanner) {
+        tasks.logoAndBanner = true;
+        console.log('✅ Both logo and banner detected');
+      } else {
+        console.log('❌ Missing:', {
+          missingLogo: !hasLogo,
+          missingBanner: !hasBanner
+        });
+      }
+    }
+  } catch (error) {
+    console.log('ℹ️ Error checking logo/banner:', error);
+  }
+
+  try {
+    // UPDATED: Check products - look for at least one product
+    const productsResponse = await fetch('/api/products?limit=1&pageSize=1');
+    const productsResult = await productsResponse.json();
+    
+    console.log('📦 Products check response:', {
+      status: productsResult.status,
+      hasData: !!productsResult.data,
+      total: productsResult.data?.total,
+      items: productsResult.data?.items?.length
+    });
+    
+    if (productsResult.status === 'success') {
+      // Check if there are any products
+      // Multiple ways to check:
+      // 1. Check if data exists and has items array with length > 0
+      if (productsResult.data?.items && productsResult.data.items.length > 0) {
+        tasks.products = true;
+        console.log('✅ Products detected:', productsResult.data.items.length);
+      }
+      // 2. Check if total count > 0
+      else if (productsResult.data?.total && productsResult.data.total > 0) {
+        tasks.products = true;
+        console.log('✅ Products detected (by total):', productsResult.data.total);
+      }
+      // 3. Check if the response has products array directly
+      else if (productsResult.data?.products && productsResult.data.products.length > 0) {
+        tasks.products = true;
+        console.log('✅ Products detected (by products array):', productsResult.data.products.length);
+      } else {
+        console.log('❌ No products found');
+      }
+    } else {
+      console.log('ℹ️ Products API returned non-success status');
+    }
+  } catch (error) {
+    console.log('ℹ️ Error checking products:', error);
+  }
+
+  console.log('📋 Final tasks status:', tasks);
+  return tasks;
+}
+
 // OnboardingProgress component for sidebar
 export const OnboardingProgress = () => {
   const [tasks, setTasks] = useState({
@@ -65,13 +178,17 @@ export const OnboardingProgress = () => {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    // Load from localStorage
-    const saved = localStorage.getItem('onboarding_progress');
-    if (saved) {
-      const parsedTasks = JSON.parse(saved);
-      setTasks(parsedTasks);
-      calculateProgress(parsedTasks);
-    }
+    const loadTasks = async () => {
+      const checkedTasks = await checkTasksCompletion();
+      setTasks(checkedTasks);
+      calculateProgress(checkedTasks);
+    };
+
+    loadTasks();
+
+    // Refresh every 30 seconds
+    const interval = setInterval(loadTasks, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const calculateProgress = (taskData: typeof tasks) => {
@@ -82,10 +199,9 @@ export const OnboardingProgress = () => {
   if (progress === 100) return null;
 
   return (
-    <div className="px-6 py-4 mb-4 border-b border-[#F5F5F5] dark:border-[#1F1F1F]">
+    <div className="px-6 mb-2 border-[#F5F5F5] dark:border-[#1F1F1F]">
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <p className="text-xs font-medium text-muted-foreground">Setup Progress</p>
           <p className="text-xs font-semibold text-primary">{Math.round(progress)}%</p>
         </div>
         <Progress value={progress} className="h-2" />
@@ -105,43 +221,66 @@ export const OnboardingModal = () => {
     logoAndBanner: false,
     products: false,
   });
+  const [isChecking, setIsChecking] = useState(true);
 
+  // Check tasks on mount and after navigation
   useEffect(() => {
-    // Check if user is new (first time after signup)
-    const hasSeenOnboarding = localStorage.getItem('has_seen_onboarding');
-    const saved = localStorage.getItem('onboarding_progress');
-    
-    if (saved) {
-      const parsedTasks = JSON.parse(saved);
-      setTasks(parsedTasks);
+    const loadAndCheckTasks = async () => {
+      setIsChecking(true);
+      const checkedTasks = await checkTasksCompletion();
+      setTasks(checkedTasks);
       
       // Check if critical tasks are incomplete
-      const criticalTasksIncomplete = !parsedTasks.bankAccount || !parsedTasks.pickupAddress;
+      const criticalTasksIncomplete = !checkedTasks.bankAccount || !checkedTasks.pickupAddress;
+      const allComplete = Object.values(checkedTasks).every(Boolean);
       
-      if (criticalTasksIncomplete) {
+      if (allComplete) {
+        // All tasks complete - show confetti and don't show modal
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 3000);
+        setIsOpen(false);
+      } else if (criticalTasksIncomplete) {
+        // Critical tasks incomplete - always show modal
         setIsOpen(true);
-      } else if (!hasSeenOnboarding) {
-        setIsOpen(true);
+      } else {
+        // Critical tasks complete but optional tasks remain
+        const hasSeenOptional = localStorage.getItem('has_seen_optional_tasks');
+        if (!hasSeenOptional) {
+          setIsOpen(true);
+        }
       }
-    } else {
-      // New user - show modal
-      setIsOpen(true);
-      localStorage.setItem('onboarding_progress', JSON.stringify(tasks));
-    }
+      
+      setIsChecking(false);
+    };
+
+    loadAndCheckTasks();
+
+    // Listen for custom event when tasks are completed
+    const handleTaskComplete = () => {
+      console.log('🔔 Task completion detected, rechecking...');
+      loadAndCheckTasks();
+    };
+
+    window.addEventListener('onboarding-task-complete', handleTaskComplete);
+    
+    return () => {
+      window.removeEventListener('onboarding-task-complete', handleTaskComplete);
+    };
   }, []);
 
+  // Check if confetti should show when tasks update
   useEffect(() => {
-    // Check if all tasks are complete
     const allComplete = Object.values(tasks).every(Boolean);
-    if (allComplete && isOpen) {
+    if (allComplete && isOpen && !isChecking) {
       setShowConfetti(true);
-      setTimeout(() => setShowConfetti(false), 3000);
+      setTimeout(() => {
+        setShowConfetti(false);
+        setIsOpen(false);
+      }, 3000);
     }
-  }, [tasks, isOpen]);
+  }, [tasks, isOpen, isChecking]);
 
   const handleTaskClick = (taskKey: keyof typeof tasks, route: string) => {
-    // Mark task as viewed
-    localStorage.setItem('has_seen_onboarding', 'true');
     setIsOpen(false);
     router.push(route);
   };
@@ -149,7 +288,7 @@ export const OnboardingModal = () => {
   const handleClose = () => {
     const criticalTasksComplete = tasks.bankAccount && tasks.pickupAddress;
     if (criticalTasksComplete) {
-      localStorage.setItem('has_seen_onboarding', 'true');
+      localStorage.setItem('has_seen_optional_tasks', 'true');
       setIsOpen(false);
     }
   };
@@ -200,12 +339,14 @@ export const OnboardingModal = () => {
   const completedTasks = Object.values(tasks).filter(Boolean).length;
   const criticalTasksComplete = tasks.bankAccount && tasks.pickupAddress;
 
+  if (isChecking) return null; // Don't show anything while checking
+
   return (
     <>
       {showConfetti && <Confetti />}
       
       <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogOverlay className="backdrop-blur-xs bg-[#06140033] dark:bg-black/50" />
+        <DialogOverlay className="backdrop-blur-xs bg-[#06140033] dark:bg-black/50" />
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-start justify-between">
@@ -236,7 +377,6 @@ export const OnboardingModal = () => {
 
               return (
                 <div key={task.key} className="relative">
-                  {/* Vertical line connector */}
                   {!isFirst && (
                     <div className="absolute left-[22px] -top-4 w-0.5 h-4 bg-gray-200 dark:bg-gray-700" />
                   )}
@@ -308,12 +448,8 @@ export const OnboardingModal = () => {
   );
 };
 
-// Helper function to mark tasks as complete (call this from your settings pages)
-export const markTaskComplete = (taskKey: 'bankAccount' | 'pickupAddress' | 'logoAndBanner' | 'products') => {
-  const saved = localStorage.getItem('onboarding_progress');
-  if (saved) {
-    const tasks = JSON.parse(saved);
-    tasks[taskKey] = true;
-    localStorage.setItem('onboarding_progress', JSON.stringify(tasks));
-  }
+// Helper function to trigger task recheck (call after completing tasks)
+export const notifyTaskComplete = () => {
+  window.dispatchEvent(new Event('onboarding-task-complete'));
+  console.log('🔔 Task completion notification sent');
 };
