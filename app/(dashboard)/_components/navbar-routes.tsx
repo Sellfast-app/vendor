@@ -120,9 +120,9 @@ export const NavbarRoutes = () => {
       </div>
 
       <div className="flex items-center gap-3">
-        <Button variant={"ghost"} onClick={() => setIsNotificationModalOpen(true)}> 
+        {/* <Button variant={"ghost"} onClick={() => setIsNotificationModalOpen(true)}> 
           <IoNotificationsOutline className="w-5 h-5" />
-        </Button>
+        </Button> */}
        
         <Button variant="ghost" onClick={() => router.push("/settings")}>
           <Settings className="md:hidden w-4 h-4 cursor-pointer hover:text-gray-600 dark:hover:text-gray-300 transition-colors"/>
