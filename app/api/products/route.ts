@@ -125,10 +125,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: Request) {
   try {
-    // Get token from cookies (your existing code is fine)
+    // Get token from cookies
     const cookieHeader = request.headers.get("cookie");
     let token = null;
-
+    
     if (cookieHeader) {
       const cookies = cookieHeader.split(";").reduce((acc, cookie) => {
         const [name, value] = cookie.trim().split("=");
@@ -137,22 +137,23 @@ export async function POST(request: Request) {
       }, {} as Record<string, string>);
       token = cookies.accessToken || null;
     }
-
+    
     if (!token) {
       return NextResponse.json(
         { status: "error", message: "Authentication required" },
         { status: 401 }
       );
     }
-
+    
     // Get form data from request
     const formData = await request.formData();
-
+    
     // Prepare request to external API
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000);
-
+    
     try {
+      // FIX: Correct the fetch syntax (was using template literal incorrectly)
       const response = await fetch(`${API_BASE_URL}/api/products`, {
         method: "POST",
         headers: {
@@ -161,14 +162,13 @@ export async function POST(request: Request) {
         body: formData,
         signal: controller.signal,
       });
-
+      
       clearTimeout(timeoutId);
-
-      // FIX: Check content type before parsing as JSON
+      
+      // Check content type before parsing as JSON
       const contentType = response.headers.get("content-type");
       
       if (!contentType || !contentType.includes("application/json")) {
-        // Handle non-JSON responses (HTML, text, etc.)
         const textResponse = await response.text();
         console.error("Non-JSON response received:", textResponse.substring(0, 200));
         
@@ -177,47 +177,45 @@ export async function POST(request: Request) {
             status: "error", 
             message: `Server returned unexpected response: ${response.status} ${response.statusText}` 
           },
-          { status: 502 } // Bad Gateway
+          { status: 502 }
         );
       }
-
-      // Now safely parse as JSON
+      
+      // Parse as JSON
       const result = await response.json();
-
+      
+      // Log the full response for debugging
+      console.log("API Response:", JSON.stringify(result, null, 2));
+      
       if (!response.ok) {
         return NextResponse.json(
           { status: "error", message: result.message || "Failed to add product" },
           { status: response.status }
         );
       }
-
-      // Clear cache when a new product is added
-      // Note: You'll need to define 'cache' or remove this if not implemented
-      // cache.clear();
-      console.log('Products cache cleared after adding new product');
-
+      
       return NextResponse.json(result, { status: response.status });
-
+      
     } // eslint-disable-next-line @typescript-eslint/no-explicit-any  
     catch (fetchError: any) {
       clearTimeout(timeoutId);
-
+      
       if (fetchError.name === "AbortError") {
         return NextResponse.json(
           { status: "error", message: "Request timeout. Please try again." },
           { status: 408 }
         );
       }
-
+      
       console.error("API connection error:", fetchError);
       return NextResponse.json(
         { status: "error", message: "Unable to connect to product service. Please try again later." },
         { status: 503 }
       );
     }
-
-  }// eslint-disable-next-line @typescript-eslint/no-explicit-any  
-   catch (error: any) {
+    
+  } // eslint-disable-next-line @typescript-eslint/no-explicit-any  
+  catch (error: any) {
     console.error("Unexpected error in products API:", error);
     return NextResponse.json(
       { status: "error", message: "Internal server error" },

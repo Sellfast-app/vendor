@@ -174,10 +174,10 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
             toast.error('Production days are required');
             return;
         }
-
+    
         setIsLoading(true);
         const loadingToast = toast.loading('Adding product...');
-
+    
         try {
             // Get store_id from cookies
             const storeId = getCookie('store_id');
@@ -185,17 +185,17 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
             if (!storeId) {
                 throw new Error('Store ID not found. Please login again.');
             }
-
-            // Prepare form data - ALL VALUES AS STRINGS
+    
+            // Prepare form data
             const formData = new FormData();
             formData.append('name', productName);
             formData.append('description', description);
             formData.append('price', price);
             formData.append('type', productType);
             formData.append('status', mapStatusToApi(status));
-            formData.append('weight', weight); // Add weight field
+            formData.append('weight', weight);
             
-            // Calculate total quantity for variant products
+            // Calculate total quantity
             const totalQuantity = productType === 'single' 
                 ? parseInt(quantity).toString() 
                 : variants.reduce((sum, v) => sum + v.quantity, 0).toString();
@@ -204,87 +204,97 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
             formData.append('est_prod_days_from', prodFrom);
             formData.append('est_prod_days_to', prodTo);
             formData.append('store_id', storeId);
-
+    
             // Handle variants
             let variantsData: ApiVariant[] = [];
             if (productType === 'variant') {
                 variantsData = variants.map(variant => ({
-                    size: variant.size.toString(), // Ensure size is string
-                    quantity: variant.quantity      // Keep as number in the object
+                    size: variant.size.toString(),
+                    quantity: variant.quantity
                 }));
-                toast.info(`Adding ${variantsData.length} variant(s)`);
-            } else {
-                variantsData = [];
             }
             
-            // Stringify the variants array exactly as shown in API docs
             formData.append('variants', JSON.stringify(variantsData));
-            console.log('Variants being sent:', JSON.stringify(variantsData));
-
+    
             // Add images
             uploadedImages.forEach(image => {
                 formData.append('files', image.file);
             });
-            
-            if (uploadedImages.length > 0) {
-                toast.info(`Uploading ${uploadedImages.length} image(s)`);
-            }
-
-            // Debug: Log all form data
-            console.log('=== FORM DATA ===');
-            for (const [key, value] of formData.entries()) {
-                if (key === 'files') {
-                    console.log(`${key}: [File object]`);
-                } else if (key === 'variants') {
-                    console.log(`${key}:`, value);
-                } else {
-                    console.log(`${key}: ${value}`);
-                }
-            }
-
+    
             // API call
-            toast.info('Sending request to server...');
             const response = await fetch('/api/products', {
                 method: 'POST',
                 body: formData,
             });
-
-            const result = await response.json();
-
+    
+            // Get response text first
+            const responseText = await response.text();
+            console.log('=== RAW RESPONSE ===', responseText);
+    
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Failed to parse JSON:', parseError);
+                throw new Error('Server returned invalid response');
+            }
+    
+            console.log('=== PARSED RESULT ===', result);
+    
             if (!response.ok) {
                 console.error('API Error Response:', result);
                 throw new Error(result.message || `Failed to add product: ${response.status}`);
             }
-
-            if (result.status === 'success') {
-                // Transform API response to match our frontend product structure
-                const newProduct = {
-                    sku: result.product.product_sku || `SKU-${Date.now()}`,
-                    productName: result.product.product_name,
-                    description: result.product.product_description,
-                    stock: result.product.product_quantity,
-                    remanent: result.product.product_quantity,
-                    sales: parseFloat(result.product.product_price),
-                    status: mapStatusFromApi(result.product.product_status),
-                    createdAt: result.product.created_at,
-                    thumbnail: result.product.product_images?.[0] || '/thumbnails/default.png',
-                    variants: typeof result.product.variants === 'string' 
-                        ? JSON.parse(result.product.variants || '[]')
-                        : result.product.variants || [],
-                    weight: result.product.product_weight || weight, // Include weight
-                };
-
-                onAddProduct(newProduct);
-                toast.dismiss(loadingToast);
-                toast.success('Product added successfully! 🎉');
-                
-                // Reset form
-                resetForm();
-                onClose();
-            } else {
-                throw new Error(result.message || 'Failed to add product');
+    
+            // CRITICAL FIX: Check for result.data NOT result.product
+            if (!result || result.status !== 'success') {
+                console.error('Unexpected response format:', result);
+                throw new Error(result?.message || 'Unexpected response from server');
             }
-
+    
+            // CRITICAL FIX: API returns data in result.data
+            if (!result.data || typeof result.data !== 'object') {
+                console.error('Missing product data in response:', result);
+                throw new Error('Product created but server returned incomplete data');
+            }
+    
+            // Transform using result.data (NOT result.product)
+            const productData = result.data;
+            
+            const newProduct = {
+                sku: productData.product_sku || `SKU-${Date.now()}`,
+                productName: productData.product_name || productName,
+                description: productData.product_description || description,
+                stock: productData.product_quantity || parseInt(quantity) || 0,
+                remanent: productData.product_quantity || parseInt(quantity) || 0,
+                sales: productData.product_price ? parseFloat(productData.product_price) : parseFloat(price),
+                status: productData.product_status ? mapStatusFromApi(productData.product_status) : mapStatusFromApi(status),
+                createdAt: productData.created_at || new Date().toISOString(),
+                thumbnail: productData.product_images?.[0] || '/thumbnails/default.png',
+                variants: (() => {
+                    try {
+                        const variantsData = productData.variants;
+                        if (!variantsData) return [];
+                        return typeof variantsData === 'string' 
+                            ? JSON.parse(variantsData || '[]')
+                            : variantsData || [];
+                    } catch (e) {
+                        console.error('Error parsing variants:', e);
+                        return [];
+                    }
+                })(),
+                weight: productData.product_weight || weight,
+            };
+    
+            console.log('✅ Successfully created product:', newProduct);
+    
+            onAddProduct(newProduct);
+            toast.dismiss(loadingToast);
+            toast.success('Product added successfully! 🎉');
+            
+            resetForm();
+            onClose();
+    
         } catch (error) {
             console.error('Error adding product:', error);
             toast.dismiss(loadingToast);
