@@ -51,27 +51,7 @@ function Finance() {
   const [currentPage, setCurrentPage] = useState(1);
 
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([
-    {
-      id: "1",
-      accountNumber: "0102798098",
-      bankName: "Access Bank",
-      accountHolder: "Olasandra Kayla .A.",
-      icon: "/access-bank-icon.png",
-    },
-    {
-      id: "2",
-      accountNumber: "9027895098",
-      bankName: "Unity",
-      accountHolder: "Olasandra Kayla .A.",
-      icon: "/unity-bank-icon.png",
-    },
-    {
-      id: "3",
-      accountNumber: "2025092169",
-      bankName: "Kuda Bank",
-      accountHolder: "Olasandra Kayla .A.",
-      icon: "/kuda-bank-icon.png",
-    },
+
   ]);
 
   const [creditCards, setCreditCards] = useState<CreditCard[]>([
@@ -97,18 +77,18 @@ function Finance() {
 
   // Billing History Mock Data - 12 samples
   const allBillingHistory: BillingHistory[] = [
-    { id: "1", invoice: "Invoice #0001", date: "12 Apr 2025", plan: "Basic Plan", amount: "₦10,000" },
-    { id: "2", invoice: "Invoice #0002", date: "28 Mar 2025", plan: "Basic Plan", amount: "₦10,000" },
-    { id: "3", invoice: "Invoice #0003", date: "15 Mar 2025", plan: "Standard Plan", amount: "₦25,000" },
-    { id: "4", invoice: "Invoice #0004", date: "01 Mar 2025", plan: "Standard Plan", amount: "₦25,000" },
-    { id: "5", invoice: "Invoice #0005", date: "14 Feb 2025", plan: "Basic Plan", amount: "₦10,000" },
-    { id: "6", invoice: "Invoice #0006", date: "31 Jan 2025", plan: "Premium Plan", amount: "₦65,000" },
-    { id: "7", invoice: "Invoice #0007", date: "17 Jan 2025", plan: "Premium Plan", amount: "₦65,000" },
-    { id: "8", invoice: "Invoice #0008", date: "03 Jan 2025", plan: "Standard Plan", amount: "₦25,000" },
-    { id: "9", invoice: "Invoice #0009", date: "20 Dec 2024", plan: "Basic Plan", amount: "₦10,000" },
-    { id: "10", invoice: "Invoice #0010", date: "07 Dec 2024", plan: "Basic Plan", amount: "₦10,000" },
-    { id: "11", invoice: "Invoice #0011", date: "24 Nov 2024", plan: "Standard Plan", amount: "₦25,000" },
-    { id: "12", invoice: "Invoice #0012", date: "11 Nov 2024", plan: "Premium Plan", amount: "₦65,000" },
+    // { id: "1", invoice: "Invoice #0001", date: "12 Apr 2025", plan: "Basic Plan", amount: "₦10,000" },
+    // { id: "2", invoice: "Invoice #0002", date: "28 Mar 2025", plan: "Basic Plan", amount: "₦10,000" },
+    // { id: "3", invoice: "Invoice #0003", date: "15 Mar 2025", plan: "Standard Plan", amount: "₦25,000" },
+    // { id: "4", invoice: "Invoice #0004", date: "01 Mar 2025", plan: "Standard Plan", amount: "₦25,000" },
+    // { id: "5", invoice: "Invoice #0005", date: "14 Feb 2025", plan: "Basic Plan", amount: "₦10,000" },
+    // { id: "6", invoice: "Invoice #0006", date: "31 Jan 2025", plan: "Premium Plan", amount: "₦65,000" },
+    // { id: "7", invoice: "Invoice #0007", date: "17 Jan 2025", plan: "Premium Plan", amount: "₦65,000" },
+    // { id: "8", invoice: "Invoice #0008", date: "03 Jan 2025", plan: "Standard Plan", amount: "₦25,000" },
+    // { id: "9", invoice: "Invoice #0009", date: "20 Dec 2024", plan: "Basic Plan", amount: "₦10,000" },
+    // { id: "10", invoice: "Invoice #0010", date: "07 Dec 2024", plan: "Basic Plan", amount: "₦10,000" },
+    // { id: "11", invoice: "Invoice #0011", date: "24 Nov 2024", plan: "Standard Plan", amount: "₦25,000" },
+    // { id: "12", invoice: "Invoice #0012", date: "11 Nov 2024", plan: "Premium Plan", amount: "₦65,000" },
   ];
 
   // Pagination configuration
@@ -364,13 +344,13 @@ function Finance() {
           <div className='flex flex-col md:flex-row justify-center items-center gap-2'>
             <div className='flex flex-col gap-5 border p-4 rounded-lg dark:bg-background w-full md:w-1/3'>
               <div className='flex justify-between items-center'>
-                <div> <h3 className='text-sm text-semibold'>Basic Plan</h3>
+                <div> <h3 className='text-sm text-semibold'>Free Plan</h3>
                   <span className='text-xs'>All features are avaialble</span>
                 </div>
-                <span className='text-sm p-2 bg-card border rounded-md'>Renews  in 14 days</span>
+                {/* <span className='text-sm p-2 bg-card border rounded-md'>Renews  in 14 days</span> */}
               </div>
               <div className='flex flex-col gap-2'>
-                <div className='flex items-baseline gap-1'><span>₦10,000</span> <span className='text-xs'>per month</span></div>
+                <div className='flex items-baseline gap-1'><span>Free</span> <span className='text-xs'>for the first month</span></div>
                 <Button variant={"outline"} className='w-full'>Current Plan</Button>
               </div>
             </div>
@@ -380,17 +360,17 @@ function Finance() {
                 <span className='text-xs'>All features are avaialble</span>
               </div>
               <div className='flex flex-col gap-2'>
-                <div className='flex items-baseline gap-1'><span>₦25,000</span> <span className='text-xs'>per month</span></div>
+                <div className='flex items-baseline gap-1'><span>₦5,000</span> <span className='text-xs'>per month</span></div>
                 <Button className='w-full'>Upgrade Plan</Button>
               </div>
             </div>
             <div className='flex flex-col gap-5 border p-4 rounded-lg dark:bg-background w-full md:w-1/3'>
               <div>
-                <h3 className='text-sm text-semibold'>Premium Plan</h3>
+                <h3 className='text-sm text-semibold'>Premium Plan (6months)</h3>
                 <span className='text-xs'>All features are avaialble</span>
               </div>
               <div className='flex flex-col gap-2'>
-                <div className='flex items-baseline gap-1'><span>₦65,000</span> <span className='text-xs'>per month</span></div>
+                <div className='flex items-baseline gap-1'><span>₦28,000</span> <span className='text-xs'>per month</span></div>
                 <Button className='w-full'>Upgrade Plan</Button>
               </div>
             </div>
