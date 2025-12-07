@@ -354,7 +354,7 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                 onClick={handleClose}
             />
             <div
-                className="h-full w-[75%] md:w-[65%] bg-background shadow-lg overflow-x-auto transform transition-transform duration-300 ease-in-out rounded-xl"
+                className="h-full w-[85%] md:w-[65%] bg-background shadow-lg overflow-x-auto transform transition-transform duration-300 ease-in-out rounded-xl"
                 style={{ transform: isOpen ? "translateX(0)" : "translateX(100%)" }}
                 onClick={(e) => e.stopPropagation()}
             >
