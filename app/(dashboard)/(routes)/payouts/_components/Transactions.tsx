@@ -40,7 +40,7 @@ interface Transaction {
       delivery_date: string;
       delivery_window: string;
       pickup_window: string;
-    };
+    } | null;
     split_applied: boolean;
     intended_split: {
       totalPaid: number;
@@ -119,6 +119,7 @@ function DatePicker({
   );
 }
 
+// COMPLETE UPDATED TRANSACTIONS TABLE CODE
 export default function TransactionsTable() {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
@@ -215,7 +216,7 @@ export default function TransactionsTable() {
   };
 
   const handleApplyFilters = () => {
-    setCurrentPage(1); // Reset to first page when filters change
+    setCurrentPage(1);
     fetchTransactions();
   };
 
@@ -237,11 +238,11 @@ export default function TransactionsTable() {
 
   const getStatusClass = (status: number) => {
     switch (status) {
-      case 1: // Success/Completed
+      case 1:
         return "bg-[#EFFFE9] rounded-xl text-[#53DC19]";
-      case 0: // Pending
+      case 0:
         return "bg-[#FFF5E8] rounded-xl text-[#FFB347]";
-      case 2: // Failed/Cancelled
+      case 2:
       case 3:
         return "bg-[#FFEFEF] rounded-xl text-[#E40101]";
       default:
@@ -273,37 +274,49 @@ export default function TransactionsTable() {
     }).format(numAmount);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return "N/A";
+    try {
+      return new Date(dateString).toLocaleDateString("en-US", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+    } catch {
+      return "N/A";
+    }
   };
 
-  const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleString("en-US", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+  const formatDateTime = (dateString: string | null | undefined) => {
+    if (!dateString) return "N/A";
+    try {
+      return new Date(dateString).toLocaleString("en-US", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return "N/A";
+    }
   };
 
   const handleDownloadReceipt = (transaction: Transaction) => {
-    // Generate receipt data
+    const deliveryRate = transaction.meta_data.delivery_rate;
+    
+    // Generate receipt data with null-safe handling
     const receiptData = {
       transactionId: transaction.id,
       reference: transaction.reference,
       customerEmail: transaction.meta_data.email,
       amount: formatCurrency(transaction.amount, transaction.currency),
-      deliveryFee: formatCurrency(transaction.meta_data.delivery_fee, transaction.currency),
+      deliveryFee: formatCurrency(transaction.meta_data.delivery_fee || 0, transaction.currency),
       totalPaid: formatCurrency(transaction.meta_data.total_paid, transaction.currency),
       status: getStatusText(transaction.transaction_status),
-      pickupDate: formatDateTime(transaction.meta_data.delivery_rate.pickup_date),
-      deliveryDate: formatDateTime(transaction.meta_data.delivery_rate.delivery_date),
-      deliveryService: transaction.meta_data.delivery_rate.name,
+      pickupDate: deliveryRate ? formatDateTime(deliveryRate.pickup_date) : "N/A",
+      deliveryDate: deliveryRate ? formatDateTime(deliveryRate.delivery_date) : "N/A",
+      deliveryService: deliveryRate?.name || "N/A",
       orderId: transaction.meta_data.order_id,
       date: formatDateTime(transaction.created_at),
     };
@@ -462,63 +475,79 @@ export default function TransactionsTable() {
           {isLoading ? (
             <TableRowSkeleton />
           ) : transactions.length > 0 ? (
-            transactions.map((transaction) => (
-              <TableRow key={transaction.id}>
-                <TableCell>
-                  <Checkbox
-                    checked={selectedTransactions.includes(transaction.id)}
-                    onCheckedChange={(checked) => handleSelectTransaction(transaction.id, checked as boolean)}
-                  />
-                </TableCell>
-                <TableCell className="font-medium">
-                  {transaction.meta_data.email}
-                </TableCell>
-                <TableCell className="font-semibold">
-                  {formatCurrency(transaction.amount, transaction.currency)}
-                </TableCell>
-                <TableCell className="font-semibold">
-                  {formatCurrency(transaction.meta_data.delivery_fee, transaction.currency)}
-                </TableCell>
-                <TableCell>
-                  {formatDate(transaction.meta_data.delivery_rate.pickup_date)}
-                  <div className="text-xs text-muted-foreground">
-                    {transaction.meta_data.delivery_rate.pickup_window}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  {formatDate(transaction.meta_data.delivery_rate.delivery_date)}
-                  <div className="text-xs text-muted-foreground">
-                    {transaction.meta_data.delivery_rate.delivery_window}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <span className={`flex items-center px-2 py-1 rounded text-sm capitalize ${getStatusClass(transaction.transaction_status)}`}>
-                    <span className={`w-2 h-2 rounded-full mr-2 ${
-                      transaction.transaction_status === 1 ? "bg-[#53DC19]" :
-                      transaction.transaction_status === 0 ? "bg-[#FFB347]" : "bg-[#E40101]"
-                    }`} />
-                    {getStatusText(transaction.transaction_status)}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="p-0">
-                        <BsThreeDots className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => window.open(`/transactions/${transaction.id}`, "_blank")}>
-                        <EyeIcon /> View Details
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDownloadReceipt(transaction)} className="text-primary">
-                        <DownloadIcon className="text-primary" /> Download Receipt
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))
+            transactions.map((transaction) => {
+              const deliveryRate = transaction.meta_data.delivery_rate;
+              
+              return (
+                <TableRow key={transaction.id}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedTransactions.includes(transaction.id)}
+                      onCheckedChange={(checked) => handleSelectTransaction(transaction.id, checked as boolean)}
+                    />
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    {transaction.meta_data.email}
+                  </TableCell>
+                  <TableCell className="font-semibold">
+                    {formatCurrency(transaction.amount, transaction.currency)}
+                  </TableCell>
+                  <TableCell className="font-semibold">
+                    {formatCurrency(transaction.meta_data.delivery_fee || 0, transaction.currency)}
+                  </TableCell>
+                  <TableCell>
+                    {deliveryRate ? (
+                      <>
+                        {formatDate(deliveryRate.pickup_date)}
+                        <div className="text-xs text-muted-foreground">
+                          {deliveryRate.pickup_window || "N/A"}
+                        </div>
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">N/A</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {deliveryRate ? (
+                      <>
+                        {formatDate(deliveryRate.delivery_date)}
+                        <div className="text-xs text-muted-foreground">
+                          {deliveryRate.delivery_window || "N/A"}
+                        </div>
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">N/A</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <span className={`flex items-center px-2 py-1 rounded text-sm capitalize ${getStatusClass(transaction.transaction_status)}`}>
+                      <span className={`w-2 h-2 rounded-full mr-2 ${
+                        transaction.transaction_status === 1 ? "bg-[#53DC19]" :
+                        transaction.transaction_status === 0 ? "bg-[#FFB347]" : "bg-[#E40101]"
+                      }`} />
+                      {getStatusText(transaction.transaction_status)}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="p-0">
+                          <BsThreeDots className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => window.open(`/transactions/${transaction.id}`, "_blank")}>
+                          <EyeIcon /> View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDownloadReceipt(transaction)} className="text-primary">
+                          <DownloadIcon className="text-primary" /> Download Receipt
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              );
+            })
           ) : (
             <TableRow>
               <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
