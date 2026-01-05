@@ -117,8 +117,8 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => {
 // Country code selector component
 const CountryCodeSelect = ({ value, onValueChange }: { value: string; onValueChange: (value: string) => void }) => {
   const countryCodes = [
-    { code: '+234', country: 'NG' },
-    { code: '+1', country: 'US' },
+    { code: '+234', country: 'NG', flag: '🇳🇬' },
+    { code: '+1', country: 'US', flag: '🇺🇸' },
   ];
 
   return (
@@ -129,6 +129,7 @@ const CountryCodeSelect = ({ value, onValueChange }: { value: string; onValueCha
       <SelectContent>
         {countryCodes.map((country) => (
           <SelectItem key={country.code} value={country.code}>
+            <span className="flex items-center gap-2">{country.flag}</span>
             <span className="flex items-center gap-2">{country.code}</span>
           </SelectItem>
         ))}
