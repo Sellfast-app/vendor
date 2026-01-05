@@ -119,6 +119,7 @@ const CountryCodeSelect = ({ value, onValueChange }: { value: string; onValueCha
   const countryCodes = [
     { code: '+234', country: 'NG', flag: '🇳🇬' },
     { code: '+1', country: 'US', flag: '🇺🇸' },
+    { code: '+44', country: 'GB', flag: '🇬🇧' }, 
   ];
 
   return (
