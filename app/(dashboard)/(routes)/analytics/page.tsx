@@ -61,39 +61,66 @@ export default function AnalyticsPage() {
   });
   const [loading, setLoading] = useState(false);
 
+  // Get the date range strings from the utility function
   const { startDate, endDate } = calculateDateRange(selectedRangeKey);
 
   // Fetch view performance data
   const fetchViewPerformance = async () => {
     setLoading(true);
     try {
-      const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      const queryParams = new URLSearchParams({ startDate });
+      // Use the calculated startDate and endDate from selectedRangeKey
+      const queryParams = new URLSearchParams({ 
+        startDate: startDate
+      });
+      
+      // Add endDate
+      if (endDate) {
+        queryParams.append('endDate', endDate);
+      }
+      
+      // API endpoint
       const url = `/api/analytics?${queryParams}`;
+      
+      console.log('📊 Fetching analytics with date range:', {
+        selectedRange: selectedRangeKey,
+        startDate: startDate,
+        endDate: endDate
+      });
       
       const res = await fetch(url, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
       });
+      
       const result = await res.json();
 
       if (res.ok && result.status === 'success') {
         const data = result.data;
+        console.log('✅ Analytics data received:', {
+          totalViews: data.totalViews,
+          viewsToday: data.viewsToday,
+          avgViewsPerDay: data.avgViewsPerDay
+        });
+        
         setViewPerformance({
           totalViews: data.totalViews || 0,
           viewsToday: data.viewsToday || 0,
           avgViewsPerDay: data.avgViewsPerDay || 0
         });
+      } else {
+        console.error('❌ Failed to fetch analytics:', result.message);
       }
     } catch (error) {
-      console.error('Error fetching view performance:', error);
+      console.error('❌ Error fetching view performance:', error);
     } finally {
       setLoading(false);
     }
   };
 
+  // Re-fetch when the date range changes
   useEffect(() => {
     fetchViewPerformance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRangeKey]);
 
   const dateRangeOptions = [
@@ -217,9 +244,12 @@ export default function AnalyticsPage() {
       <div className="mb-6 flex items-center justify-between">
         <div className="flex-col">
           <h3 className="text-sm font-bold">Analytics</h3>
+          <p className="text-xs text-gray-500 mt-1">
+            Showing data from {new Date(startDate).toLocaleDateString()} to {new Date(endDate).toLocaleDateString()}
+          </p>
         </div>
         <div className="flex gap-2">
-        <Select 
+          <Select 
             onValueChange={(value: string) => setSelectedRangeKey(value as DateRangeKey)}
             defaultValue={selectedRangeKey}
           >
@@ -241,44 +271,6 @@ export default function AnalyticsPage() {
       </div>
       <div className="flex w-full gap-3 flex-col xl:flex-row">
         <div className="w-full xl:w-[35%]">
-          {/* <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F] w-full mb-4">
-            <CardContent>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs">Active Customers in Location</span>
-                <Map />
-              </div>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex flex-col">
-                  <span className="text-lg font-medium">7,269</span>
-                  <span className="text-[#53DC19] text-xs">-8,72% vs. previous</span>
-                </div>
-                <div className="flex flex-col items-end">
-                  <span className="text-[#A0A0A0] text-xs">Customers Acquired:</span>
-                  <span className="text-[#A0A0A0] text-xs"> <span className="text-black">972</span>(this week)</span>
-                </div>
-              </div>
-
-              {locationData.map((location) => (
-                <div key={location.id} className="flex items-center gap-4 w-full mb-4">
-                  {location.flag}
-                  <div className="flex flex-col gap-2 w-[90%]">
-                    <div className="flex items-center justify-between text-sm">
-                      <span>{location.name}</span>
-                      <span>{location.percentage}%</span>
-                    </div>
-                    <Progress value={location.percentage} />
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-            <CardFooter className="text-sm flex items-center justify-center gap-1 text-primary border-t"
-              onClick={() => setIsCustomerInsightsOpen(true)}>
-              <span>
-                See Details
-              </span>
-              <ArrowRight className="w-4 h-4" />
-            </CardFooter>
-          </Card> */}
           <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F] w-full mb-4">
             <CardHeader className="border-b">
               <div className="flex items-center justify-between mb-4">
@@ -294,7 +286,6 @@ export default function AnalyticsPage() {
                   value={calculateProgressValue(viewPerformance.avgViewsPerDay, 100)} 
                   className="mb-2" 
                 />
-                {/* what we will have here is total views */}
                 <span className="text-center text-lg font-medium">
                   {loading ? "Loading..." : viewPerformance.totalViews.toLocaleString()}
                 </span>
@@ -303,50 +294,46 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <div className="flex flex-col gap-4 mt-4">
-                <div className="flex items-center justify-between  text-xs">
+                <div className="flex items-center justify-between text-xs">
                   <span className="flex items-center gap-2">
                     <span className="w-5 h-2 bg-primary rounded-lg" />
-                    <p >Total Views per day</p>
+                    <p>Total Views Today</p>
                   </span>
-                  {/* what we will have here is viewsToday */}
                   <span>{loading ? "..." : viewPerformance.viewsToday.toLocaleString()}</span>
                 </div>
-                <div className="flex items-center justify-between  text-xs">
+                <div className="flex items-center justify-between text-xs">
                   <span className="flex items-center gap-2">
                     <span className="w-5 h-2 bg-primary/20 rounded-lg" />
-                    {/* what we will have here is avgViewsPerDay */}
-                    <p >Avg. Views per day</p>
+                    <p>Avg. Views per day</p>
                   </span>
                   <span>{loading ? "..." : viewPerformance.avgViewsPerDay.toLocaleString()}</span>
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="text-sm flex items-center justify-center border-t"
+            <CardFooter className="text-sm flex items-center justify-center border-t">
+              <Button 
+                variant={"ghost"} 
+                className="text-sm flex items-center justify-center gap-1 text-primary" 
+                onClick={() => setIsViewPerformanceOpen(true)} 
+                disabled
               >
-                <Button variant={"ghost"} className="text-sm flex items-center justify-center gap-1 text-primary" onClick={() => setIsViewPerformanceOpen(true)} disabled>
-                <span>
-                See Details
-              </span>
-              <ArrowRight className="w-4 h-4" />
-                </Button>
-  
+                <span>See Details</span>
+                <ArrowRight className="w-4 h-4" />
+              </Button>
             </CardFooter>
           </Card>
-          {/* <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]"><StorefrontVisitsChart />
-          </Card> */}
         </div>
         <div className="space-y-8 w-full xl:w-[65%]">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-2">
             {overviewMetrics.map((metric) => (
-              <AnalyticsMetric key={metric.id} metric={metric} startDate={startDate} 
-              endDate={endDate}/>
+              <AnalyticsMetric 
+                key={metric.id} 
+                metric={metric} 
+                startDate={startDate} 
+                endDate={endDate}
+              />
             ))}
           </div>
-          {/* <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
-            <CardContent>
-              <AnalyticsTabs />
-            </CardContent>
-          </Card> */}
         </div>
       </div>
       <ExportModal
@@ -365,7 +352,6 @@ export default function AnalyticsPage() {
         isOpen={isViewPerformanceOpen}
         onClose={() => setIsViewPerformanceOpen(false)}
       />
-
     </div>
   );
 }
