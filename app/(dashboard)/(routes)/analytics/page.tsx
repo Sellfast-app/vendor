@@ -292,6 +292,7 @@ export default function AnalyticsPage() {
                 <span className="text-[#A0A0A0] text-xs">Total views</span>
               </div>
             </CardHeader>
+            
             <CardContent>
               <div className="flex flex-col gap-4 mt-4">
                 <div className="flex items-center justify-between text-xs">
