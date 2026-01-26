@@ -16,7 +16,7 @@ function SettingsTabs() {
                     <TabsTrigger value="store">StoreFront Settings</TabsTrigger>
                     <TabsTrigger value="finance">Finance & Billings</TabsTrigger>
                     <TabsTrigger value="notification">Notifications</TabsTrigger>
-                    <TabsTrigger value="security">Security & Access</TabsTrigger>
+                    {/* <TabsTrigger value="security">Security & Access</TabsTrigger> */}
                     <TabsTrigger value="support">Support & Help</TabsTrigger>
                 </TabsList>
                 <TabsContent value="account" className='mt-4'>
@@ -31,9 +31,9 @@ function SettingsTabs() {
                 <TabsContent value="notification" className='mt-4'>
                     <Notification/>
                 </TabsContent>
-                <TabsContent value='security'>
+                {/* <TabsContent value='security'>
                     <Security/>
-                </TabsContent>
+                </TabsContent> */}
                 <TabsContent value='support'>
                     <Support/>
                 </TabsContent>

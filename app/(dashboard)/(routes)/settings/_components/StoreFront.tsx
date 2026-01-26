@@ -28,6 +28,26 @@ interface BankAccount {
   icon: React.ReactNode;
 }
 
+interface BrandColor {
+  primary: string;
+  secondary: string;
+  accent: string;
+}
+
+interface StoreMetadata {
+  owner_name?: string;
+  address?: string;
+  address_line_2?: string;
+  city?: string;
+  state?: string;
+  post_code?: string;
+  phone?: string;
+  latitude?: number;
+  longitude?: number;
+  country?: string;
+  brand_color?: BrandColor;
+}
+
 interface StoreDetails {
   storeName: string;
   storeType: string;
@@ -39,6 +59,7 @@ interface StoreDetails {
   botUrl: string;
   logo?: string | null;
   banner?: string | null;
+  metadata?: StoreMetadata;
 }
 
 function StorefrontComponent() {
@@ -51,6 +72,7 @@ function StorefrontComponent() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
+  const [isSavingTheme, setIsSavingTheme] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
@@ -70,6 +92,29 @@ function StorefrontComponent() {
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [themeColor, setThemeColor] = useState("Surge Green");
   const [availabilityEnabled, setAvailabilityEnabled] = useState(true);
+
+  // Function to get theme colors based on theme name
+  const getThemeColors = (themeName: string): BrandColor => {
+    const themeMap: Record<string, BrandColor> = {
+      'Surge Green': { primary: '#4FCA6A', secondary: '#45B862', accent: '#D1FFDB' },
+      'Ocean Blue': { primary: '#3B82F6', secondary: '#2563EB', accent: '#E7F2FF' },
+      'Sunset Orange': { primary: '#F97316', secondary: '#EA580C', accent: '#FFEDD5' },
+      'Purple Elegance': { primary: '#8B5CF6', secondary: '#7C3AED', accent: '#EDE8FF' }
+    };
+    
+    return themeMap[themeName] || themeMap['Surge Green'];
+  };
+
+  // Function to determine theme name based on brand colors
+  const getThemeFromBrandColor = (brandColor?: BrandColor): string => {
+    if (!brandColor) return "Surge Green";
+    
+    const { primary } = brandColor;
+    if (primary === '#3B82F6') return "Ocean Blue";
+    if (primary === '#F97316') return "Sunset Orange";
+    if (primary === '#8B5CF6') return "Purple Elegance";
+    return "Surge Green"; // Default
+  };
 
   // Fetch store data from API
   useEffect(() => {
@@ -93,6 +138,7 @@ function StorefrontComponent() {
         if (result.status === 'success' && result.data?.storeDetails) {
           const storeDetails = result.data.storeDetails;
           const metadata = storeDetails.metadata || {};
+          const brandColor = metadata.brand_color || {};
 
           console.log('🎯 Extracted store details:', {
             name: storeDetails.store_name,
@@ -101,8 +147,31 @@ function StorefrontComponent() {
             phone: metadata.phone,
             city: metadata.city,
             logo: storeDetails.logo,
-            banner: storeDetails.banner
+            banner: storeDetails.banner,
+            brand_color: brandColor
           });
+
+          // Determine theme based on brand_color
+          const currentTheme = getThemeFromBrandColor(brandColor);
+          setThemeColor(currentTheme);
+          
+          // Also check localStorage for theme and use it if database doesn't have one
+          if (!brandColor.primary && typeof window !== 'undefined') {
+            const storedTheme = localStorage.getItem('colorScheme');
+            if (storedTheme) {
+              // Map localStorage theme to display name
+              const themeDisplayMap: Record<string, string> = {
+                'surge-green': 'Surge Green',
+                'ocean-blue': 'Ocean Blue',
+                'sunset-orange': 'Sunset Orange',
+                'purple-elegance': 'Purple Elegance'
+              };
+              
+              const displayTheme = themeDisplayMap[storedTheme] || 'Surge Green';
+              setThemeColor(displayTheme);
+              console.log('🎨 Using theme from localStorage:', storedTheme);
+            }
+          }
 
           // Determine country code based on phone number
           let countryCode = "+234"; // Default to Nigeria
@@ -138,7 +207,8 @@ function StorefrontComponent() {
             location: metadata.city || "Lagos",
             logo: storeDetails.logo || null,
             banner: storeDetails.banner || null,
-            botUrl: storeDetails.bot_url || ""
+            botUrl: storeDetails.bot_url || "",
+            metadata: metadata // Store the full metadata
           }));
 
           console.log('✅ Store data loaded successfully into state:', {
@@ -149,7 +219,8 @@ function StorefrontComponent() {
             countryCode: countryCode,
             location: metadata.city,
             logo: storeDetails.logo,
-            banner: storeDetails.banner
+            banner: storeDetails.banner,
+            theme: currentTheme
           });
           toast.success('Store data loaded successfully');
         } else {
@@ -336,9 +407,97 @@ function StorefrontComponent() {
 
   const handleEditTheme = () => setIsEditingTheme(true);
   const handleCancelTheme = () => setIsEditingTheme(false);
-  const handleSaveTheme = () => {
-    setIsEditingTheme(false);
-    toast.success('Theme updated successfully!');
+
+  // Handle saving theme with API integration
+  const handleSaveTheme = async () => {
+    if (isSavingTheme) return;
+    
+    setIsSavingTheme(true);
+  
+    try {
+      // Get the brand color based on selected theme
+      const brandColor = getThemeColors(themeColor);
+      
+      // Prepare the request body according to API docs
+      const requestBody = {
+        metadata: {
+          // Include all required metadata fields from existing data
+          owner_name: storefrontData.metadata?.owner_name || "Store Owner",
+          address: storefrontData.metadata?.address || "",
+          address_line_2: storefrontData.metadata?.address_line_2 || "",
+          city: storefrontData.metadata?.city || storefrontData.location || "Lagos",
+          state: storefrontData.metadata?.state || "Lagos",
+          post_code: storefrontData.metadata?.post_code || "",
+          phone: storefrontData.metadata?.phone || `+234${storefrontData.whatsappNumber.replace(/^0/, '')}`,
+          latitude: storefrontData.metadata?.latitude || 0,
+          longitude: storefrontData.metadata?.longitude || 0,
+          country: storefrontData.metadata?.country || "NG",
+          brand_color: brandColor // Add the theme colors here
+        }
+      };
+  
+      console.log('🔄 Sending theme update request:', requestBody);
+  
+      // Show loading state
+      toast.loading('Updating theme...');
+      
+      // Make the PATCH request to save to database
+      const response = await fetch('/api/store', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+  
+      const result = await response.json();
+  
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update theme');
+      }
+  
+      // 1. Save to localStorage for immediate UI change
+      const themeMap: Record<string, string> = {
+        'Surge Green': 'surge-green',
+        'Ocean Blue': 'ocean-blue',
+        'Sunset Orange': 'sunset-orange',
+        'Purple Elegance': 'purple-elegance'
+      };
+      
+      const themeValue = themeMap[themeColor] || 'surge-green';
+      localStorage.setItem('colorScheme', themeValue);
+      
+      console.log('💾 Saved theme to localStorage:', themeValue);
+  
+      // 2. Close editing mode
+      setIsEditingTheme(false);
+      
+      // 3. Clear loading toast
+      toast.dismiss();
+      
+      // 4. Show success message
+      toast.success('Theme updated successfully!');
+      
+      // 5. Update local state with new metadata
+      setStorefrontData(prev => ({
+        ...prev,
+        metadata: {
+          ...prev.metadata,
+          brand_color: brandColor
+        }
+      }));
+  
+      // 6. Trigger a page refresh to apply the new theme immediately
+      // OR you can dispatch a custom event for your theme system to listen to
+      window.dispatchEvent(new Event('themeChange'));
+  
+    } catch (error) {
+      console.error('❌ Error updating theme:', error);
+      toast.dismiss();
+      toast.error(error instanceof Error ? error.message : 'Failed to update theme');
+    } finally {
+      setIsSavingTheme(false);
+    }
   };
 
   const handleInputChange = (field: keyof StoreDetails, value: string) => {
@@ -733,23 +892,23 @@ function StorefrontComponent() {
               </div>
             </div>
             <div className="space-y-2">
-  <Label htmlFor="botUrl" className="text-xs">Custom WhatsApp Bot URL *</Label>
-  <div className="flex flex-col md:flex-row gap-2 ">
-    <div className="flex items-center gap-2 flex-1 px-2 py-1.5 border rounded-md dark:bg-background overflow-auto">
-      <ExternalLink className="w-4 h-4 text-muted-foreground" />
-      <span className="text-sm">{storefrontData.botUrl || "No bot URL available"}</span>
-    </div>
-    <Button 
-      variant="outline" 
-      size="sm" 
-      onClick={() => copyToClipboard(storefrontData.botUrl)} 
-      className="dark:bg-background"
-      disabled={!storefrontData.botUrl}
-    >
-      <span className="hidden sm:inline">Copy Link </span>  <Copy className="w-4 h-4" />
-    </Button>
-  </div>
-</div>
+              <Label htmlFor="botUrl" className="text-xs">Custom WhatsApp Bot URL *</Label>
+              <div className="flex flex-col md:flex-row gap-2 ">
+                <div className="flex items-center gap-2 flex-1 px-2 py-1.5 border rounded-md dark:bg-background overflow-auto">
+                  <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm">{storefrontData.botUrl || "No bot URL available"}</span>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => copyToClipboard(storefrontData.botUrl)} 
+                  className="dark:bg-background"
+                  disabled={!storefrontData.botUrl}
+                >
+                  <span className="hidden sm:inline">Copy Link </span>  <Copy className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -812,9 +971,20 @@ function StorefrontComponent() {
               ) : (
                 <div className="flex gap-2">
                   <Button onClick={handleCancelTheme} variant="outline" size="sm">Cancel</Button>
-                  <Button onClick={handleSaveTheme} variant="default" size="sm">
-                    <SaveIcon />
-                    <span className="hidden sm:inline ml-2">Save Changes</span>
+                  <Button 
+                    onClick={handleSaveTheme} 
+                    variant="default" 
+                    size="sm"
+                    disabled={isSavingTheme}
+                  >
+                    {isSavingTheme ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>
+                        <SaveIcon />
+                        <span className="hidden sm:inline ml-2">Save Changes</span>
+                      </>
+                    )}
                   </Button>
                 </div>
               )}
@@ -833,6 +1003,7 @@ function StorefrontComponent() {
                   <SelectItem value="Surge Green">Surge Green</SelectItem>
                   <SelectItem value="Ocean Blue">Ocean Blue</SelectItem>
                   <SelectItem value="Sunset Orange">Sunset Orange</SelectItem>
+                  <SelectItem value="Purple Elegance">Purple Elegance</SelectItem>
                 </SelectContent>
               </Select>
             </div>
