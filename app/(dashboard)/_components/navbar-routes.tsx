@@ -12,16 +12,53 @@ import NotificationModal from "./NotificationModal";
 export const NavbarRoutes = () => {
   const [businessName, setBusinessName] = useState<string>("My Business");
   const [storefrontUrl, setStorefrontUrl] = useState<string>("");
+  const [storeLogo, setStoreLogo] = useState<string | null>(null); // Add this state
   const router = useRouter();
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
 
   const getCookieValue = (name: string): string | null => {
+    if (typeof window === 'undefined') return null;
     const value = `; ${document.cookie}`;
     const parts = value.split(`; ${name}=`);
     if (parts.length === 2) {
       return parts.pop()?.split(';').shift() || null;
     }
     return null;
+  };
+
+  // Fetch store data including logo
+  const fetchStoreData = async () => {
+    try {
+      console.log('🔄 Navbar - Fetching store data for logo...');
+      
+      const response = await fetch('/api/store');
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch store data');
+      }
+      
+      const result = await response.json();
+      
+      if (result.status === 'success' && result.data?.storeDetails) {
+        const storeDetails = result.data.storeDetails;
+        
+        // Set store logo if available
+        if (storeDetails.logo) {
+          setStoreLogo(storeDetails.logo);
+          console.log('✅ Navbar - Logo fetched:', storeDetails.logo);
+        }
+        
+        // Also update business name from API if different from cookie
+        const storeName = storeDetails.store_name;
+        if (storeName && storeName !== businessName) {
+          setBusinessName(storeName);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Navbar - Error fetching store data:', error);
+      // Don't show toast error here to avoid spamming
+    }
   };
 
   useEffect(() => {
@@ -42,6 +79,9 @@ export const NavbarRoutes = () => {
         setStorefrontUrl(urlFromCookie);
       }
     }
+
+    // Fetch store data including logo
+    fetchStoreData();
   }, []);
 
   useEffect(() => {
@@ -99,7 +139,12 @@ export const NavbarRoutes = () => {
           <DropdownMenuTrigger className="w-full max-w-[200px]"> 
             <div className="flex items-center space-x-3">
               <Avatar className="w-8 h-8 border rounded-full text-center">
-                <AvatarImage alt={businessName} />
+                {/* Display logo if available, otherwise fallback to initials */}
+                <AvatarImage 
+                  src={storeLogo || ""} 
+                  alt={businessName} 
+                  className="object-cover rounded-full"
+                />
                 <AvatarFallback className="bg-gray-200 dark:bg-gray-700 flex items-center justify-center w-full h-full text-xs font-medium">
                   {getInitials(businessName)}
                 </AvatarFallback>

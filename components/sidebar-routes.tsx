@@ -44,11 +44,13 @@ const actionRoutes: Route[] = [
 
 export const SidebarRoutes = () => {
   const [businessName, setBusinessName] = useState<string>("My Business");
+  const [storeLogo, setStoreLogo] = useState<string | null>(null); // Add this state
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
   // Helper function to get cookie value
   const getCookieValue = (name: string): string | null => {
+    if (typeof window === 'undefined') return null;
     const value = `; ${document.cookie}`;
     const parts = value.split(`; ${name}=`);
     if (parts.length === 2) {
@@ -57,14 +59,50 @@ export const SidebarRoutes = () => {
     return null;
   };
 
-  // Retrieve business name from cookies on mount
+  // Fetch store data including logo
+  const fetchStoreData = async () => {
+    try {
+      console.log('🔄 Sidebar - Fetching store data for logo...');
+      
+      const response = await fetch('/api/store');
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch store data');
+      }
+      
+      const result = await response.json();
+      
+      if (result.status === 'success' && result.data?.storeDetails) {
+        const storeDetails = result.data.storeDetails;
+        
+        // Set store logo if available
+        if (storeDetails.logo) {
+          setStoreLogo(storeDetails.logo);
+          console.log('✅ Sidebar - Logo fetched:', storeDetails.logo);
+        }
+        
+        // Also update business name from API if different from cookie
+        const storeName = storeDetails.store_name;
+        if (storeName && storeName !== businessName) {
+          setBusinessName(storeName);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Sidebar - Error fetching store data:', error);
+      // Don't show toast error here to avoid spamming
+    }
+  };
+
+  // Retrieve business name from cookies and fetch store data on mount
   useEffect(() => {
     const storeName = getCookieValue("store_name");
     if (storeName) {
-      setBusinessName(decodeURIComponent(storeName)); // Decode in case it contains special characters
-    } else {
-      setBusinessName("My Business"); // Fallback
+      setBusinessName(decodeURIComponent(storeName));
     }
+    
+    // Fetch store data including logo
+    fetchStoreData();
   }, []);
 
   // Also listen for cookie changes (e.g., after login)
@@ -168,7 +206,12 @@ export const SidebarRoutes = () => {
           <DropdownMenuTrigger className="w-full"> 
             <div className="flex items-center space-x-3 ml-6 mt-5">
           <Avatar className="w-10 h-10 border rounded-full text-center">
-            <AvatarImage alt={businessName} />
+            {/* Display logo if available, otherwise fallback */}
+            <AvatarImage 
+              src={storeLogo || ""} 
+              alt={businessName} 
+              className="object-cover rounded-full"
+            />
             <AvatarFallback>{getInitials(businessName)}</AvatarFallback>
           </Avatar>
           <div>
