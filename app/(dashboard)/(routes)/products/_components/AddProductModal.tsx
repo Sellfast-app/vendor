@@ -11,11 +11,12 @@ import { Loader2, X, Check } from 'lucide-react';
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { toast } from 'sonner';
+import imageCompression from 'browser-image-compression'; // Import compression library
 
 interface AddProductModalProps {
     isOpen: boolean;
     onClose: () => void;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any 
     onAddProduct: (product: any) => void;
 }
 
@@ -24,6 +25,7 @@ interface UploadedImage {
     progress: number;
     isUploading: boolean;
     id: string;
+    compressedFile?: File; // Store compressed file
 }
 
 interface Variant {
@@ -47,6 +49,50 @@ const getCookie = (name: string): string | null => {
     return null;
 };
 
+// Image compression configuration - silent background compression
+const compressionOptions = {
+    maxSizeMB: 0.8, // Reduced to 800KB for faster uploads
+    maxWidthOrHeight: 1600, // Good resolution for web
+    useWebWorker: true, // Use web worker for better performance
+    initialQuality: 0.65, // Balanced quality vs size
+    fileType: 'image/webp', // Use WebP for better compression (browser support is good)
+    alwaysKeepResolution: false, // Allow resolution reduction for very large images
+    onProgress: undefined // No progress callback - keep it silent
+};
+
+// Silent compression function - no toast messages
+const compressImageSilently = async (file: File): Promise<File> => {
+    try {
+        // Skip compression for already small files
+        if (file.size < 300 * 1024) { // Less than 300KB
+            return file;
+        }
+
+        // Skip compression for WebP files (already compressed)
+        if (file.type === 'image/webp') {
+            return file;
+        }
+
+        const compressedFile = await imageCompression(file, compressionOptions);
+        return compressedFile;
+    } catch (error) {
+        console.error('Silent compression failed, using original:', error);
+        return file; // Fallback to original file silently
+    }
+};
+
+// Process multiple images silently
+const compressImagesSilently = async (files: File[]): Promise<File[]> => {
+    const compressedFiles: File[] = [];
+    
+    for (const file of files) {
+        const compressedFile = await compressImageSilently(file);
+        compressedFiles.push(compressedFile);
+    }
+    
+    return compressedFiles;
+};
+
 export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddProductModalProps) {
     const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
     const [productType, setProductType] = useState<'single' | 'variant'>('single');
@@ -61,48 +107,71 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
     const [status, setStatus] = useState('ready');
     const [isLoading, setIsLoading] = useState(false);
 
-    const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = event.target.files;
         if (!files) return;
 
-        const newImages: UploadedImage[] = [];
+        // Check total number of images won't exceed 5
+        if (uploadedImages.length + files.length > 5) {
+            toast.error(`You can only upload ${5 - uploadedImages.length} more image(s)`);
+            return;
+        }
 
+        // Prepare files for processing
+        const validFiles: File[] = [];
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
-            if (file && file.size <= 10 * 1024 * 1024) {
-                const newImage: UploadedImage = {
-                    file,
-                    progress: 0,
-                    isUploading: true,
-                    id: Math.random().toString(36).substr(2, 9),
-                };
-                newImages.push(newImage);
-            } else {
-                toast.error("File size must be less than 10MB");
-                return;
+            
+            // Basic validation
+            if (!file.type.startsWith('image/')) {
+                toast.error(`${file.name} is not an image file`);
+                continue;
             }
+
+            if (file.size > 10 * 1024 * 1024) {
+                toast.error(`${file.name} exceeds 10MB limit`);
+                continue;
+            }
+
+            validFiles.push(file);
         }
 
-        if (newImages.length > 0) {
-            setUploadedImages(prev => [...prev, ...newImages]);
-            toast.success(`Added ${newImages.length} image(s)`);
+        if (validFiles.length === 0) return;
 
-            newImages.forEach((image, index) => {
-                const timer = setInterval(() => {
-                    setUploadedImages(prev => prev.map(img => {
-                        if (img.id === image.id) {
-                            const newProgress = img.progress + 20;
-                            if (newProgress >= 100) {
-                                clearInterval(timer);
-                                return { ...img, progress: 100, isUploading: false };
-                            }
-                            return { ...img, progress: newProgress };
+        // Show success toast immediately
+        toast.success(`Added ${validFiles.length} image(s)`);
+
+        // Process images silently in the background
+        const compressedFiles = await compressImagesSilently(validFiles);
+
+        // Create new image objects with compressed files
+        const newImages: UploadedImage[] = compressedFiles.map((file, index) => ({
+            file: file,
+            progress: 0,
+            isUploading: true,
+            id: Math.random().toString(36).substr(2, 9),
+            compressedFile: file,
+        }));
+
+        // Add to state
+        setUploadedImages(prev => [...prev, ...newImages]);
+
+        // Simulate upload progress (user sees this as normal upload)
+        newImages.forEach((image, index) => {
+            const timer = setInterval(() => {
+                setUploadedImages(prev => prev.map(img => {
+                    if (img.id === image.id) {
+                        const newProgress = img.progress + 20;
+                        if (newProgress >= 100) {
+                            clearInterval(timer);
+                            return { ...img, progress: 100, isUploading: false };
                         }
-                        return img;
-                    }));
-                }, 300 + (index * 100));
-            });
-        }
+                        return { ...img, progress: newProgress };
+                    }
+                    return img;
+                }));
+            }, 300 + (index * 100));
+        });
     };
 
     const handleRemoveImage = (id: string) => {
@@ -174,10 +243,22 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
             toast.error('Production days are required');
             return;
         }
-    
+
+        // Validate at least one image is uploaded
+        if (uploadedImages.length === 0) {
+            toast.error('Please upload at least one product image');
+            return;
+        }
+
+        // Check if any images are still uploading
+        if (uploadedImages.some(img => img.isUploading)) {
+            toast.error('Please wait for images to finish uploading');
+            return;
+        }
+
         setIsLoading(true);
         const loadingToast = toast.loading('Adding product...');
-    
+
         try {
             // Get store_id from cookies
             const storeId = getCookie('store_id');
@@ -185,7 +266,7 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
             if (!storeId) {
                 throw new Error('Store ID not found. Please login again.');
             }
-    
+
             // Prepare form data
             const formData = new FormData();
             formData.append('name', productName);
@@ -204,7 +285,7 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
             formData.append('est_prod_days_from', prodFrom);
             formData.append('est_prod_days_to', prodTo);
             formData.append('store_id', storeId);
-    
+
             // Handle variants
             let variantsData: ApiVariant[] = [];
             if (productType === 'variant') {
@@ -215,22 +296,24 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
             }
             
             formData.append('variants', JSON.stringify(variantsData));
-    
-            // Add images
-            uploadedImages.forEach(image => {
-                formData.append('files', image.file);
+
+            // Add images (already compressed silently during upload)
+            uploadedImages.forEach((image, index) => {
+                // Use compressed file if available, otherwise use original
+                const fileToSend = image.compressedFile || image.file;
+                formData.append('files', fileToSend, `product-image-${index}.webp`);
             });
-    
+
             // API call
             const response = await fetch('/api/products', {
                 method: 'POST',
                 body: formData,
             });
-    
+
             // Get response text first
             const responseText = await response.text();
             console.log('=== RAW RESPONSE ===', responseText);
-    
+
             let result;
             try {
                 result = JSON.parse(responseText);
@@ -238,26 +321,26 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                 console.error('Failed to parse JSON:', parseError);
                 throw new Error('Server returned invalid response');
             }
-    
+
             console.log('=== PARSED RESULT ===', result);
-    
+
             if (!response.ok) {
                 console.error('API Error Response:', result);
                 throw new Error(result.message || `Failed to add product: ${response.status}`);
             }
-    
+
             // CRITICAL FIX: Check for result.data NOT result.product
             if (!result || result.status !== 'success') {
                 console.error('Unexpected response format:', result);
                 throw new Error(result?.message || 'Unexpected response from server');
             }
-    
+
             // CRITICAL FIX: API returns data in result.data
             if (!result.data || typeof result.data !== 'object') {
                 console.error('Missing product data in response:', result);
                 throw new Error('Product created but server returned incomplete data');
             }
-    
+
             // Transform using result.data (NOT result.product)
             const productData = result.data;
             
@@ -285,16 +368,16 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                 })(),
                 weight: productData.product_weight || weight,
             };
-    
+
             console.log('✅ Successfully created product:', newProduct);
-    
+
             onAddProduct(newProduct);
             toast.dismiss(loadingToast);
             toast.success('Product added successfully! 🎉');
             
             resetForm();
             onClose();
-    
+
         } catch (error) {
             console.error('Error adding product:', error);
             toast.dismiss(loadingToast);
@@ -570,7 +653,9 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                                 <ImageIcon />
                                 <Label
                                     htmlFor="picture"
-                                    className="flex items-center justify-center border rounded-lg p-2 cursor-pointer hover:bg-accent"
+                                    className={`flex items-center justify-center border rounded-lg p-2 ${
+                                        isLoading ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-accent'
+                                    }`}
                                 >
                                     <div className="flex flex-col items-center gap-2">
                                         <span className="text-sm text-muted-foreground">
@@ -639,7 +724,11 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                         <Button variant="outline" className="px-4 py-2 text-sm" onClick={handleClose} disabled={isLoading}>
                             Cancel
                         </Button>
-                        <Button className="px-4 py-2 text-sm" onClick={handleSubmit} disabled={isLoading}>
+                        <Button 
+                            className="px-4 py-2 text-sm" 
+                            onClick={handleSubmit} 
+                            disabled={isLoading || uploadedImages.length === 0}
+                        >
                             {isLoading ? (
                                 <>
                                     <Loader2 className="h-4 w-4 animate-spin mr-2" />

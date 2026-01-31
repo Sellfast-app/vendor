@@ -3,9 +3,25 @@ import { NextRequest, NextResponse } from "next/server";
 
 const API_BASE_URL = "https://api.swiftree.app";
 
-const CACHE_DURATION = 300;
+const CACHE_DURATION = 300; // 5 minutes
 
-const cache = new Map();
+// Store cache with store-specific keys
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const cache = new Map<string, { data: any; timestamp: number }>();
+
+// Helper function to clear all cache entries for a specific store
+function clearStoreCache(storeId: string) {
+  const keysToDelete: string[] = [];
+  
+  cache.forEach((_, key) => {
+    if (key.startsWith(`${storeId}-`)) {
+      keysToDelete.push(key);
+    }
+  });
+  
+  keysToDelete.forEach(key => cache.delete(key));
+  console.log(`✅ Cleared ${keysToDelete.length} cache entries for store ${storeId}`);
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -57,15 +73,23 @@ export async function GET(request: NextRequest) {
     const minPrice = searchParams.get("minPrice") || "";
     const maxPrice = searchParams.get("maxPrice") || "";
     const search = searchParams.get("search") || "";
+    const bustCache = searchParams.get("_t"); // Cache busting parameter
 
-    // Create cache key based on all parameters
+    // Create cache key based on all parameters (excluding _t)
     const cacheKey = `${storeId}-${page}-${pageSize}-${status}-${sort}-${dir}-${minPrice}-${maxPrice}-${search}`;
 
-    // Check cache
-    const cachedData = cache.get(cacheKey);
-    if (cachedData && Date.now() - cachedData.timestamp < CACHE_DURATION * 1000) {
-      console.log('Returning cached products data');
-      return NextResponse.json(cachedData.data);
+    // Check if cache should be bypassed (if _t parameter exists)
+    const shouldBypassCache = !!bustCache;
+
+    // Check cache (only if not bypassing)
+    if (!shouldBypassCache) {
+      const cachedData = cache.get(cacheKey);
+      if (cachedData && Date.now() - cachedData.timestamp < CACHE_DURATION * 1000) {
+        console.log('📦 Returning cached products data');
+        return NextResponse.json(cachedData.data);
+      }
+    } else {
+      console.log('🔄 Cache bypassed due to _t parameter');
     }
 
     // Build query string
@@ -101,18 +125,18 @@ export async function GET(request: NextRequest) {
 
     const result = await response.json();
 
-    // Cache the successful response
-    if (result.status === 'success') {
+    // Cache the successful response (unless bypassing cache)
+    if (result.status === 'success' && !shouldBypassCache) {
       cache.set(cacheKey, {
         data: result,
         timestamp: Date.now()
       });
-      console.log('Cached products data for key:', cacheKey);
+      console.log('💾 Cached products data for key:', cacheKey);
     }
 
     return NextResponse.json(result);
 
-  } // eslint-disable-next-line @typescript-eslint/no-explicit-any  
+  } // eslint-disable-next-line @typescript-eslint/no-explicit-any
   catch (error: any) {
     console.error("Error fetching products:", error);
     return NextResponse.json(
@@ -122,12 +146,12 @@ export async function GET(request: NextRequest) {
   }
 }
 
-
 export async function POST(request: Request) {
   try {
-    // Get token from cookies
+    // Get token and store_id from cookies
     const cookieHeader = request.headers.get("cookie");
     let token = null;
+    let storeId = null;
     
     if (cookieHeader) {
       const cookies = cookieHeader.split(";").reduce((acc, cookie) => {
@@ -136,12 +160,20 @@ export async function POST(request: Request) {
         return acc;
       }, {} as Record<string, string>);
       token = cookies.accessToken || null;
+      storeId = cookies.store_id || null;
     }
     
     if (!token) {
       return NextResponse.json(
         { status: "error", message: "Authentication required" },
         { status: 401 }
+      );
+    }
+
+    if (!storeId) {
+      return NextResponse.json(
+        { status: "error", message: "Store ID not found" },
+        { status: 400 }
       );
     }
     
@@ -153,7 +185,6 @@ export async function POST(request: Request) {
     const timeoutId = setTimeout(() => controller.abort(), 30000);
     
     try {
-      // FIX: Correct the fetch syntax (was using template literal incorrectly)
       const response = await fetch(`${API_BASE_URL}/api/products`, {
         method: "POST",
         headers: {
@@ -193,11 +224,14 @@ export async function POST(request: Request) {
           { status: response.status }
         );
       }
+
+      // ✅ CLEAR CACHE AFTER SUCCESSFUL PRODUCT CREATION
+      clearStoreCache(storeId);
       
       return NextResponse.json(result, { status: response.status });
       
-    } // eslint-disable-next-line @typescript-eslint/no-explicit-any  
-    catch (fetchError: any) {
+    }// eslint-disable-next-line @typescript-eslint/no-explicit-any
+     catch (fetchError: any) {
       clearTimeout(timeoutId);
       
       if (fetchError.name === "AbortError") {
@@ -214,8 +248,8 @@ export async function POST(request: Request) {
       );
     }
     
-  } // eslint-disable-next-line @typescript-eslint/no-explicit-any  
-  catch (error: any) {
+  }// eslint-disable-next-line @typescript-eslint/no-explicit-any
+   catch (error: any) {
     console.error("Unexpected error in products API:", error);
     return NextResponse.json(
       { status: "error", message: "Internal server error" },
