@@ -406,7 +406,7 @@ export default function OrderDetailPage() {
       </div>
     )}
   </CardContent>
-  <CardContent className='border-t p-4'>
+  {/* <CardContent className='border-t p-4'>
     <div className='flex flex-col sm:flex-row gap-2 sm:justify-between'>
       <Button variant="outline" size="sm" className='text-red-500 hover:text-red-600 w-full sm:w-auto'>
         Cancel order
@@ -420,7 +420,7 @@ export default function OrderDetailPage() {
         </Button>
       </div>
     </div>
-  </CardContent>
+  </CardContent> */}
 </Card>
 
           {/* Order Summary Card */}
@@ -457,7 +457,7 @@ export default function OrderDetailPage() {
                 <span>₦{order.payment_status === 'paid' ? total.toLocaleString() : '0.00'}</span>
               </div>
             </CardContent>
-            <CardContent className='border-t p-4'>
+            {/* <CardContent className='border-t p-4'>
               <div className='flex flex-col sm:flex-row gap-2 sm:justify-between'>
                 <Button variant="outline" size="sm" className='text-red-500 hover:text-red-600 w-full sm:w-auto'>
                   Cancel order
@@ -471,7 +471,7 @@ export default function OrderDetailPage() {
                   </Button>
                 </div>
               </div>
-            </CardContent>
+            </CardContent> */}
           </Card>
         </div>
 
