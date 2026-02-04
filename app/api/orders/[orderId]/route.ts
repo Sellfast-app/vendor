@@ -168,6 +168,7 @@ export async function GET(
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const enrichedOrderItems = orderResult.data.order.order_items.map(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (item: any) => {
           const product = productMap.get(item.product_id);
 
@@ -206,8 +207,8 @@ export async function GET(
     }
 
     return NextResponse.json(orderResult);
-  } catch (error: any) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  catch (error: any) {
     console.error("Error fetching order details:", error);
     return NextResponse.json(
       { status: "error", message: "Internal server error" },
@@ -333,7 +334,8 @@ export async function PATCH(
       message: `Order status updated to ${status}`,
       data: result.data,
     });
-  } catch (error: any) {
+  }// eslint-disable-next-line @typescript-eslint/no-explicit-any 
+  catch (error: any) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     console.error("Error updating order status:", error);
     return NextResponse.json(
