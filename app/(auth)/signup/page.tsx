@@ -786,7 +786,7 @@ export default function MultiStepSignupPage() {
       <div className="space-y-3">
         <h3 className="font-bold text-sm">Next Steps</h3>
         <div className="pl-3 text-sm space-y-2">
-          <p>1. Check your WhatsApp for setup instructions</p>
+          <p>1. Check your Email for setup instructions</p>
           <p>2. Add your first products to the catalog</p>
           <p>3. Share your storefront link with customers</p>
           <p>4. Start receiving orders on WhatsApp!</p>
