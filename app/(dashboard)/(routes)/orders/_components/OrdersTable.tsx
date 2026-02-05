@@ -61,7 +61,7 @@ interface Order {
   id: string;
   order_number: string;
   order_status: string;
-  order_total: string;
+  order_total: number;
   order_total_quantity: number;
   payment_status: string;
   payment_method: string;
@@ -69,10 +69,11 @@ interface Order {
   customer_phone: string;
   customer_email: string;
   customer_address: string;
-  delivery_note: string;
-  delivery_fee: string;
+  delivery_notee: string;
+  delivery_fee: number;
   delivery_method: string;
   order_items: Array<{
+    name: string;
     price: number;
     discount: number;
     quantity: number;
@@ -124,41 +125,65 @@ export default function OrderTable() {
       const queryParams = new URLSearchParams({
         page: currentPage.toString(),
         pageSize: pageSize.toString(),
-        ...(searchTerm && { search: searchTerm }),
-        ...(activeTab !== "all" && { status: activeTab }),
-        ...(filterStatus !== "all" && { status: filterStatus }),
-        ...(filterPaymentStatus !== "all" && {
-          paymentStatus: filterPaymentStatus,
-        }),
-        ...(filterDateRange.from && {
-          startDate: filterDateRange.from.toISOString().split("T")[0],
-        }),
-        ...(filterDateRange.to && {
-          endDate: filterDateRange.to.toISOString().split("T")[0],
-        }),
       });
-
+  
+      // Add search if present
+      if (searchTerm) {
+        queryParams.append('search', searchTerm);
+        console.log('🔍 Search term:', searchTerm);
+      }
+  
+      // Handle status filter - activeTab takes precedence
+      const statusToUse = activeTab !== 'all' ? activeTab : (filterStatus !== 'all' ? filterStatus : '');
+      if (statusToUse) {
+        queryParams.append('status', statusToUse);
+        console.log('📊 Status filter:', statusToUse);
+      }
+  
+      // Add payment status filter
+      if (filterPaymentStatus && filterPaymentStatus !== 'all') {
+        queryParams.append('paymentStatus', filterPaymentStatus);
+        console.log('💳 Payment status filter:', filterPaymentStatus);
+      }
+  
+      // Add delivery method filter
+      if (filterDeliveryPartner && filterDeliveryPartner !== 'all') {
+        queryParams.append('deliveryMethod', filterDeliveryPartner);
+        console.log('🚚 Delivery method filter:', filterDeliveryPartner);
+      }
+  
+      // Add date range filters
+      if (filterDateRange.from) {
+        const startDate = filterDateRange.from.toISOString().split('T')[0];
+        queryParams.append('startDate', startDate);
+        console.log('📅 Start date:', startDate);
+      }
+      if (filterDateRange.to) {
+        const endDate = filterDateRange.to.toISOString().split('T')[0];
+        queryParams.append('endDate', endDate);
+        console.log('📅 End date:', endDate);
+      }
+  
+      console.log('🌐 Full API URL:', `/api/orders?${queryParams.toString()}`);
+  
       const response = await fetch(`/api/orders?${queryParams}`);
       const result: ApiResponse = await response.json();
-
-      console.log("API Response:", result); // Add this for debugging
-
+  
+      console.log("📦 Full API Response:", JSON.stringify(result, null, 2));
+  
       if (result.status === "success") {
-        // FIX: Access result.data.items instead of result.data
         const ordersData = result.data.items || [];
         setOrders(ordersData);
-
-        // FIX: Use result.data.total for total count
-        setTotalCount(result.data.total || ordersData.length || 0);
-
-        console.log(`Loaded ${ordersData.length} orders`);
+        setTotalCount(result.data.total || 0);
+        console.log(`✅ Loaded ${ordersData.length} orders out of ${result.data.total} total`);
       } else {
+        console.error('❌ API returned error:', result.message);
         toast.error(result.message || "Failed to fetch orders");
         setOrders([]);
         setTotalCount(0);
       }
     } catch (error) {
-      console.error("Error fetching orders:", error);
+      console.error("❌ Error fetching orders:", error);
       toast.error("Failed to load orders");
       setOrders([]);
       setTotalCount(0);
@@ -167,16 +192,19 @@ export default function OrderTable() {
     }
   };
 
-  useEffect(() => {
-    fetchOrders();
-  }, [
-    currentPage,
-    searchTerm,
-    activeTab,
-    filterStatus,
-    filterPaymentStatus,
-    filterDateRange,
-  ]);
+useEffect(() => {
+  fetchOrders();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [
+  currentPage,
+  searchTerm,
+  activeTab,
+  filterStatus,
+  filterPaymentStatus,
+  filterDeliveryPartner, // <- ADD THIS
+  filterDateRange.from,
+  filterDateRange.to,
+]);
 
   useEffect(() => {
     localStorage.setItem("filteredOrders", JSON.stringify(orders));
@@ -349,7 +377,7 @@ export default function OrderTable() {
                     className={cn(
                       "w-full justify-start text-left font-normal",
                       (!filterDateRange.from || !filterDateRange.to) &&
-                        "text-muted-foreground",
+                      "text-muted-foreground",
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
@@ -419,9 +447,8 @@ export default function OrderTable() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="standard">Standard</SelectItem>
-                  <SelectItem value="express">Express</SelectItem>
                   <SelectItem value="pickup">Pickup</SelectItem>
+                  <SelectItem value="sendbox">Sendbox</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -460,11 +487,10 @@ export default function OrderTable() {
           <Button
             key={tab.key}
             variant="ghost"
-            className={`px-4 rounded-none text-[#A0A0A0] whitespace-nowrap ${
-              activeTab === tab.key
+            className={`px-4 rounded-none text-[#A0A0A0] whitespace-nowrap ${activeTab === tab.key
                 ? "border-b-2 border-[#4FCA6A] text-black dark:text-white"
                 : ""
-            }`}
+              }`}
             onClick={() => {
               setActiveTab(tab.key);
               setCurrentPage(1);
@@ -565,7 +591,7 @@ export default function OrderTable() {
                     </span>
                   </TableCell>
                   <TableCell className="font-semibold">
-                    ₦{parseFloat(order.order_total).toLocaleString()}
+                    ₦{(order.order_total)}
                   </TableCell>
                   <TableCell>{order.order_total_quantity}</TableCell>
                   <TableCell>

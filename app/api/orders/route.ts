@@ -8,7 +8,7 @@ const cache = new Map();
 
 export async function GET(request: NextRequest) {
   try {
-    // Get token from cookies - EXACTLY like products API
+    // Get token from cookies
     const cookieHeader = request.headers.get("cookie");
     let token = null;
 
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get store_id from cookies - EXACTLY like products API
+    // Get store_id from cookies
     let storeId = null;
     if (cookieHeader) {
       const cookies = cookieHeader.split(";").reduce((acc, cookie) => {
@@ -46,43 +46,56 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get query parameters for filtering and pagination
+    // Get query parameters
     const { searchParams } = new URL(request.url);
     const page = searchParams.get("page") || "1";
     const pageSize = searchParams.get("pageSize") || "10";
-    const status = searchParams.get("status") || "";
-    const paymentStatus = searchParams.get("paymentStatus") || "";
-    const search = searchParams.get("search") || "";
-    const startDate = searchParams.get("startDate") || "";
-    const endDate = searchParams.get("endDate") || "";
+    const status = searchParams.get("status");
+    const paymentStatus = searchParams.get("paymentStatus");
+    const search = searchParams.get("search");
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
+    const deliveryMethod = searchParams.get("deliveryMethod");
 
-    // Create cache key based on all parameters
-    const cacheKey = `orders-${storeId}-${page}-${pageSize}-${status}-${paymentStatus}-${search}-${startDate}-${endDate}`;
+    // Create cache key
+    const cacheKey = `orders-${storeId}-${page}-${pageSize}-${status}-${paymentStatus}-${search}-${startDate}-${endDate}-${deliveryMethod}`;
 
     // Check cache
     const cachedData = cache.get(cacheKey);
     if (cachedData && Date.now() - cachedData.timestamp < CACHE_DURATION * 1000) {
-      console.log('Returning cached orders data');
+      console.log('✅ Returning cached orders data');
       return NextResponse.json(cachedData.data);
     }
 
-    // Build query string for the external API
-    const queryParams = new URLSearchParams({
-      page,
-      pageSize,
-      ...(status && { status }),
-      ...(paymentStatus && { paymentStatus }),
-      ...(search && { search }),
-      ...(startDate && { startDate }),
-      ...(endDate && { endDate }),
-    });
+    // Build query string - only add non-empty params
+    const queryParams = new URLSearchParams();
+    queryParams.append('page', page);
+    queryParams.append('pageSize', pageSize);
+    
+    if (status && status !== 'all') {
+      queryParams.append('order_status', status); 
+    }
+    if (paymentStatus && paymentStatus !== 'all') {
+      queryParams.append('payment_status', paymentStatus); 
+    }
+    if (search) {
+      queryParams.append('search', search);
+    }
+    if (startDate) {
+      queryParams.append('start_date', startDate); 
+    }
+    if (endDate) {
+      queryParams.append('end_date', endDate); 
+    }
+    if (deliveryMethod && deliveryMethod !== 'all') {
+      queryParams.append('delivery_method', deliveryMethod); 
+    }
 
     console.log(`🔍 Fetching orders for store: ${storeId}`);
     console.log(`🔍 Query params: ${queryParams.toString()}`);
 
-    // Try the same pattern as products API: /api/orders/store/{storeId}
     const response = await fetch(
-      `${API_BASE_URL}/api/orders/store/${storeId}?${queryParams}`,
+      `${API_BASE_URL}/api/orders/store/${storeId}?${queryParams.toString()}`,
       {
         method: "GET",
         headers: {
@@ -101,7 +114,6 @@ export async function GET(request: NextRequest) {
         const errorData = JSON.parse(errorText);
         errorMessage = errorData.message || errorData.error || errorMessage;
       } catch {
-        // If response is not JSON, use the text as is
         errorMessage = errorText || errorMessage;
       }
 
@@ -112,22 +124,22 @@ export async function GET(request: NextRequest) {
     }
 
     const result = await response.json();
-    console.log(`✅ Successfully fetched ${result.data?.length || 0} orders`);
+    console.log(`✅ Successfully fetched ${result.data?.items?.length || 0} orders out of ${result.data?.total || 0} total`);
 
-    // Cache the successful response
+    // Cache successful response
     if (result.status === 'success') {
       cache.set(cacheKey, {
         data: result,
         timestamp: Date.now()
       });
-      console.log('Cached orders data for key:', cacheKey);
+      console.log('📦 Cached orders data');
     }
 
     return NextResponse.json(result);
 
-  } // eslint-disable-next-line @typescript-eslint/no-explicit-any 
+  }// eslint-disable-next-line @typescript-eslint/no-explicit-any 
   catch (error: any) {
-    console.error("Error fetching orders:", error);
+    console.error("❌ Error fetching orders:", error);
     return NextResponse.json(
       { status: "error", message: "Internal server error" },
       { status: 500 }
