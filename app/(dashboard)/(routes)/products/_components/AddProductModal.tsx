@@ -11,7 +11,8 @@ import { Loader2, X, Check } from 'lucide-react';
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { toast } from 'sonner';
-import imageCompression from 'browser-image-compression'; // Import compression library
+import imageCompression from 'browser-image-compression';
+import { ColorPickerPopup } from '@/components/ColorPicker';
 
 interface AddProductModalProps {
     isOpen: boolean;
@@ -32,11 +33,13 @@ interface Variant {
     id: string;
     size: string | number;
     quantity: number;
+    color: string; 
 }
 
 interface ApiVariant {
     size: string;
     quantity: number;
+    color: string; 
 }
 
 // Cookie utility function
@@ -93,11 +96,31 @@ const compressImagesSilently = async (files: File[]): Promise<File[]> => {
     return compressedFiles;
 };
 
+const PRESET_COLORS = [
+    { name: 'Black', value: '#000000' },
+    { name: 'White', value: '#FFFFFF' },
+    { name: 'Red', value: '#EF4444' },
+    { name: 'Blue', value: '#3B82F6' },
+    { name: 'Green', value: '#10B981' },
+    { name: 'Yellow', value: '#F59E0B' },
+    { name: 'Purple', value: '#A855F7' },
+    { name: 'Pink', value: '#EC4899' },
+    { name: 'Orange', value: '#F97316' },
+    { name: 'Gray', value: '#6B7280' },
+    { name: 'Brown', value: '#92400E' },
+    { name: 'Navy', value: '#1E3A8A' },
+];
+
 export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddProductModalProps) {
     const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
     const [productType, setProductType] = useState<'single' | 'variant'>('single');
-    const [variants, setVariants] = useState<Variant[]>([{ id: Math.random().toString(36).substr(2, 9), size: '', quantity: 0 }]);
-    const [productName, setProductName] = useState('');
+    const [variants, setVariants] = useState<Variant[]>([{ 
+        id: Math.random().toString(36).substr(2, 9), 
+        size: '', 
+        quantity: 0,
+        color: '#000000' 
+    }]);
+     const [productName, setProductName] = useState('');
     const [description, setDescription] = useState('');
     const [price, setPrice] = useState('');
     const [weight, setWeight] = useState('1'); // Default weight to 1kg
@@ -106,6 +129,7 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
     const [prodTo, setProdTo] = useState('');
     const [status, setStatus] = useState('ready');
     const [isLoading, setIsLoading] = useState(false);
+    const [colorPickerOpen, setColorPickerOpen] = useState<string | null>(null);
 
     const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = event.target.files;
@@ -186,7 +210,12 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
     };
 
     const handleAddVariant = () => {
-        setVariants(prev => [...prev, { id: Math.random().toString(36).substr(2, 9), size: '', quantity: 0 }]);
+        setVariants(prev => [...prev, { 
+            id: Math.random().toString(36).substr(2, 9), 
+            size: '', 
+            quantity: 0,
+            color: '#000000' // Add default color
+        }]);
         toast.info("New variant added");
     };
 
@@ -291,7 +320,8 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
             if (productType === 'variant') {
                 variantsData = variants.map(variant => ({
                     size: variant.size.toString(),
-                    quantity: variant.quantity
+                    quantity: variant.quantity,
+                    color: variant.color 
                 }));
             }
             
@@ -390,8 +420,13 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
     const resetForm = () => {
         setUploadedImages([]);
         setProductType('single');
-        setVariants([{ id: Math.random().toString(36).substr(2, 9), size: '', quantity: 0 }]);
-        setProductName('');
+        setVariants([{ 
+            id: Math.random().toString(36).substr(2, 9), 
+            size: '', 
+            quantity: 0,
+            color: '#000000'
+        }]);
+         setProductName('');
         setDescription('');
         setPrice('');
         setWeight('1'); // Reset to default weight
@@ -588,63 +623,94 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                             </div>
 
                             {/* Variants Section */}
-                            {productType === 'variant' && (
-                                <div className="mt-4">
-                                    <h3 className="text-sm font-semibold">Variants</h3>
-                                    <p className="text-xs text-muted-foreground mb-3">Add different sizes and quantities for your product</p>
-                                    {variants.map((variant) => (
-                                        <div key={variant.id} className="mt-4 border border-dashed border-[#4FCA6A] rounded-lg p-4">
-                                            <div className="grid grid-cols-1 gap-4">
-                                                {/* Size Variant */}
-                                                <div>
-                                                    <Label className="text-xs font-light">Size<span className="text-destructive">*</span></Label>
-                                                    <div className="mt-1 flex gap-2">
-                                                        <Input
-                                                            type="text"
-                                                            value={variant.size.toString()}
-                                                            onChange={(e) => handleVariantChange(variant.id, 'size', e.target.value)}
-                                                            placeholder="e.g. small, medium, large"
-                                                            className="w-full"
-                                                            disabled={isLoading}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <Label className="text-xs font-light">Quantity<span className="text-destructive">*</span></Label>
-                                                    <Input
-                                                        type="number"
-                                                        value={variant.quantity}
-                                                        onChange={(e) => handleVariantChange(variant.id, 'quantity', parseInt(e.target.value) || 0)}
-                                                        placeholder="e.g. 10"
-                                                        className="mt-1"
-                                                        disabled={isLoading}
-                                                    />
-                                                </div>
-                                            </div>
-                                            {variants.length > 1 && (
-                                                <Button
-                                                    variant="outline"
-                                                    size="icon"
-                                                    onClick={() => handleRemoveVariant(variant.id)}
-                                                    className="mt-2"
-                                                    disabled={isLoading}
-                                                >
-                                                    <X className="h-4 w-4" />
-                                                </Button>
-                                            )}
-                                        </div>
-                                    ))}
-                                    <Button
-                                        variant="outline"
-                                        className="mt-4 px-4 py-2 text-sm flex items-center gap-2"
-                                        onClick={handleAddVariant}
-                                        disabled={isLoading}
-                                    >
-                                        <Check className="h-4 w-4" />
-                                        Add Another Variant
-                                    </Button>
-                                </div>
-                            )}
+                           
+{productType === 'variant' && (
+    <div className="mt-4">
+        <h3 className="text-sm font-semibold">Variants</h3>
+        <p className="text-xs text-muted-foreground mb-3">Add different sizes, colors and quantities for your product</p>
+        {variants.map((variant) => (
+            <div key={variant.id} className="mt-4 border border-dashed border-[#4FCA6A] rounded-lg p-4">
+                <div className="grid grid-cols-1 gap-4">
+                    {/* Size Variant */}
+                    <div>
+                        <Label className="text-xs font-light">Size<span className="text-destructive">*</span></Label>
+                        <div className="mt-1 flex gap-2">
+                            <Input
+                                type="text"
+                                value={variant.size.toString()}
+                                onChange={(e) => handleVariantChange(variant.id, 'size', e.target.value)}
+                                placeholder="e.g. S, M, L, XL"
+                                className="w-full"
+                                disabled={isLoading}
+                            />
+                        </div>
+                    </div>
+                    
+                    {/* Quantity */}
+                    <div>
+                        <Label className="text-xs font-light">Quantity<span className="text-destructive">*</span></Label>
+                        <Input
+                            type="number"
+                            value={variant.quantity}
+                            onChange={(e) => handleVariantChange(variant.id, 'quantity', parseInt(e.target.value) || 0)}
+                            placeholder="e.g. 10"
+                            className="mt-1"
+                            disabled={isLoading}
+                        />
+                    </div>
+
+                    {/* Color Picker Button */}
+                    <div>
+                        <Label className="text-xs font-light">Color<span className="text-destructive">*</span></Label>
+                        <button
+                            type="button"
+                            onClick={() => setColorPickerOpen(variant.id)}
+                            disabled={isLoading}
+                            className="mt-1 w-full h-10 rounded-md border border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 transition-colors flex items-center gap-2 px-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <div 
+                                className="w-6 h-6 rounded border border-gray-300 dark:border-gray-600"
+                                style={{ backgroundColor: variant.color }}
+                            />
+                            <span className="text-sm font-mono">{variant.color}</span>
+                        </button>
+
+                        {/* Color Picker Popup */}
+                        <ColorPickerPopup
+                            isOpen={colorPickerOpen === variant.id}
+                            onClose={() => setColorPickerOpen(null)}
+                            selectedColor={variant.color}
+                            onColorChange={(newColor) => {
+                                handleVariantChange(variant.id, 'color', newColor);
+                            }}
+                        />
+                    </div>
+                </div>
+                
+                {variants.length > 1 && (
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleRemoveVariant(variant.id)}
+                        className="mt-4"
+                        disabled={isLoading}
+                    >
+                        <X className="h-4 w-4" />
+                    </Button>
+                )}
+            </div>
+        ))}
+        <Button
+            variant="outline"
+            className="mt-4 px-4 py-2 text-sm flex items-center gap-2"
+            onClick={handleAddVariant}
+            disabled={isLoading}
+        >
+            <Check className="h-4 w-4" />
+            Add Another Variant
+        </Button>
+    </div>
+)}
                         </div>
                         <div className='w-full md:w-[50%]'>
                             <h2 className="text-sm font-semibold"> Product Image</h2>
