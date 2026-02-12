@@ -12,7 +12,6 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import { toast } from 'sonner';
 import imageCompression from 'browser-image-compression';
-import { ColorPickerPopup } from '@/components/ColorPicker';
 
 interface AddProductModalProps {
     isOpen: boolean;
@@ -26,20 +25,20 @@ interface UploadedImage {
     progress: number;
     isUploading: boolean;
     id: string;
-    compressedFile?: File; // Store compressed file
+    compressedFile?: File;
 }
 
 interface Variant {
     id: string;
     size: string | number;
     quantity: number;
-    color: string; 
+    color: string;
 }
 
 interface ApiVariant {
     size: string;
     quantity: number;
-    color: string; 
+    color: string;
 }
 
 // Cookie utility function
@@ -54,62 +53,62 @@ const getCookie = (name: string): string | null => {
 
 // Image compression configuration - silent background compression
 const compressionOptions = {
-    maxSizeMB: 0.8, // Reduced to 800KB for faster uploads
-    maxWidthOrHeight: 1600, // Good resolution for web
-    useWebWorker: true, // Use web worker for better performance
-    initialQuality: 0.65, // Balanced quality vs size
-    fileType: 'image/webp', // Use WebP for better compression (browser support is good)
-    alwaysKeepResolution: false, // Allow resolution reduction for very large images
-    onProgress: undefined // No progress callback - keep it silent
+    maxSizeMB: 0.8,
+    maxWidthOrHeight: 1600,
+    useWebWorker: true,
+    initialQuality: 0.65,
+    fileType: 'image/webp',
+    alwaysKeepResolution: false,
+    onProgress: undefined
 };
 
 // Silent compression function - no toast messages
 const compressImageSilently = async (file: File): Promise<File> => {
     try {
-        // Skip compression for already small files
-        if (file.size < 300 * 1024) { // Less than 300KB
-            return file;
-        }
-
-        // Skip compression for WebP files (already compressed)
-        if (file.type === 'image/webp') {
-            return file;
-        }
-
+        if (file.size < 300 * 1024) return file;
+        if (file.type === 'image/webp') return file;
         const compressedFile = await imageCompression(file, compressionOptions);
         return compressedFile;
     } catch (error) {
         console.error('Silent compression failed, using original:', error);
-        return file; // Fallback to original file silently
+        return file;
     }
 };
 
 // Process multiple images silently
 const compressImagesSilently = async (files: File[]): Promise<File[]> => {
     const compressedFiles: File[] = [];
-    
     for (const file of files) {
         const compressedFile = await compressImageSilently(file);
         compressedFiles.push(compressedFile);
     }
-    
     return compressedFiles;
 };
 
-const PRESET_COLORS = [
-    { name: 'Black', value: '#000000' },
-    { name: 'White', value: '#FFFFFF' },
-    { name: 'Red', value: '#EF4444' },
-    { name: 'Blue', value: '#3B82F6' },
-    { name: 'Green', value: '#10B981' },
-    { name: 'Yellow', value: '#F59E0B' },
-    { name: 'Purple', value: '#A855F7' },
-    { name: 'Pink', value: '#EC4899' },
-    { name: 'Orange', value: '#F97316' },
-    { name: 'Gray', value: '#6B7280' },
-    { name: 'Brown', value: '#92400E' },
-    { name: 'Navy', value: '#1E3A8A' },
-];
+// Helper to check if a color string is valid (name like 'red' or hex like '#FF0000')
+const isValidColor = (color: string): boolean => {
+    if (!color.trim()) return false;
+    const s = new Option().style;
+    s.color = color;
+    return s.color !== '';
+};
+
+// Resolve a color name or hex to a hex string for the swatch
+const resolveColorToHex = (color: string): string => {
+    if (!isValidColor(color)) return '';
+    try {
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 1;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return '';
+        ctx.fillStyle = color;
+        ctx.fillRect(0, 0, 1, 1);
+        const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+    } catch {
+        return '';
+    }
+};
 
 export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddProductModalProps) {
     const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
@@ -120,56 +119,46 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
         quantity: 0,
         color: '#000000' 
     }]);
-     const [productName, setProductName] = useState('');
+    const [productName, setProductName] = useState('');
     const [description, setDescription] = useState('');
     const [price, setPrice] = useState('');
-    const [weight, setWeight] = useState('1'); // Default weight to 1kg
+    const [weight, setWeight] = useState('1');
     const [quantity, setQuantity] = useState('');
     const [prodFrom, setProdFrom] = useState('');
     const [prodTo, setProdTo] = useState('');
     const [status, setStatus] = useState('ready');
     const [isLoading, setIsLoading] = useState(false);
-    const [colorPickerOpen, setColorPickerOpen] = useState<string | null>(null);
 
     const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = event.target.files;
         if (!files) return;
 
-        // Check total number of images won't exceed 5
         if (uploadedImages.length + files.length > 5) {
             toast.error(`You can only upload ${5 - uploadedImages.length} more image(s)`);
             return;
         }
 
-        // Prepare files for processing
         const validFiles: File[] = [];
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
-            
-            // Basic validation
             if (!file.type.startsWith('image/')) {
                 toast.error(`${file.name} is not an image file`);
                 continue;
             }
-
             if (file.size > 10 * 1024 * 1024) {
                 toast.error(`${file.name} exceeds 10MB limit`);
                 continue;
             }
-
             validFiles.push(file);
         }
 
         if (validFiles.length === 0) return;
 
-        // Show success toast immediately
         toast.success(`Added ${validFiles.length} image(s)`);
 
-        // Process images silently in the background
         const compressedFiles = await compressImagesSilently(validFiles);
 
-        // Create new image objects with compressed files
-        const newImages: UploadedImage[] = compressedFiles.map((file, index) => ({
+        const newImages: UploadedImage[] = compressedFiles.map((file) => ({
             file: file,
             progress: 0,
             isUploading: true,
@@ -177,10 +166,8 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
             compressedFile: file,
         }));
 
-        // Add to state
         setUploadedImages(prev => [...prev, ...newImages]);
 
-        // Simulate upload progress (user sees this as normal upload)
         newImages.forEach((image, index) => {
             const timer = setInterval(() => {
                 setUploadedImages(prev => prev.map(img => {
@@ -209,12 +196,16 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
         ));
     };
 
+    const handleColorInputChange = (variantId: string, rawValue: string) => {
+        handleVariantChange(variantId, 'color', rawValue);
+    };
+
     const handleAddVariant = () => {
         setVariants(prev => [...prev, { 
             id: Math.random().toString(36).substr(2, 9), 
             size: '', 
             quantity: 0,
-            color: '#000000' // Add default color
+            color: '#000000'
         }]);
         toast.info("New variant added");
     };
@@ -243,60 +234,32 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
     };
 
     const handleSubmit = async () => {
-        // Validation with detailed toast messages
-        if (!productName.trim()) {
-            toast.error('Product name is required');
-            return;
-        }
-        if (!description.trim()) {
-            toast.error('Description is required');
-            return;
-        }
-        if (!price || parseFloat(price) <= 0) {
-            toast.error('Valid price is required');
-            return;
-        }
-        if (!weight || parseFloat(weight) <= 0) {
-            toast.error('Valid weight is required');
-            return;
-        }
+        if (!productName.trim()) { toast.error('Product name is required'); return; }
+        if (!description.trim()) { toast.error('Description is required'); return; }
+        if (!price || parseFloat(price) <= 0) { toast.error('Valid price is required'); return; }
+        if (!weight || parseFloat(weight) <= 0) { toast.error('Valid weight is required'); return; }
         if (productType === 'single' && (!quantity || parseInt(quantity) <= 0)) {
-            toast.error('Quantity is required for single products');
-            return;
+            toast.error('Quantity is required for single products'); return;
         }
         if (productType === 'variant' && variants.some(v => !v.size || v.quantity <= 0)) {
-            toast.error('All variants must have size and quantity');
-            return;
+            toast.error('All variants must have size and quantity'); return;
         }
-        if (!prodFrom || !prodTo) {
-            toast.error('Production days are required');
-            return;
+        if (productType === 'variant' && variants.some(v => !isValidColor(v.color))) {
+            toast.error('All variants must have a valid color (e.g. red, blue, #FF0000)'); return;
         }
-
-        // Validate at least one image is uploaded
-        if (uploadedImages.length === 0) {
-            toast.error('Please upload at least one product image');
-            return;
-        }
-
-        // Check if any images are still uploading
+        if (!prodFrom || !prodTo) { toast.error('Production days are required'); return; }
+        if (uploadedImages.length === 0) { toast.error('Please upload at least one product image'); return; }
         if (uploadedImages.some(img => img.isUploading)) {
-            toast.error('Please wait for images to finish uploading');
-            return;
+            toast.error('Please wait for images to finish uploading'); return;
         }
 
         setIsLoading(true);
         const loadingToast = toast.loading('Adding product...');
 
         try {
-            // Get store_id from cookies
             const storeId = getCookie('store_id');
-            
-            if (!storeId) {
-                throw new Error('Store ID not found. Please login again.');
-            }
+            if (!storeId) throw new Error('Store ID not found. Please login again.');
 
-            // Prepare form data
             const formData = new FormData();
             formData.append('name', productName);
             formData.append('description', description);
@@ -305,7 +268,6 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
             formData.append('status', mapStatusToApi(status));
             formData.append('weight', weight);
             
-            // Calculate total quantity
             const totalQuantity = productType === 'single' 
                 ? parseInt(quantity).toString() 
                 : variants.reduce((sum, v) => sum + v.quantity, 0).toString();
@@ -315,65 +277,36 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
             formData.append('est_prod_days_to', prodTo);
             formData.append('store_id', storeId);
 
-            // Handle variants
             let variantsData: ApiVariant[] = [];
             if (productType === 'variant') {
                 variantsData = variants.map(variant => ({
                     size: variant.size.toString(),
                     quantity: variant.quantity,
-                    color: variant.color 
+                    color: variant.color
                 }));
             }
-            
             formData.append('variants', JSON.stringify(variantsData));
 
-            // Add images (already compressed silently during upload)
             uploadedImages.forEach((image, index) => {
-                // Use compressed file if available, otherwise use original
                 const fileToSend = image.compressedFile || image.file;
                 formData.append('files', fileToSend, `product-image-${index}.webp`);
             });
 
-            // API call
-            const response = await fetch('/api/products', {
-                method: 'POST',
-                body: formData,
-            });
+            const response = await fetch('/api/products', { method: 'POST', body: formData });
 
-            // Get response text first
             const responseText = await response.text();
-            console.log('=== RAW RESPONSE ===', responseText);
-
             let result;
             try {
                 result = JSON.parse(responseText);
-            } catch (parseError) {
-                console.error('Failed to parse JSON:', parseError);
+            } catch {
                 throw new Error('Server returned invalid response');
             }
 
-            console.log('=== PARSED RESULT ===', result);
+            if (!response.ok) throw new Error(result.message || `Failed to add product: ${response.status}`);
+            if (!result || result.status !== 'success') throw new Error(result?.message || 'Unexpected response from server');
+            if (!result.data || typeof result.data !== 'object') throw new Error('Product created but server returned incomplete data');
 
-            if (!response.ok) {
-                console.error('API Error Response:', result);
-                throw new Error(result.message || `Failed to add product: ${response.status}`);
-            }
-
-            // CRITICAL FIX: Check for result.data NOT result.product
-            if (!result || result.status !== 'success') {
-                console.error('Unexpected response format:', result);
-                throw new Error(result?.message || 'Unexpected response from server');
-            }
-
-            // CRITICAL FIX: API returns data in result.data
-            if (!result.data || typeof result.data !== 'object') {
-                console.error('Missing product data in response:', result);
-                throw new Error('Product created but server returned incomplete data');
-            }
-
-            // Transform using result.data (NOT result.product)
             const productData = result.data;
-            
             const newProduct = {
                 sku: productData.product_sku || `SKU-${Date.now()}`,
                 productName: productData.product_name || productName,
@@ -386,11 +319,9 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                 thumbnail: productData.product_images?.[0] || '/thumbnails/default.png',
                 variants: (() => {
                     try {
-                        const variantsData = productData.variants;
-                        if (!variantsData) return [];
-                        return typeof variantsData === 'string' 
-                            ? JSON.parse(variantsData || '[]')
-                            : variantsData || [];
+                        const vData = productData.variants;
+                        if (!vData) return [];
+                        return typeof vData === 'string' ? JSON.parse(vData || '[]') : vData || [];
                     } catch (e) {
                         console.error('Error parsing variants:', e);
                         return [];
@@ -399,12 +330,9 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                 weight: productData.product_weight || weight,
             };
 
-            console.log('✅ Successfully created product:', newProduct);
-
             onAddProduct(newProduct);
             toast.dismiss(loadingToast);
             toast.success('Product added successfully! 🎉');
-            
             resetForm();
             onClose();
 
@@ -420,16 +348,11 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
     const resetForm = () => {
         setUploadedImages([]);
         setProductType('single');
-        setVariants([{ 
-            id: Math.random().toString(36).substr(2, 9), 
-            size: '', 
-            quantity: 0,
-            color: '#000000'
-        }]);
-         setProductName('');
+        setVariants([{ id: Math.random().toString(36).substr(2, 9), size: '', quantity: 0, color: '#000000' }]);
+        setProductName('');
         setDescription('');
         setPrice('');
-        setWeight('1'); // Reset to default weight
+        setWeight('1');
         setQuantity('');
         setProdFrom('');
         setProdTo('');
@@ -441,17 +364,12 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
             toast.warning('Please wait while we finish adding your product');
             return;
         }
-        
-        // Check if form has data and confirm close
         const hasData = productName || description || price || uploadedImages.length > 0;
         if (hasData) {
             toast('You have unsaved changes. Are you sure you want to close?', {
                 action: {
                     label: 'Yes, close',
-                    onClick: () => {
-                        toast.info('Form closed without saving');
-                        onClose();
-                    }
+                    onClick: () => { toast.info('Form closed without saving'); onClose(); }
                 },
                 cancel: {
                     label: 'Cancel',
@@ -486,9 +404,10 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                             <X className="h-5 w-5" />
                         </Button>
                     </div>
+
                     <div className='flex flex-col md:flex-row w-full gap-3 mt-2'>
                         <div className='w-full md:w-[50%]'>
-                            <h2 className="text-sm font-semibold"> Basic Information</h2>
+                            <h2 className="text-sm font-semibold">Basic Information</h2>
                             <div>
                                 <Label className='text-xs font-light mt-4 mb-1' htmlFor='product'>
                                     Product Name<span className="text-destructive">*</span>
@@ -497,13 +416,14 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                                     id='product'
                                     value={productName}
                                     onChange={(e) => setProductName(e.target.value)}
-                                    className=''
                                     placeholder='e.g. Premium Wireless Headphones'
                                     disabled={isLoading}
                                 />
                             </div>
                             <div>
-                                <Label className='text-xs font-light mt-4 mb-1' htmlFor='description'>Description<span className="text-destructive">*</span></Label>
+                                <Label className='text-xs font-light mt-4 mb-1' htmlFor='description'>
+                                    Description<span className="text-destructive">*</span>
+                                </Label>
                                 <Textarea
                                     id='description'
                                     value={description}
@@ -513,16 +433,17 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                                     maxLength={500}
                                     disabled={isLoading}
                                 />
-                                <div className="text-right text-xs">
-                                    {description.length}/500
-                                </div>
+                                <div className="text-right text-xs">{description.length}/500</div>
                             </div>
-                            <h2 className="text-sm font-semibold pt-4"> Product Type & Status</h2>
+
+                            <h2 className="text-sm font-semibold pt-4">Product Type & Status</h2>
                             <div>
-                                <Label className='text-xs font-light mt-4 mb-2' htmlFor='product-type'>Product Type<span className="text-destructive">*</span></Label>
-                                <RadioGroup 
-                                    id='product-type' 
-                                    value={productType} 
+                                <Label className='text-xs font-light mt-4 mb-2' htmlFor='product-type'>
+                                    Product Type<span className="text-destructive">*</span>
+                                </Label>
+                                <RadioGroup
+                                    id='product-type'
+                                    value={productType}
                                     onValueChange={(value) => {
                                         setProductType(value as 'single' | 'variant');
                                         toast.info(`Product type set to: ${value}`);
@@ -540,7 +461,9 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                                 </RadioGroup>
                             </div>
                             <div>
-                                <Label className='text-xs font-light mt-4 mb-2'>Product Status<span className="text-destructive">*</span></Label>
+                                <Label className='text-xs font-light mt-4 mb-2'>
+                                    Product Status<span className="text-destructive">*</span>
+                                </Label>
                                 <Select value={status} onValueChange={(value) => {
                                     setStatus(value);
                                     toast.info(`Status set to: ${value}`);
@@ -555,15 +478,17 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                                     </SelectContent>
                                 </Select>
                             </div>
+
                             <h2 className="text-sm font-semibold pt-4">Pricing & Inventory</h2>
                             <div className='flex gap-1'>
                                 <div>
-                                    <Label className='text-xs font-light mt-4 mb-1' htmlFor='price'>Price<span className="text-destructive">*</span></Label>
+                                    <Label className='text-xs font-light mt-4 mb-1' htmlFor='price'>
+                                        Price<span className="text-destructive">*</span>
+                                    </Label>
                                     <Input
                                         id='price'
                                         value={price}
                                         onChange={(e) => setPrice(e.target.value)}
-                                        className=''
                                         placeholder='e.g. 40000.00'
                                         type='number'
                                         step='0.01'
@@ -571,12 +496,13 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                                     />
                                 </div>
                                 <div>
-                                    <Label className='text-xs font-light mt-4 mb-1' htmlFor='weight'>Weight (kg)<span className="text-destructive">*</span></Label>
+                                    <Label className='text-xs font-light mt-4 mb-1' htmlFor='weight'>
+                                        Weight (kg)<span className="text-destructive">*</span>
+                                    </Label>
                                     <Input
                                         id='weight'
                                         value={weight}
                                         onChange={(e) => setWeight(e.target.value)}
-                                        className=''
                                         placeholder='1'
                                         type='number'
                                         step='0.1'
@@ -585,13 +511,14 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                                     />
                                 </div>
                                 <div>
-                                    <Label className='text-xs font-light mt-4 mb-1' htmlFor='quantity'>Quantity<span className="text-destructive">*</span></Label>
+                                    <Label className='text-xs font-light mt-4 mb-1' htmlFor='quantity'>
+                                        Quantity<span className="text-destructive">*</span>
+                                    </Label>
                                     <Input
                                         id='quantity'
                                         type='number'
                                         value={quantity}
                                         onChange={(e) => setQuantity(e.target.value)}
-                                        className=''
                                         placeholder='0'
                                         disabled={productType === 'variant' || isLoading}
                                     />
@@ -599,23 +526,25 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                             </div>
                             <div className='flex gap-1 w-full'>
                                 <div className='w-[50%]'>
-                                    <Label className='text-xs font-light mt-4 mb-1'>Estimated Production Days (From)<span className="text-destructive">*</span></Label>
+                                    <Label className='text-xs font-light mt-4 mb-1'>
+                                        Estimated Production Days (From)<span className="text-destructive">*</span>
+                                    </Label>
                                     <Input
                                         type='number'
                                         value={prodFrom}
                                         onChange={(e) => setProdFrom(e.target.value)}
-                                        className=''
                                         placeholder='2'
                                         disabled={isLoading}
                                     />
                                 </div>
                                 <div className='w-[50%]'>
-                                    <Label className='text-xs font-light mt-4 mb-1'>Estimated Production Days (To)<span className="text-destructive">*</span></Label>
+                                    <Label className='text-xs font-light mt-4 mb-1'>
+                                        Estimated Production Days (To)<span className="text-destructive">*</span>
+                                    </Label>
                                     <Input
                                         type='number'
                                         value={prodTo}
                                         onChange={(e) => setProdTo(e.target.value)}
-                                        className=''
                                         placeholder='5'
                                         disabled={isLoading}
                                     />
@@ -623,97 +552,110 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                             </div>
 
                             {/* Variants Section */}
-                           
-{productType === 'variant' && (
-    <div className="mt-4">
-        <h3 className="text-sm font-semibold">Variants</h3>
-        <p className="text-xs text-muted-foreground mb-3">Add different sizes, colors and quantities for your product</p>
-        {variants.map((variant) => (
-            <div key={variant.id} className="mt-4 border border-dashed border-[#4FCA6A] rounded-lg p-4">
-                <div className="grid grid-cols-1 gap-4">
-                    {/* Size Variant */}
-                    <div>
-                        <Label className="text-xs font-light">Size<span className="text-destructive">*</span></Label>
-                        <div className="mt-1 flex gap-2">
-                            <Input
-                                type="text"
-                                value={variant.size.toString()}
-                                onChange={(e) => handleVariantChange(variant.id, 'size', e.target.value)}
-                                placeholder="e.g. S, M, L, XL"
-                                className="w-full"
-                                disabled={isLoading}
-                            />
-                        </div>
-                    </div>
-                    
-                    {/* Quantity */}
-                    <div>
-                        <Label className="text-xs font-light">Quantity<span className="text-destructive">*</span></Label>
-                        <Input
-                            type="number"
-                            value={variant.quantity}
-                            onChange={(e) => handleVariantChange(variant.id, 'quantity', parseInt(e.target.value) || 0)}
-                            placeholder="e.g. 10"
-                            className="mt-1"
-                            disabled={isLoading}
-                        />
-                    </div>
+                            {productType === 'variant' && (
+                                <div className="mt-4">
+                                    <h3 className="text-sm font-semibold">Variants</h3>
+                                    <p className="text-xs text-muted-foreground mb-3">
+                                        Add different sizes, colors and quantities for your product
+                                    </p>
+                                    {variants.map((variant) => (
+                                        <div key={variant.id} className="mt-4 border border-dashed border-[#4FCA6A] rounded-lg p-4">
+                                            <div className="grid grid-cols-1 gap-4">
+                                                {/* Size */}
+                                                <div>
+                                                    <Label className="text-xs font-light">
+                                                        Size<span className="text-destructive">*</span>
+                                                    </Label>
+                                                    <Input
+                                                        type="text"
+                                                        value={variant.size.toString()}
+                                                        onChange={(e) => handleVariantChange(variant.id, 'size', e.target.value)}
+                                                        placeholder="e.g. S, M, L, XL"
+                                                        className="mt-1 w-full"
+                                                        disabled={isLoading}
+                                                    />
+                                                </div>
 
-                    {/* Color Picker Button */}
-                    <div>
-                        <Label className="text-xs font-light">Color<span className="text-destructive">*</span></Label>
-                        <button
-                            type="button"
-                            onClick={() => setColorPickerOpen(variant.id)}
-                            disabled={isLoading}
-                            className="mt-1 w-full h-10 rounded-md border border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 transition-colors flex items-center gap-2 px-3 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <div 
-                                className="w-6 h-6 rounded border border-gray-300 dark:border-gray-600"
-                                style={{ backgroundColor: variant.color }}
-                            />
-                            <span className="text-sm font-mono">{variant.color}</span>
-                        </button>
+                                                {/* Quantity */}
+                                                <div>
+                                                    <Label className="text-xs font-light">
+                                                        Quantity<span className="text-destructive">*</span>
+                                                    </Label>
+                                                    <Input
+                                                        type="number"
+                                                        value={variant.quantity}
+                                                        onChange={(e) => handleVariantChange(variant.id, 'quantity', parseInt(e.target.value) || 0)}
+                                                        placeholder="e.g. 10"
+                                                        className="mt-1"
+                                                        disabled={isLoading}
+                                                    />
+                                                </div>
 
-                        {/* Color Picker Popup */}
-                        <ColorPickerPopup
-                            isOpen={colorPickerOpen === variant.id}
-                            onClose={() => setColorPickerOpen(null)}
-                            selectedColor={variant.color}
-                            onColorChange={(newColor) => {
-                                handleVariantChange(variant.id, 'color', newColor);
-                            }}
-                        />
-                    </div>
-                </div>
-                
-                {variants.length > 1 && (
-                    <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => handleRemoveVariant(variant.id)}
-                        className="mt-4"
-                        disabled={isLoading}
-                    >
-                        <X className="h-4 w-4" />
-                    </Button>
-                )}
-            </div>
-        ))}
-        <Button
-            variant="outline"
-            className="mt-4 px-4 py-2 text-sm flex items-center gap-2"
-            onClick={handleAddVariant}
-            disabled={isLoading}
-        >
-            <Check className="h-4 w-4" />
-            Add Another Variant
-        </Button>
-    </div>
-)}
+                                                {/* Color Input */}
+                                                <div>
+                                                    <Label className="text-xs font-light">
+                                                        Color<span className="text-destructive">*</span>
+                                                    </Label>
+                                                    <div className="mt-1 flex items-center gap-2">
+                                                        {/* Color indicator swatch */}
+                                                        <div
+                                                            className="w-10 h-10 rounded-md border-2 flex-shrink-0 transition-colors duration-200"
+                                                            style={{
+                                                                backgroundColor: isValidColor(variant.color)
+                                                                    ? resolveColorToHex(variant.color)
+                                                                    : '#e5e7eb',
+                                                                borderColor: isValidColor(variant.color)
+                                                                    ? resolveColorToHex(variant.color)
+                                                                    : '#d1d5db',
+                                                            }}
+                                                        />
+                                                        {/* Text input */}
+                                                        <Input
+                                                            type="text"
+                                                            value={variant.color}
+                                                            onChange={(e) => handleColorInputChange(variant.id, e.target.value)}
+                                                            placeholder="e.g. black, red, blue"
+                                                            className="flex-1 text-sm"
+                                                            disabled={isLoading}
+                                                        />
+                                                    </div>
+                                                    {variant.color && !isValidColor(variant.color) && (
+                                                        <p className="text-xs text-destructive mt-1">
+                                                            Enter a valid color name (e.g. black, red, navy)
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {variants.length > 1 && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="icon"
+                                                    onClick={() => handleRemoveVariant(variant.id)}
+                                                    className="mt-4"
+                                                    disabled={isLoading}
+                                                >
+                                                    <X className="h-4 w-4" />
+                                                </Button>
+                                            )}
+                                        </div>
+                                    ))}
+                                    <Button
+                                        variant="outline"
+                                        className="mt-4 px-4 py-2 text-sm flex items-center gap-2"
+                                        onClick={handleAddVariant}
+                                        disabled={isLoading}
+                                    >
+                                        <Check className="h-4 w-4" />
+                                        Add Another Variant
+                                    </Button>
+                                </div>
+                            )}
                         </div>
+
+                        {/* Right - Image Upload */}
                         <div className='w-full md:w-[50%]'>
-                            <h2 className="text-sm font-semibold"> Product Image</h2>
+                            <h2 className="text-sm font-semibold">Product Image</h2>
                             <p className="text-xs text-muted-foreground">Upload product images (max 5)</p>
                             <div className='border border-dashed border-[#4FCA6A] rounded-lg w-full h-75 mt-4 flex flex-col items-center justify-center gap-3 py-3'>
                                 <ImageIcon />
@@ -723,11 +665,7 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                                         isLoading ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-accent'
                                     }`}
                                 >
-                                    <div className="flex flex-col items-center gap-2">
-                                        <span className="text-sm text-muted-foreground">
-                                            Upload Picture
-                                        </span>
-                                    </div>
+                                    <span className="text-sm text-muted-foreground">Upload Picture</span>
                                 </Label>
                                 <Input
                                     id="picture"
@@ -738,8 +676,9 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                                     onChange={handleImageUpload}
                                     disabled={isLoading}
                                 />
-                                <p className='text-xs text-[#A0A0A0]'>PNG,JPG,GIF up to 10MB, max 5 images</p>
+                                <p className='text-xs text-[#A0A0A0]'>PNG, JPG, GIF up to 10MB, max 5 images</p>
                             </div>
+
                             {uploadedImages.length > 0 && (
                                 <div className="mt-4">
                                     <div className="flex flex-wrap gap-2">
@@ -778,21 +717,20 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                                         ))}
                                     </div>
                                     {uploadedImages.length >= 5 && (
-                                        <p className="text-xs text-destructive mt-2">
-                                            Maximum 5 images reached
-                                        </p>
+                                        <p className="text-xs text-destructive mt-2">Maximum 5 images reached</p>
                                     )}
                                 </div>
                             )}
                         </div>
                     </div>
+
                     <div className='flex justify-end gap-2 border-t mt-4 pt-4'>
                         <Button variant="outline" className="px-4 py-2 text-sm" onClick={handleClose} disabled={isLoading}>
                             Cancel
                         </Button>
-                        <Button 
-                            className="px-4 py-2 text-sm" 
-                            onClick={handleSubmit} 
+                        <Button
+                            className="px-4 py-2 text-sm"
+                            onClick={handleSubmit}
                             disabled={isLoading || uploadedImages.length === 0}
                         >
                             {isLoading ? (
