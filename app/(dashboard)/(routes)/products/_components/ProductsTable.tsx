@@ -514,6 +514,7 @@ export default function ProductTable() {
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Sales</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Status</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Actions</TableHead>
+            
           </TableRow>
         </TableHeader>
         <TableBody>

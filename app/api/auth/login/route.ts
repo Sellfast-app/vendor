@@ -1,7 +1,7 @@
 // app/api/auth/login/route.ts
 import { NextResponse } from "next/server";
 
-const API_BASE_URL = "https://api.swiftree.app";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const EXTERNAL_API_TIMEOUT = 15000; // Increased to 15 seconds
 
 // Cache for rate limiting (in-memory, for production use Redis)
