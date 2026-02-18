@@ -355,7 +355,6 @@ export default function MultiStepSignupPage() {
   
       const result: RegisterResponse = await response.json();
   
-      console.log('Registration response:', result);
   
       if (!response.ok || !result.success) {
         throw new Error(result.message || 'Failed to create account');
