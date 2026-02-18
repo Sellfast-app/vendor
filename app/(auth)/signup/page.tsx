@@ -344,7 +344,6 @@ export default function MultiStepSignupPage() {
         business_details: formData.business_details,
       };
   
-      console.log('Sending registration payload:', JSON.stringify(payload, null, 2));
   
       const response = await fetch('/api/auth/register', {
         method: 'POST',
