@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const API_BASE_URL = "https://api.swiftree.app";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const INTERNAL_SECRET = process.env.INTERNAL_SECRET; // Make sure this is set in your environment
 
 export async function POST(request: Request) {
