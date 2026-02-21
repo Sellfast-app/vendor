@@ -584,7 +584,7 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                                                     <Input
                                                         type="number"
                                                         value={variant.quantity}
-                                                        onChange={(e) => handleVariantChange(variant.id, 'quantity', parseInt(e.target.value) || 0)}
+                                                        onChange={(e) => handleVariantChange(variant.id, 'quantity', parseInt(e.target.value) )}
                                                         placeholder="e.g. 10"
                                                         className="mt-1"
                                                         disabled={isLoading}
