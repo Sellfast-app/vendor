@@ -60,11 +60,13 @@ interface StoreDetails {
   logo?: string | null;
   banner?: string | null;
   metadata?: StoreMetadata;
+  enabled_fulfillment_modes?: string[];
 }
 
 function StorefrontComponent() {
   const [isEditingStorefront, setIsEditingStorefront] = useState(false);
   const [isEditingTheme, setIsEditingTheme] = useState(false);
+  const [isEditingDeliveryMethod, setIsEditingDeliveryMethod] = useState(false);
   const [showDeleteSection, setShowDeleteSection] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [isAddBankModalOpen, setIsAddBankModalOpen] = useState(false);
@@ -73,6 +75,7 @@ function StorefrontComponent() {
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
   const [isSavingTheme, setIsSavingTheme] = useState(false);
+  const [isSavingDeliveryMethod, setIsSavingDeliveryMethod] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
@@ -92,6 +95,11 @@ function StorefrontComponent() {
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [themeColor, setThemeColor] = useState("Surge Green");
   const [availabilityEnabled, setAvailabilityEnabled] = useState(true);
+  const [deliveryMethods, setDeliveryMethods] = useState({
+    pickup: false,
+    platform: false,
+    vendor: false
+  });
 
   // Function to get theme colors based on theme name
   const getThemeColors = (themeName: string): BrandColor => {
@@ -113,7 +121,7 @@ function StorefrontComponent() {
     if (primary === '#3B82F6') return "Ocean Blue";
     if (primary === '#F97316') return "Sunset Orange";
     if (primary === '#8B5CF6') return "Purple Elegance";
-    return "Surge Green"; // Default
+    return "Surge Green";
   };
 
   // Fetch store data from API
@@ -159,7 +167,6 @@ function StorefrontComponent() {
           if (!brandColor.primary && typeof window !== 'undefined') {
             const storedTheme = localStorage.getItem('colorScheme');
             if (storedTheme) {
-              // Map localStorage theme to display name
               const themeDisplayMap: Record<string, string> = {
                 'surge-green': 'Surge Green',
                 'ocean-blue': 'Ocean Blue',
@@ -174,7 +181,7 @@ function StorefrontComponent() {
           }
 
           // Determine country code based on phone number
-          let countryCode = "+234"; // Default to Nigeria
+          let countryCode = "+234";
           if (metadata.phone) {
             if (metadata.phone.startsWith('+1')) {
               countryCode = "+1";
@@ -197,6 +204,20 @@ function StorefrontComponent() {
             formattedPhone = formattedPhone.slice(4);
           }
 
+          // Parse enabled_fulfillment_modes
+          const enabledModes = storeDetails.enabled_fulfillment_modes || [];
+          setDeliveryMethods({
+            pickup: enabledModes.includes('pickup'),
+            platform: enabledModes.includes('platform'),
+            vendor: enabledModes.includes('vendor')
+          });
+          
+          console.log('✅ Loaded delivery methods:', {
+            pickup: enabledModes.includes('pickup'),
+            platform: enabledModes.includes('platform'),
+            vendor: enabledModes.includes('vendor')
+          });
+
           setStorefrontData(prev => ({
             ...prev,
             storeName: storeDetails.store_name || "",
@@ -208,20 +229,11 @@ function StorefrontComponent() {
             logo: storeDetails.logo || null,
             banner: storeDetails.banner || null,
             botUrl: storeDetails.bot_url || "",
-            metadata: metadata // Store the full metadata
+            metadata: metadata,
+            enabled_fulfillment_modes: enabledModes
           }));
 
-          console.log('✅ Store data loaded successfully into state:', {
-            storeName: storeDetails.store_name,
-            storeType: storeDetails.business_type,
-            bio: storeDetails.store_description,
-            whatsappNumber: formattedPhone,
-            countryCode: countryCode,
-            location: metadata.city,
-            logo: storeDetails.logo,
-            banner: storeDetails.banner,
-            theme: currentTheme
-          });
+          console.log('✅ Store data loaded successfully into state');
           toast.success('Store data loaded successfully');
         } else {
           console.warn('⚠️ No store details found in response');
@@ -231,12 +243,11 @@ function StorefrontComponent() {
         console.error('❌ Error fetching store data:', error);
         toast.error(error instanceof Error ? error.message : 'Failed to load store data');
 
-        // Set fallback values
         setStorefrontData(prev => ({
           ...prev,
           storeName: "Pizza Cafe",
           storeType: "Food & Restaurant",
-          bio: "Welcome to Pizza Cafe, where flavorful taste and food meets exceptional culinary experience with tasty treats that's guaranteed to warm your buds.",
+          bio: "Welcome to Pizza Cafe...",
           whatsappNumber: "809 789 7891",
           countryCode: "+234",
           location: "Lagos"
@@ -249,12 +260,10 @@ function StorefrontComponent() {
     fetchStoreData();
   }, []);
 
-  // Debug effect to log when storefrontData changes
   useEffect(() => {
     console.log('🔄 storefrontData updated:', storefrontData);
   }, [storefrontData]);
 
-  // Existing storefront URL effect
   useEffect(() => {
     const getCookie = (name: string) => {
       const value = `; ${document.cookie}`;
@@ -274,18 +283,15 @@ function StorefrontComponent() {
     }
   }, []);
 
-  // Handle logo upload
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       toast.error('Please select an image file');
       return;
     }
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast.error('Image size must be less than 5MB');
       return;
@@ -308,7 +314,6 @@ function StorefrontComponent() {
         throw new Error(result.error || 'Failed to upload logo');
       }
 
-      // Update the logo in local state
       if (result.data?.logo) {
         setStorefrontData(prev => ({
           ...prev,
@@ -319,7 +324,6 @@ function StorefrontComponent() {
         toast.success('Logo updated successfully!');
       }
 
-      // Clear the file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -332,19 +336,16 @@ function StorefrontComponent() {
     }
   };
 
-  // Handle banner upload
   const handleBannerUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
       toast.error('Please select a JPEG, PNG, or WebP image file');
       return;
     }
 
-    // Validate file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
       toast.error('Banner size must be less than 10MB');
       return;
@@ -367,7 +368,6 @@ function StorefrontComponent() {
         throw new Error(result.error || 'Failed to upload banner');
       }
 
-      // Update the banner in local state
       if (result.data?.banner) {
         setStorefrontData(prev => ({
           ...prev,
@@ -384,7 +384,6 @@ function StorefrontComponent() {
         toast.success('Banner updated successfully!');
       }
 
-      // Clear the file input
       if (bannerInputRef.current) {
         bannerInputRef.current.value = '';
       }
@@ -402,26 +401,21 @@ function StorefrontComponent() {
   const handleSaveStorefront = () => {
     setIsEditingStorefront(false);
     toast.success('Changes saved successfully!');
-    // TODO: Add PATCH API call here for other store details
   };
 
   const handleEditTheme = () => setIsEditingTheme(true);
   const handleCancelTheme = () => setIsEditingTheme(false);
 
-  // Handle saving theme with API integration
   const handleSaveTheme = async () => {
     if (isSavingTheme) return;
     
     setIsSavingTheme(true);
   
     try {
-      // Get the brand color based on selected theme
       const brandColor = getThemeColors(themeColor);
       
-      // Prepare the request body according to API docs
       const requestBody = {
         metadata: {
-          // Include all required metadata fields from existing data
           owner_name: storefrontData.metadata?.owner_name || "Store Owner",
           address: storefrontData.metadata?.address || "",
           address_line_2: storefrontData.metadata?.address_line_2 || "",
@@ -432,16 +426,14 @@ function StorefrontComponent() {
           latitude: storefrontData.metadata?.latitude || 0,
           longitude: storefrontData.metadata?.longitude || 0,
           country: storefrontData.metadata?.country || "NG",
-          brand_color: brandColor // Add the theme colors here
+          brand_color: brandColor
         }
       };
   
       console.log('🔄 Sending theme update request:', requestBody);
   
-      // Show loading state
       toast.loading('Updating theme...');
       
-      // Make the PATCH request to save to database
       const response = await fetch('/api/store', {
         method: 'PATCH',
         headers: {
@@ -456,7 +448,6 @@ function StorefrontComponent() {
         throw new Error(result.error || 'Failed to update theme');
       }
   
-      // 1. Save to localStorage for immediate UI change
       const themeMap: Record<string, string> = {
         'Surge Green': 'surge-green',
         'Ocean Blue': 'ocean-blue',
@@ -469,16 +460,10 @@ function StorefrontComponent() {
       
       console.log('💾 Saved theme to localStorage:', themeValue);
   
-      // 2. Close editing mode
       setIsEditingTheme(false);
-      
-      // 3. Clear loading toast
       toast.dismiss();
-      
-      // 4. Show success message
       toast.success('Theme updated successfully!');
       
-      // 5. Update local state with new metadata
       setStorefrontData(prev => ({
         ...prev,
         metadata: {
@@ -487,8 +472,6 @@ function StorefrontComponent() {
         }
       }));
   
-      // 6. Trigger a page refresh to apply the new theme immediately
-      // OR you can dispatch a custom event for your theme system to listen to
       window.dispatchEvent(new Event('themeChange'));
   
     } catch (error) {
@@ -497,6 +480,96 @@ function StorefrontComponent() {
       toast.error(error instanceof Error ? error.message : 'Failed to update theme');
     } finally {
       setIsSavingTheme(false);
+    }
+  };
+
+  // Delivery Method Handlers
+  const handleEditDeliveryMethod = () => setIsEditingDeliveryMethod(true);
+  
+  const handleCancelDeliveryMethod = () => {
+    setIsEditingDeliveryMethod(false);
+    // Reset to original values
+    const enabledModes = storefrontData.enabled_fulfillment_modes || [];
+    setDeliveryMethods({
+      pickup: enabledModes.includes('pickup'),
+      platform: enabledModes.includes('platform'),
+      vendor: enabledModes.includes('vendor')
+    });
+  };
+  
+  const handleDeliveryMethodChange = (method: 'pickup' | 'platform' | 'vendor') => {
+    setDeliveryMethods(prev => {
+      const newState = { ...prev };
+      
+      if (method === 'platform' && !prev.platform) {
+        newState.platform = true;
+        newState.vendor = false;
+      } else if (method === 'vendor' && !prev.vendor) {
+        newState.vendor = true;
+        newState.platform = false;
+      } else {
+        newState[method] = !prev[method];
+      }
+      
+      return newState;
+    });
+  };
+  
+  const handleSaveDeliveryMethod = async () => {
+    if (isSavingDeliveryMethod) return;
+    
+    if (!deliveryMethods.pickup && !deliveryMethods.platform && !deliveryMethods.vendor) {
+      toast.error('Please select at least one delivery method');
+      return;
+    }
+    
+    setIsSavingDeliveryMethod(true);
+    
+    try {
+      const enabledModes: string[] = [];
+      if (deliveryMethods.pickup) enabledModes.push('pickup');
+      if (deliveryMethods.platform) enabledModes.push('platform');
+      if (deliveryMethods.vendor) enabledModes.push('vendor');
+      
+      const requestBody = {
+        enabled_fulfillment_modes: enabledModes
+      };
+      
+      console.log('🔄 Sending delivery method update:', requestBody);
+      
+      toast.loading('Updating delivery methods...');
+      
+      const response = await fetch('/api/store', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update delivery methods');
+      }
+      
+      setIsEditingDeliveryMethod(false);
+      toast.dismiss();
+      toast.success('Delivery methods updated successfully!');
+      
+      setStorefrontData(prev => ({
+        ...prev,
+        enabled_fulfillment_modes: enabledModes
+      }));
+      
+      console.log('✅ Delivery methods updated:', enabledModes);
+      
+    } catch (error) {
+      console.error('❌ Error updating delivery methods:', error);
+      toast.dismiss();
+      toast.error(error instanceof Error ? error.message : 'Failed to update delivery methods');
+    } finally {
+      setIsSavingDeliveryMethod(false);
     }
   };
 
@@ -578,11 +651,9 @@ function StorefrontComponent() {
     setBankAccounts([...bankAccounts, newBank]);
   };
 
-  // Skeleton Loading State
   if (isLoading) {
     return (
       <div className="w-full space-y-6">
-        {/* Header Skeleton */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Skeleton className="w-20 h-20 rounded-lg" />
@@ -597,7 +668,6 @@ function StorefrontComponent() {
           </div>
         </div>
 
-        {/* Main Card Skeleton */}
         <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
           <CardContent>
             <div className="space-y-6 pt-6">
@@ -615,31 +685,8 @@ function StorefrontComponent() {
                   <Skeleton className="h-4 w-24" />
                   <Skeleton className="h-11 w-full" />
                 </div>
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-20" />
-                  <Skeleton className="h-11 w-full" />
-                </div>
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-20" />
-                  <Skeleton className="h-11 w-full" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-16" />
-                <Skeleton className="h-24 w-full" />
-              </div>
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-32 w-full" />
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Additional Cards Skeleton */}
-        <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
-          <CardContent className="pt-6">
-            <Skeleton className="h-10 w-full" />
           </CardContent>
         </Card>
       </div>
@@ -839,7 +886,6 @@ function StorefrontComponent() {
               </div>
             </div>
 
-            {/* Banner Upload Section - NEW */}
             <div className="space-y-2">
               <Label htmlFor="banner" className="text-xs">Store Banner</Label>
               <input
@@ -909,6 +955,149 @@ function StorefrontComponent() {
                 </Button>
               </div>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Delivery Method Card - NEW */}
+      <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
+        <CardContent>
+          <div className="space-y-6 pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-medium">Delivery Method</h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Choose how customers can receive their orders
+                </p>
+              </div>
+              {!isEditingDeliveryMethod ? (
+                <Button
+                  onClick={handleEditDeliveryMethod}
+                  variant="outline"
+                  size="sm"
+                  className="dark:bg-background"
+                >
+                  <span className="hidden sm:inline mr-2">Edit</span>
+                  <EditIcon />
+                </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button onClick={handleCancelDeliveryMethod} variant="outline" size="sm">
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleSaveDeliveryMethod} 
+                    variant="default" 
+                    size="sm"
+                    disabled={isSavingDeliveryMethod}
+                  >
+                    {isSavingDeliveryMethod ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>
+                        <SaveIcon />
+                        <span className="hidden sm:inline ml-2">Save Changes</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              {/* Pickup Checkbox */}
+              <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                <input
+                  type="checkbox"
+                  id="pickup"
+                  checked={deliveryMethods.pickup}
+                  onChange={() => handleDeliveryMethodChange('pickup')}
+                  disabled={!isEditingDeliveryMethod}
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:cursor-not-allowed"
+                />
+                <div className="flex-1">
+                  <label 
+                    htmlFor="pickup" 
+                    className={`text-sm font-medium ${!isEditingDeliveryMethod ? 'cursor-default' : 'cursor-pointer'}`}
+                  >
+                    Pickup
+                  </label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Customers can pick up orders from your store location
+                  </p>
+                </div>
+              </div>
+
+              {/* Platform Delivery Checkbox */}
+              <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                <input
+                  type="checkbox"
+                  id="platform"
+                  checked={deliveryMethods.platform}
+                  onChange={() => handleDeliveryMethodChange('platform')}
+                  disabled={!isEditingDeliveryMethod || deliveryMethods.vendor}
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                />
+                <div className="flex-1">
+                  <label 
+                    htmlFor="platform" 
+                    className={`text-sm font-medium ${!isEditingDeliveryMethod || deliveryMethods.vendor ? 'cursor-not-allowed text-muted-foreground' : 'cursor-pointer'}`}
+                  >
+                    Platform Delivery
+                  </label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Orders are delivered through Swiftree&apos;s delivery service
+                  </p>
+                  {deliveryMethods.vendor && (
+                    <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                      ⚠️ Cannot be selected with Vendor Delivery
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Vendor Delivery Checkbox */}
+              <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                <input
+                  type="checkbox"
+                  id="vendor"
+                  checked={deliveryMethods.vendor}
+                  onChange={() => handleDeliveryMethodChange('vendor')}
+                  disabled={!isEditingDeliveryMethod || deliveryMethods.platform}
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                />
+                <div className="flex-1">
+                  <label 
+                    htmlFor="vendor" 
+                    className={`text-sm font-medium ${!isEditingDeliveryMethod || deliveryMethods.platform ? 'cursor-not-allowed text-muted-foreground' : 'cursor-pointer'}`}
+                  >
+                    Vendor Delivery
+                  </label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    You handle delivery logistics yourself
+                  </p>
+                  {deliveryMethods.platform && (
+                    <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                      ⚠️ Cannot be selected with Platform Delivery
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Info box showing current selection */}
+            {(deliveryMethods.pickup || deliveryMethods.platform || deliveryMethods.vendor) && (
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <p className="text-xs text-blue-700 dark:text-blue-300">
+                  <strong>Currently enabled:</strong>{' '}
+                  {[
+                    deliveryMethods.pickup && 'Pickup',
+                    deliveryMethods.platform && 'Platform Delivery',
+                    deliveryMethods.vendor && 'Vendor Delivery'
+                  ].filter(Boolean).join(', ')}
+                </p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -1010,8 +1199,6 @@ function StorefrontComponent() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Danger Zone */}
 
       <AddBankModal
         isOpen={isAddBankModalOpen}
