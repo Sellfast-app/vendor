@@ -53,6 +53,7 @@ const nextConfig: NextConfig = {
     domains: [
       'res.cloudinary.com',
       'api.swiftree.app', // Add this line
+      'api-staging-africa-705709517595.africa-south1.run.app'
     ],
     // Option 2: Using remotePatterns (recommended)
     remotePatterns: [
