@@ -51,7 +51,7 @@ interface StoreMetadata {
 interface StoreDetails {
   storeName: string;
   storeType: string;
-  whatsappNumber: string;
+  whatsappNumber: string; 
   countryCode: string;
   location: string;
   bio: string;
