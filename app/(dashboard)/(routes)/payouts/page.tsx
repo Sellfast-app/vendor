@@ -91,6 +91,7 @@ export default function PayoutsPage() {
   const [subscriptionPlan, setSubscriptionPlan] = useState('premium');
   const [billingCardId, setBillingCardId] = useState('');
   const [isLoadingBankDetails, setIsLoadingBankDetails] = useState(true);
+  const [isSubscribing, setIsSubscribing] = useState(false);
 
   // Fetch store bank details
   useEffect(() => {
@@ -102,7 +103,7 @@ export default function PayoutsPage() {
 
         if (result.status === 'success' && result.data) {
           const bankData: StoreBankDetails = result.data;
-          
+
           // Generate bank icon based on bank name
           const getBankIcon = (bankName: string) => {
             if (bankName.toLowerCase().includes('access')) {
@@ -303,6 +304,66 @@ export default function PayoutsPage() {
     setSelectedBankAccount(newBank.id);
   };
 
+  const handleSubscribe = async () => {
+    setIsSubscribing(true);
+    const subscribeToast = toast.loading('Creating subscription...');
+  
+    try {
+      console.log('🔄 Starting subscription process...');
+  
+      const response = await fetch('/api/subscription/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'monthly',
+          isTrial: false,
+        }),
+      });
+  
+      const result = await response.json();
+  
+      console.log('📥 Subscription API response:', result);
+  
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to create subscription');
+      }
+  
+      // Extract the Paystack checkout URL
+      const checkoutUrl = result.data?.checkout_url;
+      const subscriptionRef = result.data?.ref;
+  
+      if (!checkoutUrl) {
+        throw new Error('No checkout URL received from server');
+      }
+  
+      console.log('✅ Subscription created successfully');
+      console.log('🔗 Checkout URL:', checkoutUrl);
+      console.log('📝 Reference:', subscriptionRef);
+      
+      toast.dismiss(subscribeToast);
+      toast.success('Redirecting to Paystack checkout...');
+      
+      // Open Paystack checkout in new tab
+      window.open(checkoutUrl, '_blank');
+      
+      // Optionally: Also show a toast with the reference
+      setTimeout(() => {
+        toast.info(`Subscription Ref: ${subscriptionRef}`, {
+          duration: 5000,
+        });
+      }, 1000);
+  
+    } catch (error) {
+      console.error('❌ Error creating subscription:', error);
+      toast.dismiss(subscribeToast);
+      toast.error(error instanceof Error ? error.message : 'Failed to create subscription');
+    } finally {
+      setIsSubscribing(false);
+    }
+  };
+
   // Get billing card details
   const billingCard = creditCards.find(card => card.id === billingCardId);
 
@@ -432,7 +493,7 @@ export default function PayoutsPage() {
               </div>
               <div className='bg-[#F5F5F5] dark:bg-background border rounded-lg p-3 space-y-4 mt-4 '>
                 <div className='flex items-center justify-between text-sm'>
-                  <span>Subscription Plan</span> 
+                  <span>Subscription Plan</span>
                   <p className="capitalize">{subscriptionPlan}</p>
                 </div>
                 <div className='flex items-center justify-between text-sm'>
@@ -444,7 +505,7 @@ export default function PayoutsPage() {
                   <p>Monthly</p>
                 </div>
                 <div className='flex items-center justify-between text-sm'>
-                  <span>Due Date</span> 
+                  <span>Due Date</span>
                   <p>30/09/2025</p>
                 </div>
                 <div className='flex items-center justify-between text-sm text-primary w-full border-t pt-2'>
@@ -505,8 +566,13 @@ export default function PayoutsPage() {
                   </SwiperSlide>
                 ))}
               </Swiper>
-              <Button variant={"outline"} className="w-full" onClick={() => setIsAddCardModalOpen(true)} disabled>
-                Add Card <PlusIcon />
+              <Button
+                variant={"outline"}
+                className="w-full"
+                onClick={handleSubscribe}
+                disabled={isSubscribing}
+              >
+                {isSubscribing ? 'Subscribing...' : 'Subscribe'}
               </Button>
             </CardContent>
           </Card>
@@ -526,7 +592,7 @@ export default function PayoutsPage() {
         editCard={editingCard}
         isEditMode={!!editingCard}
       />
-      
+
       <DepositModal
         isOpen={isDepositModalOpen}
         onClose={() => setIsDepositModalOpen(false)}
@@ -534,7 +600,7 @@ export default function PayoutsPage() {
         bankAccounts={bankAccounts}
         creditCards={creditCards}
       />
-      
+
       <WithdrawalModal
         isOpen={isWithdrawalModalOpen}
         onClose={() => setIsWithdrawalModalOpen(false)}
@@ -543,7 +609,7 @@ export default function PayoutsPage() {
         creditCards={creditCards}
         userEmail="user@example.com"
       />
-      
+
       <UpdateBillingModal
         isOpen={isUpdateBillingModalOpen}
         onClose={() => setIsUpdateBillingModalOpen(false)}
@@ -559,13 +625,13 @@ export default function PayoutsPage() {
         onClose={() => setIsAddBankModalOpen(false)}
         onAddBank={handleAddBank}
       />
-       <ExportModal
-              isOpen={isExportModalOpen}
-              onClose={() => setIsExportModalOpen(false)}
-              endpointPrefix="Payouts"
-              fieldOptions={fieldOptions}
-              dataName="Payouts"
-            />
+      <ExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        endpointPrefix="Payouts"
+        fieldOptions={fieldOptions}
+        dataName="Payouts"
+      />
     </div>
   )
 }

@@ -181,6 +181,16 @@ export async function POST(request: Request) {
         console.log(`[REGISTER] ✅ User ID saved to cookie: ${userId}`);
       }
 
+      // Set user_email cookie (accessible to client)
+      if (userEmail) {
+        nextResponse.cookies.set("user_email", userEmail, {
+          ...cookieOptions,
+          httpOnly: false,
+          maxAge: 2592000, // 30 days
+        });
+        console.log(`[REGISTER] ✅ User ID saved to cookie: ${userEmail}`);
+      }
+
       // Set store_name cookie (httpOnly: false so client can access)
       nextResponse.cookies.set("store_name", storeName, {
         ...cookieOptions,

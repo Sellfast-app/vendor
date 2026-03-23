@@ -1,4 +1,4 @@
-// app/api/auth/login/route.ts
+// app/api/auth/login/route.ts - Complete Updated Version
 import { NextResponse } from "next/server";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -103,7 +103,9 @@ export async function POST(request: Request) {
         );
       }
 
-      // Extract store info
+      // Extract user and store info
+      const userEmail = email.trim();
+      const userId = result.data?.id || null;
       let storeName = email.split('@')[0] + "'s Store";
       let storeId = null;
       let storeUrl = null;
@@ -115,13 +117,27 @@ export async function POST(request: Request) {
         storeUrl = firstStore.url || null;
       }
 
+      console.log(`[LOGIN] User info extracted:`, {
+        userId,
+        userEmail,
+        storeName,
+        storeId,
+        storeUrl
+      });
+
       // Create successful response
       const nextResponse = NextResponse.json(
         {
           status: "success",
           message: result.message || "Login successful",
           success: true,
-          data: { store_name: storeName, store_id: storeId, store_url: storeUrl }
+          data: { 
+            user_id: userId,
+            user_email: userEmail,
+            store_name: storeName, 
+            store_id: storeId, 
+            store_url: storeUrl 
+          }
         },
         { status: 200 }
       );
@@ -135,15 +151,54 @@ export async function POST(request: Request) {
         secure: process.env.NODE_ENV === "production",
       };
 
+      // Set access token
       nextResponse.cookies.set("accessToken", result.data.token, cookieOptions);
-      nextResponse.cookies.set("store_name", storeName, { ...cookieOptions, httpOnly: false });
-      
-      if (storeId) {
-        nextResponse.cookies.set("store_id", storeId, { ...cookieOptions, httpOnly: false });
+      console.log("[LOGIN] ✅ Access token cookie set");
+
+      // Set user_id cookie (accessible to client)
+      if (userId) {
+        nextResponse.cookies.set("user_id", userId, {
+          ...cookieOptions,
+          httpOnly: false,
+          maxAge: 2592000, // 30 days
+        });
+        console.log(`[LOGIN] ✅ User ID saved to cookie: ${userId}`);
       }
 
+      // Set user_email cookie (accessible to client)
+      nextResponse.cookies.set("user_email", userEmail, {
+        ...cookieOptions,
+        httpOnly: false,
+        maxAge: 2592000, // 30 days
+      });
+      console.log(`[LOGIN] ✅ User email saved to cookie: ${userEmail}`);
+
+      // Set store_name cookie (accessible to client)
+      nextResponse.cookies.set("store_name", storeName, { 
+        ...cookieOptions, 
+        httpOnly: false,
+        maxAge: 2592000, // 30 days
+      });
+      console.log(`[LOGIN] ✅ Store name saved to cookie: ${storeName}`);
+      
+      // Set store_id cookie if available
+      if (storeId) {
+        nextResponse.cookies.set("store_id", storeId, { 
+          ...cookieOptions, 
+          httpOnly: false,
+          maxAge: 2592000, // 30 days
+        });
+        console.log(`[LOGIN] ✅ Store ID saved to cookie: ${storeId}`);
+      }
+
+      // Set store_url cookie if available
       if (storeUrl) {
-        nextResponse.cookies.set("store_url", storeUrl, { ...cookieOptions, httpOnly: false });
+        nextResponse.cookies.set("store_url", storeUrl, { 
+          ...cookieOptions, 
+          httpOnly: false,
+          maxAge: 2592000, // 30 days
+        });
+        console.log(`[LOGIN] ✅ Store URL saved to cookie: ${storeUrl}`);
       }
 
       // Clear login attempts on success
@@ -152,7 +207,7 @@ export async function POST(request: Request) {
       console.log(`[LOGIN] Success for: ${email}, Total time: ${Date.now() - startTime}ms`);
       return nextResponse;
 
-    }  // eslint-disable-next-line @typescript-eslint/no-explicit-any 
+    }   // eslint-disable-next-line @typescript-eslint/no-explicit-any 
     catch (fetchError: any) {
       clearTimeout(timeoutId);
       
@@ -179,8 +234,7 @@ export async function POST(request: Request) {
       );
     }
 
-  }   // eslint-disable-next-line @typescript-eslint/no-explicit-any 
-  catch (error: any) {
+  } catch (error) {
     console.error(`[LOGIN] Unexpected error:`, error);
     return NextResponse.json(
       { status: "error", message: "Internal server error", success: false },
