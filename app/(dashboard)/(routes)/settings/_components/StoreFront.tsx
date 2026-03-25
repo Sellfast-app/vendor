@@ -398,9 +398,59 @@ function StorefrontComponent() {
 
   const handleEditStorefront = () => setIsEditingStorefront(true);
   const handleCancelStorefront = () => setIsEditingStorefront(false);
-  const handleSaveStorefront = () => {
-    setIsEditingStorefront(false);
-    toast.success('Changes saved successfully!');
+  const handleSaveStorefront = async () => {
+    try {
+      toast.loading('Saving changes...');
+  
+      // Build the full phone number from country code + number
+      const rawPhone = storefrontData.whatsappNumber.replace(/\s/g, '');
+      const formattedPhone = rawPhone.startsWith('0')
+        ? `${storefrontData.countryCode}${rawPhone.slice(1)}`
+        : `${storefrontData.countryCode}${rawPhone}`;
+  
+      const requestBody = {
+        store_name: storefrontData.storeName,
+        business_type: storefrontData.storeType,
+        store_description: storefrontData.bio,
+        metadata: {
+          owner_name: storefrontData.metadata?.owner_name || "",
+          address: storefrontData.metadata?.address || "",
+          address_line_2: storefrontData.metadata?.address_line_2 || "",
+          city: storefrontData.location,
+          state: storefrontData.metadata?.state || storefrontData.location,
+          post_code: storefrontData.metadata?.post_code || "",
+          phone: formattedPhone,
+          latitude: storefrontData.metadata?.latitude || 0,
+          longitude: storefrontData.metadata?.longitude || 0,
+          country: storefrontData.metadata?.country || "NG",
+          brand_color: storefrontData.metadata?.brand_color || getThemeColors(themeColor),
+        },
+      };
+  
+      console.log('🔄 Saving storefront changes:', requestBody);
+  
+      const response = await fetch('/api/store', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+  
+      const result = await response.json();
+  
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to save changes');
+      }
+  
+      setIsEditingStorefront(false);
+      toast.dismiss();
+      toast.success('Changes saved successfully!');
+      console.log('✅ Storefront saved:', result);
+  
+    } catch (error) {
+      console.error('❌ Error saving storefront:', error);
+      toast.dismiss();
+      toast.error(error instanceof Error ? error.message : 'Failed to save changes');
+    }
   };
 
   const handleEditTheme = () => setIsEditingTheme(true);
