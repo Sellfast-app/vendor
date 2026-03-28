@@ -238,32 +238,18 @@ function AccountInformation() {
   };
 
   const handleSaveProfile = async () => {
-    // Basic validation
     const requiredFields = ['owner_name', 'address', 'city', 'state', 'country'];
     const missingFields = requiredFields.filter(field => !formData[field as keyof typeof formData]?.toString().trim());
-
+  
     if (missingFields.length > 0) {
       toast.error(`Please fill in all required fields: ${missingFields.join(', ')}`);
       return;
     }
-
+  
     setIsLoading(true);
     const saveToast = toast.loading('Updating profile...');
-
+  
     try {
-      // Geocode the address
-      const fullAddress = `${formData.address}, ${formData.city}, ${formData.state}, ${formData.country}`;
-      console.log('🔍 Full address for geocoding:', fullAddress);
-
-      const geocodeResult = await geocode(fullAddress);
-
-      if (!geocodeResult) {
-        console.error('❌ Geocoding failed - stopping process');
-        toast.dismiss(saveToast);
-        return;
-      }
-
-      // Prepare the update data according to API structure
       const updateData = {
         metadata: {
           owner_name: formData.owner_name.trim(),
@@ -272,39 +258,29 @@ function AccountInformation() {
           city: formData.city.trim(),
           state: formData.state.trim(),
           post_code: formData.post_code?.trim() || '',
-          phone: formData.phone?.trim() || formData.whatsappNumber?.trim() || '',
-          latitude: geocodeResult.geometry.location.lat,
-          longitude: geocodeResult.geometry.location.lng,
+          phone: formData.phone?.trim() || '',
           country: formData.country.trim(),
         }
       };
-
+  
       console.log('🔍 Sending update data to API:', updateData);
-
-      // Call the API route
+  
       const response = await fetch('/api/store', {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData),
       });
-
-      console.log('🔍 API Response status:', response.status);
-
+  
       const responseData = await response.json().catch(() => ({ error: 'Invalid JSON response' }));
-
+  
       if (!response.ok) {
-        console.error('❌ API Error response:', responseData);
         throw new Error(responseData.error || `Server error: ${response.status}`);
       }
-
-      console.log('✅ Store updated successfully:', responseData);
-
+  
       toast.dismiss(saveToast);
       toast.success('Profile updated successfully!');
       setIsEditingProfile(false);
-
+  
     } catch (error) {
       console.error('❌ Error updating store:', error);
       toast.dismiss(saveToast);
