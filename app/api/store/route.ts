@@ -12,7 +12,6 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const cookieStore = await cookies();
     
-    // Get store ID from cookies
     const storeId = cookieStore.get('store_id')?.value;
     
     console.log('🔍 API Debug - Store ID from cookies:', storeId);
@@ -30,7 +29,6 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Get access token from cookies
     const accessToken = cookieStore.get('accessToken')?.value;
     
     if (!accessToken) {
@@ -42,6 +40,39 @@ export async function PATCH(request: NextRequest) {
     }
 
     console.log('🔍 API Debug - Request body:', JSON.stringify(body, null, 2));
+
+    // Server-side geocoding — key stays secret, never exposed to browser
+    if (body.metadata?.address) {
+      try {
+        const { address, city, state, country } = body.metadata;
+        const fullAddress = `${address}, ${city}, ${state}, ${country}`;
+        
+        console.log('🔍 Geocoding address on server:', fullAddress);
+        
+        const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(fullAddress)}&key=${process.env.GOOGLE_API_KEY}`;
+        const geocodeRes = await fetch(geocodeUrl);
+        const geocodeData = await geocodeRes.json();
+
+        console.log('🔍 Geocoding status:', geocodeData.status);
+
+        if (geocodeData.results && geocodeData.results.length > 0) {
+          const location = geocodeData.results[0].geometry.location;
+          body.metadata.latitude = location.lat;
+          body.metadata.longitude = location.lng;
+          console.log('✅ Geocoded coordinates:', location);
+        } else {
+          // Don't block the save if geocoding fails — just keep existing coords or use 0,0
+          console.warn('⚠️ Geocoding returned no results, preserving existing coordinates');
+          if (!body.metadata.latitude) body.metadata.latitude = 0;
+          if (!body.metadata.longitude) body.metadata.longitude = 0;
+        }
+      } catch (geocodeError) {
+        // Geocoding failure should never block a profile save
+        console.error('❌ Geocoding error (non-fatal):', geocodeError);
+        if (!body.metadata.latitude) body.metadata.latitude = 0;
+        if (!body.metadata.longitude) body.metadata.longitude = 0;
+      }
+    }
 
     // Forward the request to your backend API
     const response = await fetch(`${API_BASE_URL}/api/stores/${storeId}`, {
@@ -69,7 +100,6 @@ export async function PATCH(request: NextRequest) {
         const errorData = JSON.parse(responseText);
         errorMessage = errorData.message || errorData.error || errorMessage;
       } catch {
-        // If response is not JSON, use the text as is
         errorMessage = responseText || errorMessage;
       }
       
