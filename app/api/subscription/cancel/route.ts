@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const API_BASE_URL = 'https://reliable-charis-adsorbable.ngrok-free.dev/subscription';
+const API_BASE_URL = process.env.NEXT_SUBSCRIPTION_BASE_URL;
 
 export async function POST(request: NextRequest) {
   try {

@@ -315,7 +315,7 @@ export default function PayoutsPage() {
       const response = await fetch('/api/subscription/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'daily', isTrial: false }),
+        body: JSON.stringify({ type: 'monthly', isTrial: false }),
       });
 
       const result = await response.json();

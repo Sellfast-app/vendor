@@ -1,7 +1,7 @@
 // app/api/subscription/create/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
-const API_BASE_URL = 'https://reliable-charis-adsorbable.ngrok-free.dev/subscription';
+const API_BASE_URL = process.env.NEXT_SUBSCRIPTION_BASE_URL;
 
 interface SubscriptionRequest {
   user: {
@@ -9,7 +9,7 @@ interface SubscriptionRequest {
     email: string;
   };
   isTrial: boolean;
-  type: "weekly" | "daily" | "annually" | "biannually";
+  type: "weekly" | "monthly" | "annually" | "biannually";
 }
 
 export async function POST(request: NextRequest) {
@@ -46,9 +46,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get subscription type from request body (optional, defaults to daily)
+    // Get subscription type from request body (optional, defaults to monthly)
     const body = await request.json().catch(() => ({}));
-    const subscriptionType = body.type || "daily";
+    const subscriptionType = body.type || "monthly";
     const isTrial = body.isTrial ?? false;
 
     // Prepare subscription request
