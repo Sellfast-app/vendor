@@ -2,7 +2,6 @@
 
 import BillingIcon from '@/components/svgIcons/BillingIcon';
 import EarningsIcon from '@/components/svgIcons/EarningsIcon';
-import EscrowIcon from '@/components/svgIcons/EscrowIcon';
 import Withdrawal from '@/components/svgIcons/Withdrawal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -10,29 +9,24 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import React, { JSX, useEffect, useState } from 'react'
 import { RiShare2Fill } from 'react-icons/ri';
-import { PlusIcon, Settings } from 'lucide-react';
+import { Loader2, PlusIcon, Settings } from 'lucide-react';
 import { Payoutmetrics } from './_components/PayoutMetrics';
-import TransactionInflowChart from './_components/TransactionInflowChart';
 import PayoutsTab from './_components/PayoutsTab';
 import Accessbank from '@/components/svgIcons/Accessbank';
 import CC1 from '@/public/Card1.png';
 import CC2 from '@/public/Card2.png';
 import Image from 'next/image';
 import MastersCardIcon from '@/components/svgIcons/MastersCardIcon';
-import { LuEye } from "react-icons/lu";
-import { LuEyeClosed } from "react-icons/lu";
+import { LuEye, LuEyeClosed } from "react-icons/lu";
 import AddCardModal from './_components/AddCardModal';
 import DepositModal from './_components/DepositModal';
 import WithdrawalModal from './_components/WithdrawalModal';
 import UpdateBillingModal from './_components/UpdateBillingModal';
 import AddBankModal from './_components/AddBankModal';
 import { ExportModal } from "@/components/ExportModal";
-
-// Import Swiper React components
+import ActionModal from '@/components/ActionModal';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Scrollbar } from 'swiper/modules';
-
-// Import Swiper styles
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/scrollbar';
@@ -92,6 +86,41 @@ export default function PayoutsPage() {
   const [billingCardId, setBillingCardId] = useState('');
   const [isLoadingBankDetails, setIsLoadingBankDetails] = useState(true);
   const [isSubscribing, setIsSubscribing] = useState(false);
+  const [subscriptionExpiry, setSubscriptionExpiry] = useState<string | null>(null);
+
+  // Subscription state
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+  const [isCheckingSubscription, setIsCheckingSubscription] = useState(true);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  // Check subscription status on mount
+  useEffect(() => {
+    const checkSubscriptionStatus = async () => {
+      setIsCheckingSubscription(true);
+      try {
+        const response = await fetch('/api/subscription/status');
+        const result = await response.json();
+        setHasActiveSubscription(result.hasActiveSubscription === true);
+        if (result.data?.expireAt) {
+          const date = new Date(result.data.expireAt);
+          const formatted = date.toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+          }); // produces "30/04/2026"
+          setSubscriptionExpiry(formatted);
+        }
+      } catch (error) {
+        console.error('Error checking subscription status:', error);
+        setHasActiveSubscription(false);
+      } finally {
+        setIsCheckingSubscription(false);
+      }
+    };
+
+    checkSubscriptionStatus();
+  }, []);
 
   // Fetch store bank details
   useEffect(() => {
@@ -104,12 +133,10 @@ export default function PayoutsPage() {
         if (result.status === 'success' && result.data) {
           const bankData: StoreBankDetails = result.data;
 
-          // Generate bank icon based on bank name
           const getBankIcon = (bankName: string) => {
             if (bankName.toLowerCase().includes('access')) {
               return <Accessbank />;
             }
-            // For other banks, use colored circles with abbreviations
             const colors: { [key: string]: string } = {
               'gtbank': 'bg-orange-500',
               'zenith': 'bg-red-600',
@@ -179,14 +206,10 @@ export default function PayoutsPage() {
     },
   ];
 
-  const toggleCardNumberVisibility = () => {
-    setShowCardNumber(!showCardNumber);
-  };
+  const toggleCardNumberVisibility = () => setShowCardNumber(!showCardNumber);
 
   const formatCardNumber = (cardNumber: string) => {
-    if (showCardNumber) {
-      return cardNumber;
-    }
+    if (showCardNumber) return cardNumber;
     return `${cardNumber.slice(0, 4)} **** **** ${cardNumber.slice(-4)}`;
   };
 
@@ -205,7 +228,6 @@ export default function PayoutsPage() {
       cardType: "Credit",
       icon: <MastersCardIcon />
     };
-
     setCreditCards([...creditCards, newCard]);
   };
 
@@ -217,12 +239,7 @@ export default function PayoutsPage() {
   }) => {
     setCreditCards(creditCards.map(card =>
       card.id === cardId
-        ? {
-          ...card,
-          cardNumber: cardData.cardNumber,
-          cardHolder: cardData.cardholderName,
-          expiryDate: cardData.expiryDate
-        }
+        ? { ...card, cardNumber: cardData.cardNumber, cardHolder: cardData.cardholderName, expiryDate: cardData.expiryDate }
         : card
     ));
     setEditingCard(null);
@@ -235,36 +252,26 @@ export default function PayoutsPage() {
 
   const handleDeposit = async (amount: number, paymentMethod: string, selectedId: string) => {
     console.log('Deposit:', { amount, paymentMethod, selectedId });
-    // Add your deposit logic here
   };
 
   const handleWithdraw = (amount: number, paymentMethod: string, selectedId: string, otp: string) => {
     console.log('Withdraw:', { amount, paymentMethod, selectedId, otp });
-    // Add your withdrawal logic here
   };
 
   const handleUpdateBilling = async (plan: string, cardId: string) => {
-    console.log('Update Billing:', { plan, cardId });
     setSubscriptionPlan(plan);
     setBillingCardId(cardId);
-    // Add your update billing logic here (API call)
   };
 
-  const handleAddCardFromBilling = () => {
-    setIsAddCardModalOpen(true);
-  };
+  const handleAddCardFromBilling = () => setIsAddCardModalOpen(true);
 
   const handleAddBank = (bankData: {
     bankName: string;
     accountNumber: string;
     accountHolder: string;
   }) => {
-    // Generate bank icon based on bank name
     const getBankIcon = (bankName: string) => {
-      if (bankName === 'Access Bank') {
-        return <Accessbank />;
-      }
-      // For other banks, use colored circles with abbreviations
+      if (bankName === 'Access Bank') return <Accessbank />;
       const colors: { [key: string]: string } = {
         'GTBank': 'bg-orange-500',
         'Zenith Bank': 'bg-red-600',
@@ -281,10 +288,8 @@ export default function PayoutsPage() {
         'FCMB': 'bg-yellow-600',
         'Keystone Bank': 'bg-teal-600',
       };
-
       const abbreviation = bankName.split(' ').map(word => word[0]).join('').slice(0, 3).toUpperCase();
       const color = colors[bankName] || 'bg-gray-500';
-
       return (
         <div className={`w-8 h-8 ${color} rounded-full flex items-center justify-center text-white text-xs font-bold`}>
           {abbreviation}
@@ -299,7 +304,6 @@ export default function PayoutsPage() {
       bankName: bankData.bankName,
       accountHolder: bankData.accountHolder
     };
-
     setBankAccounts([...bankAccounts, newBank]);
     setSelectedBankAccount(newBank.id);
   };
@@ -307,54 +311,26 @@ export default function PayoutsPage() {
   const handleSubscribe = async () => {
     setIsSubscribing(true);
     const subscribeToast = toast.loading('Creating subscription...');
-  
     try {
-      console.log('🔄 Starting subscription process...');
-  
       const response = await fetch('/api/subscription/create', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          type: 'monthly',
-          isTrial: false,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'daily', isTrial: false }),
       });
-  
+
       const result = await response.json();
-  
-      console.log('📥 Subscription API response:', result);
-  
+
       if (!response.ok) {
         throw new Error(result.message || 'Failed to create subscription');
       }
-  
-      // Extract the Paystack checkout URL
+
       const checkoutUrl = result.data?.checkout_url;
-      const subscriptionRef = result.data?.ref;
-  
-      if (!checkoutUrl) {
-        throw new Error('No checkout URL received from server');
-      }
-  
-      console.log('✅ Subscription created successfully');
-      console.log('🔗 Checkout URL:', checkoutUrl);
-      console.log('📝 Reference:', subscriptionRef);
-      
+      if (!checkoutUrl) throw new Error('No checkout URL received from server');
+
       toast.dismiss(subscribeToast);
       toast.success('Redirecting to Paystack checkout...');
-      
-      // Open Paystack checkout in new tab
       window.open(checkoutUrl, '_blank');
-      
-      // Optionally: Also show a toast with the reference
-      setTimeout(() => {
-        toast.info(`Subscription Ref: ${subscriptionRef}`, {
-          duration: 5000,
-        });
-      }, 1000);
-  
+
     } catch (error) {
       console.error('❌ Error creating subscription:', error);
       toast.dismiss(subscribeToast);
@@ -364,14 +340,35 @@ export default function PayoutsPage() {
     }
   };
 
-  // Get billing card details
+  const handleCancelSubscription = async () => {
+    setIsCancelling(true);
+    try {
+      const response = await fetch('/api/subscription/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to cancel subscription');
+      }
+
+      toast.success('Subscription cancelled successfully');
+      setHasActiveSubscription(false);
+      setIsCancelModalOpen(false);
+    } catch (error) {
+      console.error('❌ Error cancelling subscription:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to cancel subscription');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   const billingCard = creditCards.find(card => card.id === billingCardId);
 
   const fieldOptions = [
-    ...overviewMetrics.map((metric) => ({
-      label: metric.title,
-      value: metric.id,
-    })),
+    ...overviewMetrics.map((metric) => ({ label: metric.title, value: metric.id })),
     { label: "Available Balance", value: "Available Balance" },
     { label: "Transaction inflow Vs Outflow", value: "Transaction inflow Vs Outflow" },
     { label: "Withdrawals", value: "Withdrawals" },
@@ -399,49 +396,37 @@ export default function PayoutsPage() {
           <h3 className="text-sm font-bold">Payouts</h3>
         </div>
         <div className="flex gap-2">
-          {/* <Button variant={"outline"} onClick={() => setIsWithdrawalModalOpen(true)}>
-            <span className="hidden sm:inline mr-2"> Request Withdrawal</span> <Withdrawal />
-          </Button> */}
           <Button onClick={() => setIsExportModalOpen(true)}>
-            <RiShare2Fill />  <span className="hidden sm:inline ml-2">Export</span>
+            <RiShare2Fill /> <span className="hidden sm:inline ml-2">Export</span>
           </Button>
         </div>
       </div>
+
       <div className='flex w-full gap-3 flex-col xl:flex-row'>
         <div className="space-y-8 w-full xl:w-[65%]">
-          <div className="grid grid-cols-1 md:grid-cols-2  gap-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {overviewMetrics.map((metric) => (
               <Payoutmetrics key={metric.id} metric={metric} />
             ))}
           </div>
-          {/* <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
-            <CardContent>
-              <TransactionInflowChart />
-            </CardContent>
-          </Card> */}
           <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
             <CardContent>
               <PayoutsTab />
             </CardContent>
           </Card>
         </div>
+
         <div className="w-full xl:w-[35%]">
           <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
             <CardHeader className='border-b'>
               <div className='flex justify-between items-center'>
-                {/* <p className='text-sm'>Available Balance</p> */}
                 <Button variant={"outline"} onClick={() => setIsAddBankModalOpen(true)}>
                   Connect Account <Withdrawal />
                 </Button>
               </div>
-              {/* <h3 className='text-2xl font-bold mt-2'>₦0</h3>
-              <span className="text-xs">+15% from last payout • Last updated 2 minutes ago</span> */}
-              {/* <div className='flex items-center justify-between mt-2 gap-3'>
-                <Button className='w-[50%]' onClick={() => setIsDepositModalOpen(true)}> Deposit <Withdrawal color='white' /></Button>
-                <Button className='bg-[#5BA3F8] hover:bg-[#5BA3F8]/90 w-[50%]' onClick={() => setIsWithdrawalModalOpen(true)}> Withdraw <Withdrawal color='white' /></Button>
-              </div> */}
             </CardHeader>
-            <CardContent className="px-0  border-b">
+
+            <CardContent className="px-0 border-b">
               <div className="px-6 mb-4">
                 <p className='text-sm'>Connected Bank Accounts</p>
               </div>
@@ -458,21 +443,14 @@ export default function PayoutsPage() {
                   >
                     {bankAccounts.map((bank) => (
                       <div key={bank.id} className="flex items-center justify-between gap-3 py-2">
-                        <Label
-                          htmlFor={bank.id}
-                          className="flex items-center gap-3 flex-1 cursor-pointer"
-                        >
+                        <Label htmlFor={bank.id} className="flex items-center gap-3 flex-1 cursor-pointer">
                           {bank.icon}
                           <div className="flex flex-col">
                             <span className='text-sm'>{bank.accountNumber}</span>
                             <p className="text-xs">{bank.bankName} . {bank.accountHolder}</p>
                           </div>
                         </Label>
-                        <RadioGroupItem
-                          value={bank.id}
-                          id={bank.id}
-                          className="flex-shrink-0"
-                        />
+                        <RadioGroupItem value={bank.id} id={bank.id} className="flex-shrink-0" />
                       </div>
                     ))}
                   </RadioGroup>
@@ -484,6 +462,7 @@ export default function PayoutsPage() {
                 )}
               </div>
             </CardContent>
+
             <CardContent className='border-b pb-3'>
               <div className='flex justify-between items-center'>
                 <p className='text-sm'>Billing Information</p>
@@ -491,7 +470,7 @@ export default function PayoutsPage() {
                   Edit <Settings />
                 </Button>
               </div>
-              <div className='bg-[#F5F5F5] dark:bg-background border rounded-lg p-3 space-y-4 mt-4 '>
+              <div className='bg-[#F5F5F5] dark:bg-background border rounded-lg p-3 space-y-4 mt-4'>
                 <div className='flex items-center justify-between text-sm'>
                   <span>Subscription Plan</span>
                   <p className="capitalize">{subscriptionPlan}</p>
@@ -506,7 +485,7 @@ export default function PayoutsPage() {
                 </div>
                 <div className='flex items-center justify-between text-sm'>
                   <span>Due Date</span>
-                  <p>30/09/2025</p>
+                  <p>{subscriptionExpiry || '—'}</p>
                 </div>
                 <div className='flex items-center justify-between text-sm text-primary w-full border-t pt-2'>
                   <span>Card</span>
@@ -514,6 +493,7 @@ export default function PayoutsPage() {
                 </div>
               </div>
             </CardContent>
+
             <CardContent>
               <div className='flex justify-between items-center mb-4'>
                 <p className='text-sm'>My Cards</p>
@@ -522,22 +502,19 @@ export default function PayoutsPage() {
                   onClick={() => {
                     setEditingCard(creditCards[currentCardIndex]);
                     setIsAddCardModalOpen(true);
-                  }} disabled
-                >Edit <Settings /></Button>
+                  }}
+                  disabled
+                >
+                  Edit <Settings />
+                </Button>
               </div>
 
               <Swiper
                 modules={[Navigation, Scrollbar]}
                 spaceBetween={16}
                 slidesPerView={1}
-                navigation={{
-                  nextEl: '.swiper-button-next',
-                  prevEl: '.swiper-button-prev',
-                }}
-                scrollbar={{
-                  hide: false,
-                  draggable: true,
-                }}
+                navigation={{ nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' }}
+                scrollbar={{ hide: false, draggable: true }}
                 onSlideChange={(swiper) => setCurrentCardIndex(swiper.activeIndex)}
                 className="w-full"
               >
@@ -551,28 +528,31 @@ export default function PayoutsPage() {
                       <span className="absolute bottom-1 right-2 text-white text-xs">{card.cardType}</span>
                       <div className="flex items-center gap-2 absolute left-2 top-15 text-white">
                         <span className="text-sm">{formatCardNumber(card.cardNumber)}</span>
-                        <button
-                          onClick={toggleCardNumberVisibility}
-                          className="p-1"
-                        >
-                          {showCardNumber ? (
-                            <LuEye className="w-4 h-4 text-white" />
-                          ) : (
-                            <LuEyeClosed className="w-4 h-4 text-white" />
-                          )}
+                        <button onClick={toggleCardNumberVisibility} className="p-1">
+                          {showCardNumber ? <LuEye className="w-4 h-4 text-white" /> : <LuEyeClosed className="w-4 h-4 text-white" />}
                         </button>
                       </div>
                     </div>
                   </SwiperSlide>
                 ))}
               </Swiper>
+
+              {/* Subscribe / Cancel Subscription Button */}
               <Button
-                variant={"outline"}
+                variant={hasActiveSubscription ? "destructive" : "outline"}
                 className="w-full"
-                onClick={handleSubscribe}
-                disabled={isSubscribing}
+                onClick={hasActiveSubscription ? () => setIsCancelModalOpen(true) : handleSubscribe}
+                disabled={isSubscribing || isCancelling || isCheckingSubscription}
               >
-                {isSubscribing ? 'Subscribing...' : 'Subscribe'}
+                {isCheckingSubscription ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Checking...</>
+                ) : isSubscribing ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Subscribing...</>
+                ) : hasActiveSubscription ? (
+                  'Cancel Subscription'
+                ) : (
+                  'Subscribe'
+                )}
               </Button>
             </CardContent>
           </Card>
@@ -582,17 +562,13 @@ export default function PayoutsPage() {
       {/* Modals */}
       <AddCardModal
         isOpen={isAddCardModalOpen}
-        onClose={() => {
-          setIsAddCardModalOpen(false);
-          setEditingCard(null);
-        }}
+        onClose={() => { setIsAddCardModalOpen(false); setEditingCard(null); }}
         onAddCard={handleAddCard}
         onUpdateCard={handleUpdateCard}
         onDeleteCard={handleDeleteCard}
         editCard={editingCard}
         isEditMode={!!editingCard}
       />
-
       <DepositModal
         isOpen={isDepositModalOpen}
         onClose={() => setIsDepositModalOpen(false)}
@@ -600,7 +576,6 @@ export default function PayoutsPage() {
         bankAccounts={bankAccounts}
         creditCards={creditCards}
       />
-
       <WithdrawalModal
         isOpen={isWithdrawalModalOpen}
         onClose={() => setIsWithdrawalModalOpen(false)}
@@ -609,7 +584,6 @@ export default function PayoutsPage() {
         creditCards={creditCards}
         userEmail="user@example.com"
       />
-
       <UpdateBillingModal
         isOpen={isUpdateBillingModalOpen}
         onClose={() => setIsUpdateBillingModalOpen(false)}
@@ -619,7 +593,6 @@ export default function PayoutsPage() {
         currentPlan={subscriptionPlan}
         currentCardId={billingCardId}
       />
-
       <AddBankModal
         isOpen={isAddBankModalOpen}
         onClose={() => setIsAddBankModalOpen(false)}
@@ -632,6 +605,32 @@ export default function PayoutsPage() {
         fieldOptions={fieldOptions}
         dataName="Payouts"
       />
+
+      {/* Cancel Subscription Modal */}
+      <ActionModal
+        isOpen={isCancelModalOpen}
+        onClose={() => !isCancelling && setIsCancelModalOpen(false)}
+        onConfirm={handleCancelSubscription}
+        titleText="Confirm Action"
+        icon={
+          <div className="w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center">
+            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+          </div>
+        }
+        heading="Cancel Subscription"
+        description="Are you sure you want to cancel your subscription? You will lose access to all premium features at the end of your current billing period."
+        productImage="/Union.png"
+        productName="Swiftree Premium"
+        productId="Monthly Plan"
+        productPrice="5,000"
+        productStock="/ month"
+        confirmButtonColor="#E40101"
+        confirmText={isCancelling ? "Cancelling..." : "Yes, Cancel"}
+        cancelText="Keep Subscription"
+      />
     </div>
-  )
+  );
 }

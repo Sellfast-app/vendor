@@ -9,7 +9,7 @@ interface SubscriptionRequest {
     email: string;
   };
   isTrial: boolean;
-  type: "weekly" | "monthly" | "annually" | "biannually";
+  type: "weekly" | "daily" | "annually" | "biannually";
 }
 
 export async function POST(request: NextRequest) {
@@ -46,9 +46,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get subscription type from request body (optional, defaults to monthly)
+    // Get subscription type from request body (optional, defaults to daily)
     const body = await request.json().catch(() => ({}));
-    const subscriptionType = body.type || "monthly";
+    const subscriptionType = body.type || "daily";
     const isTrial = body.isTrial ?? false;
 
     // Prepare subscription request
