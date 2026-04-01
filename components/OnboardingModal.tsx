@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { X, CheckCircle2, Circle, Wallet, MapPin, ImageIcon, Package } from 'lucide-react';
+import { X, CheckCircle2, Circle, Wallet, MapPin, ImageIcon, Package, CreditCard } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogOverlay, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -61,6 +61,7 @@ async function checkTasksCompletion() {
     pickupAddress: false,
     logoAndBanner: false,
     products: false,
+    subscription: false,
   };
 
   try {
@@ -163,6 +164,19 @@ async function checkTasksCompletion() {
     console.log('ℹ️ Error checking products:', error);
   }
 
+  try {
+    const subResponse = await fetch('/api/subscription/status');
+    const subResult = await subResponse.json();
+    if (subResult.hasActiveSubscription === true) {
+      tasks.subscription = true;
+      console.log('✅ Active subscription detected');
+    } else {
+      console.log('❌ No active subscription');
+    }
+  } catch (error) {
+    console.log('ℹ️ Error checking subscription:', error);
+  }
+
   console.log('📋 Final tasks status:', tasks);
   return tasks;
 }
@@ -174,6 +188,7 @@ export const OnboardingProgress = () => {
     pickupAddress: false,
     logoAndBanner: false,
     products: false,
+    subscription: false,
   });
   const [progress, setProgress] = useState(0);
 
@@ -185,15 +200,13 @@ export const OnboardingProgress = () => {
     };
 
     loadTasks();
-
-    // Refresh every 30 seconds
     const interval = setInterval(loadTasks, 30000);
     return () => clearInterval(interval);
   }, []);
 
   const calculateProgress = (taskData: typeof tasks) => {
     const completed = Object.values(taskData).filter(Boolean).length;
-    setProgress((completed / 4) * 100);
+    setProgress((completed / 5) * 100); // ← 5 tasks now
   };
 
   if (progress === 100) return null;
@@ -220,55 +233,48 @@ export const OnboardingModal = () => {
     pickupAddress: false,
     logoAndBanner: false,
     products: false,
+    subscription: false, // ← add this
   });
   const [isChecking, setIsChecking] = useState(true);
 
-  // Check tasks on mount and after navigation
   useEffect(() => {
     const loadAndCheckTasks = async () => {
       setIsChecking(true);
       const checkedTasks = await checkTasksCompletion();
       setTasks(checkedTasks);
-      
-      // Check if critical tasks are incomplete
+
       const criticalTasksIncomplete = !checkedTasks.bankAccount || !checkedTasks.pickupAddress;
       const allComplete = Object.values(checkedTasks).every(Boolean);
-      
+
       if (allComplete) {
-        // All tasks complete - show confetti and don't show modal
         setShowConfetti(true);
         setTimeout(() => setShowConfetti(false), 3000);
         setIsOpen(false);
       } else if (criticalTasksIncomplete) {
-        // Critical tasks incomplete - always show modal
         setIsOpen(true);
       } else {
-        // Critical tasks complete but optional tasks remain
         const hasSeenOptional = localStorage.getItem('has_seen_optional_tasks');
         if (!hasSeenOptional) {
           setIsOpen(true);
         }
       }
-      
+
       setIsChecking(false);
     };
 
     loadAndCheckTasks();
 
-    // Listen for custom event when tasks are completed
     const handleTaskComplete = () => {
       console.log('🔔 Task completion detected, rechecking...');
       loadAndCheckTasks();
     };
 
     window.addEventListener('onboarding-task-complete', handleTaskComplete);
-    
     return () => {
       window.removeEventListener('onboarding-task-complete', handleTaskComplete);
     };
   }, []);
 
-  // Check if confetti should show when tasks update
   useEffect(() => {
     const allComplete = Object.values(tasks).every(Boolean);
     if (allComplete && isOpen && !isChecking) {
@@ -334,17 +340,27 @@ export const OnboardingModal = () => {
       bgColor: 'bg-orange-100 dark:bg-orange-950',
       important: false,
     },
+    {
+      key: 'subscription' as const,
+      icon: CreditCard, // ← import this from lucide-react
+      title: 'Subscribe to activate your store',
+      description: 'Get full access to your storefront and start selling today.',
+      route: '/payouts',
+      iconColor: 'text-yellow-500',
+      bgColor: 'bg-yellow-100 dark:bg-yellow-950',
+      important: true, // ← subscription is required
+    },
   ];
 
   const completedTasks = Object.values(tasks).filter(Boolean).length;
-  const criticalTasksComplete = tasks.bankAccount && tasks.pickupAddress;
+  const criticalTasksComplete = tasks.bankAccount && tasks.pickupAddress && tasks.subscription; // ← include subscription
 
-  if (isChecking) return null; // Don't show anything while checking
+  if (isChecking) return null;
 
   return (
     <>
       {showConfetti && <Confetti />}
-      
+
       <Dialog open={isOpen} onOpenChange={handleClose}>
         <DialogOverlay className="backdrop-blur-xs bg-[#06140033] dark:bg-black/50" />
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -380,7 +396,7 @@ export const OnboardingModal = () => {
                   {!isFirst && (
                     <div className="absolute left-[22px] -top-4 w-0.5 h-4 bg-gray-200 dark:bg-gray-700" />
                   )}
-                  
+
                   <button
                     onClick={() => handleTaskClick(task.key, task.route)}
                     className="w-full flex items-start gap-4 p-4 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-primary hover:bg-accent/50 transition-all duration-200 text-left group"
@@ -393,7 +409,7 @@ export const OnboardingModal = () => {
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold text-sm group-hover:text-primary transition-colors">
@@ -423,7 +439,7 @@ export const OnboardingModal = () => {
             })}
           </div>
 
-          {completedTasks === 4 && (
+          {completedTasks === 5 && ( // ← 5 tasks now
             <div className="mt-6 p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg text-center">
               <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-2" />
               <h3 className="font-semibold text-green-700 dark:text-green-400">
