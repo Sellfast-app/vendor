@@ -33,18 +33,20 @@ interface Variant {
     size: string | number;
     quantity: number;
     color: string;
+    price?: string;
 }
 
 interface ApiVariant {
     size: string;
     quantity: number;
     color: string;
+    price?: string;
 }
 
 // Cookie utility function
 const getCookie = (name: string): string | null => {
     if (typeof document === 'undefined') return null;
-    
+
     const value = `; ${document.cookie}`;
     const parts = value.split(`; ${name}=`);
     if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
@@ -113,11 +115,12 @@ const resolveColorToHex = (color: string): string => {
 export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddProductModalProps) {
     const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
     const [productType, setProductType] = useState<'single' | 'variant'>('single');
-    const [variants, setVariants] = useState<Variant[]>([{ 
-        id: Math.random().toString(36).substr(2, 9), 
-        size: '', 
+    const [variants, setVariants] = useState<Variant[]>([{
+        id: Math.random().toString(36).substr(2, 9),
+        size: '',
         quantity: 0,
-        color: '#000000' 
+        color: '#000000',
+        price: ''
     }]);
     const [productName, setProductName] = useState('');
     const [description, setDescription] = useState('');
@@ -201,11 +204,12 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
     };
 
     const handleAddVariant = () => {
-        setVariants(prev => [...prev, { 
-            id: Math.random().toString(36).substr(2, 9), 
-            size: '', 
+        setVariants(prev => [...prev, {
+            id: Math.random().toString(36).substr(2, 9),
+            size: '',
             quantity: 0,
-            color: '#000000'
+            color: '#000000',
+            price: ''
         }]);
         toast.info("New variant added");
     };
@@ -267,11 +271,11 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
             formData.append('type', productType);
             formData.append('status', mapStatusToApi(status));
             formData.append('weight', weight);
-            
-            const totalQuantity = productType === 'single' 
-                ? parseInt(quantity).toString() 
+
+            const totalQuantity = productType === 'single'
+                ? parseInt(quantity).toString()
                 : variants.reduce((sum, v) => sum + v.quantity, 0).toString();
-            
+
             formData.append('quantity', totalQuantity);
             formData.append('est_prod_days_from', prodFrom);
             formData.append('est_prod_days_to', prodTo);
@@ -279,11 +283,18 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
 
             let variantsData: ApiVariant[] = [];
             if (productType === 'variant') {
-                variantsData = variants.map(variant => ({
-                    size: variant.size.toString(),
-                    quantity: variant.quantity,
-                    color: variant.color
-                }));
+                variantsData = variants.map(variant => {
+                    const variantData: ApiVariant = {
+                        size: variant.size.toString(),
+                        quantity: variant.quantity,
+                        color: variant.color
+                    };
+                    // Only add price if it's provided and valid
+                    if (variant.price && parseFloat(variant.price) > 0) {
+                        variantData.price = parseFloat(variant.price).toString();
+                    }
+                    return variantData;
+                });
             }
             formData.append('variants', JSON.stringify(variantsData));
 
@@ -584,11 +595,29 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                                                     <Input
                                                         type="number"
                                                         value={variant.quantity}
-                                                        onChange={(e) => handleVariantChange(variant.id, 'quantity', parseInt(e.target.value) )}
+                                                        onChange={(e) => handleVariantChange(variant.id, 'quantity', parseInt(e.target.value))}
                                                         placeholder="e.g. 10"
                                                         className="mt-1"
                                                         disabled={isLoading}
                                                     />
+                                                </div>
+                                                {/* Price (Optional) */}
+                                                <div>
+                                                    <Label className="text-xs font-light">
+                                                        Price (Optional)
+                                                    </Label>
+                                                    <Input
+                                                        type="number"
+                                                        value={variant.price || ''}
+                                                        onChange={(e) => handleVariantChange(variant.id, 'price', e.target.value)}
+                                                        placeholder="Leave empty to use main price"
+                                                        className="mt-1"
+                                                        disabled={isLoading}
+                                                        step="0.01"
+                                                    />
+                                                    <p className="text-xs text-muted-foreground mt-1">
+                                                        Leave empty to use the main product price
+                                                    </p>
                                                 </div>
 
                                                 {/* Color Input */}
@@ -661,9 +690,8 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                                 <ImageIcon />
                                 <Label
                                     htmlFor="picture"
-                                    className={`flex items-center justify-center border rounded-lg p-2 ${
-                                        isLoading ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-accent'
-                                    }`}
+                                    className={`flex items-center justify-center border rounded-lg p-2 ${isLoading ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-accent'
+                                        }`}
                                 >
                                     <span className="text-sm text-muted-foreground">Upload Picture</span>
                                 </Label>
