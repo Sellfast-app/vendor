@@ -98,7 +98,8 @@ function StorefrontComponent() {
   const [deliveryMethods, setDeliveryMethods] = useState({
     pickup: false,
     platform: false,
-    vendor: false
+    vendor: false,
+    gig: false
   });
 
   // Function to get theme colors based on theme name
@@ -209,7 +210,8 @@ function StorefrontComponent() {
           setDeliveryMethods({
             pickup: enabledModes.includes('pickup'),
             platform: enabledModes.includes('platform'),
-            vendor: enabledModes.includes('vendor')
+            vendor: enabledModes.includes('vendor'),
+            gig: enabledModes.includes('gig')
           });
           
           console.log('✅ Loaded delivery methods:', {
@@ -543,11 +545,12 @@ function StorefrontComponent() {
     setDeliveryMethods({
       pickup: enabledModes.includes('pickup'),
       platform: enabledModes.includes('platform'),
-      vendor: enabledModes.includes('vendor')
+      vendor: enabledModes.includes('vendor'),
+      gig: enabledModes.includes('gig')
     });
   };
   
-  const handleDeliveryMethodChange = (method: 'pickup' | 'platform' | 'vendor') => {
+  const handleDeliveryMethodChange = (method: 'pickup' | 'platform' | 'vendor'| 'gig') => {
     setDeliveryMethods(prev => {
       const newState = { ...prev };
       
@@ -580,6 +583,7 @@ function StorefrontComponent() {
       if (deliveryMethods.pickup) enabledModes.push('pickup');
       if (deliveryMethods.platform) enabledModes.push('platform');
       if (deliveryMethods.vendor) enabledModes.push('vendor');
+      if (deliveryMethods.gig) enabledModes.push('gig');
       
       const requestBody = {
         enabled_fulfillment_modes: enabledModes
@@ -1133,17 +1137,40 @@ function StorefrontComponent() {
                   )}
                 </div>
               </div>
+              {/* gig delivery check box */}
+              <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                <input
+                  type="checkbox"
+                  id="gig"
+                  checked={deliveryMethods.gig}
+                  onChange={() => handleDeliveryMethodChange('gig')}
+                  disabled={!isEditingDeliveryMethod}
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                />
+                <div className="flex-1">
+                  <label 
+                    htmlFor="gig" 
+                    className={`text-sm font-medium ${!isEditingDeliveryMethod ? 'cursor-default' : 'cursor-pointer'}`}
+                   >
+                    GIG logistics
+                  </label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                     delivery handled by GIG logistics 
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Info box showing current selection */}
-            {(deliveryMethods.pickup || deliveryMethods.platform || deliveryMethods.vendor) && (
+            {(deliveryMethods.pickup || deliveryMethods.platform || deliveryMethods.vendor || deliveryMethods.gig) && (
               <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <p className="text-xs text-blue-700 dark:text-blue-300">
                   <strong>Currently enabled:</strong>{' '}
                   {[
                     deliveryMethods.pickup && 'Pickup',
                     deliveryMethods.platform && 'Platform Delivery',
-                    deliveryMethods.vendor && 'Vendor Delivery'
+                    deliveryMethods.vendor && 'Vendor Delivery',
+                    deliveryMethods.gig && 'GIG logistics'
                   ].filter(Boolean).join(', ')}
                 </p>
               </div>
