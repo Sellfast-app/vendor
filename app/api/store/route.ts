@@ -49,20 +49,19 @@ export async function PATCH(request: NextRequest) {
         
         console.log('🔍 Geocoding address on server:', fullAddress);
         
-        const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(fullAddress)}&key=${process.env.GOOGLE_API_KEY}`;
+        const geocodeUrl = `https://api.mapbox.com/search/geocode/v6/forward?q=${encodeURIComponent(fullAddress)}&access_token=${process.env.MAPBOX_ACCESS_TOKEN}&limit=1&country=${country}`;
         const geocodeRes = await fetch(geocodeUrl);
         const geocodeData = await geocodeRes.json();
 
         console.log('🔍 Geocoding status:', geocodeData.status);
 
-        if (geocodeData.results && geocodeData.results.length > 0) {
-          const location = geocodeData.results[0].geometry.location;
-          body.metadata.latitude = location.lat;
-          body.metadata.longitude = location.lng;
-          console.log('✅ Geocoded coordinates:', location);
+        if (geocodeData.features && geocodeData.features.length > 0) {
+          const coordinates = geocodeData.features[0].geometry.coordinates;
+          body.metadata.latitude = coordinates[1];  // Mapbox returns [lng, lat]
+          body.metadata.longitude = coordinates[0];
+          console.log('✅ Mapbox geocoded coordinates:', { lat: coordinates[1], lng: coordinates[0] });
         } else {
-          // Don't block the save if geocoding fails — just keep existing coords or use 0,0
-          console.warn('⚠️ Geocoding returned no results, preserving existing coordinates');
+          console.warn('⚠️ Mapbox geocoding returned no results');
           if (!body.metadata.latitude) body.metadata.latitude = 0;
           if (!body.metadata.longitude) body.metadata.longitude = 0;
         }
