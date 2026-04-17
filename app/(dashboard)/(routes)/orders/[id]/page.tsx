@@ -23,10 +23,15 @@ interface OrderItem {
   discount: number;
   quantity: number;
   product_id: string;
-  store_id: string;
+  store_id?: string;
+  name?: string;
   product_name?: string;
   product_image?: string;
   product_images?: string[];
+  variant?: {
+    size?: string;
+    color?: string;
+  };
 }
 
 interface Order {
@@ -375,15 +380,35 @@ export default function OrderDetailPage() {
           )}
         </div>
         <div className='flex-1 min-w-0'>
-          {/* Use product_name if available, otherwise fallback to name */}
-          <p className='text-xs sm:text-sm text-gray-500 truncate'>
-            {item.product_name || `Product ${item.product_id}`}
-          </p>
-          <p className='font-semibold text-sm sm:text-base mt-1'>₦{(item.price || 0).toLocaleString()}</p>
-          {(item.discount || 0) > 0 && (
-            <p className='text-xs text-green-600 mt-1'>Discount: ₦{(item.discount || 0).toLocaleString()}</p>
-          )}
-        </div>
+  <p className='text-xs sm:text-sm text-gray-500 truncate'>
+    {item.name || item.product_name || `Product ${item.product_id}`}
+  </p>
+  <p className='font-semibold text-sm sm:text-base mt-1'>₦{(item.price || 0).toLocaleString()}</p>
+  {(item.discount || 0) > 0 && (
+    <p className='text-xs text-green-600 mt-1'>Discount: ₦{(item.discount || 0).toLocaleString()}</p>
+  )}
+
+  {/* Variant details */}
+  {item.variant && (item.variant.size || item.variant.color) && (
+    <div className='flex items-center gap-2 mt-2 flex-wrap'>
+      {item.variant.size && (
+        <span className='text-xs px-2 py-0.5 bg-[#F5F5F5] dark:bg-[#1F1F1F] rounded-full text-muted-foreground'>
+          Size: {item.variant.size}
+        </span>
+      )}
+      {item.variant.color && item.variant.color !== '' && (
+        <span className='text-xs px-2 py-0.5 bg-[#F5F5F5] dark:bg-[#1F1F1F] rounded-full text-muted-foreground flex items-center gap-1.5'>
+          Color:
+          <span
+            className='inline-block w-3 h-3 rounded-full border border-gray-300 flex-shrink-0'
+            style={{ backgroundColor: item.variant.color }}
+          />
+          <span>{item.variant.color}</span>
+        </span>
+      )}
+    </div>
+  )}
+</div>
         <div className='flex items-center gap-2 sm:gap-4 justify-between sm:justify-end'>
           <input 
             type="number" 
