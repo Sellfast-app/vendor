@@ -1082,7 +1082,7 @@ function StorefrontComponent() {
                 </div>
               </div>
 
-              {/* Platform Delivery Checkbox */}
+              {/* SendBox Delivery Checkbox */}
               <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
                 <input
                   type="checkbox"
@@ -1097,10 +1097,10 @@ function StorefrontComponent() {
                     htmlFor="platform" 
                     className={`text-sm font-medium ${!isEditingDeliveryMethod || deliveryMethods.vendor ? 'cursor-not-allowed text-muted-foreground' : 'cursor-pointer'}`}
                   >
-                    Platform Delivery
+                   SendBox
                   </label>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Orders are delivered through Swiftree&apos;s delivery service
+                  delivery handled by SendBox
                   </p>
                   {deliveryMethods.vendor && (
                     <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
@@ -1132,7 +1132,7 @@ function StorefrontComponent() {
                   </p>
                   {deliveryMethods.platform && (
                     <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
-                      ⚠️ Cannot be selected with Platform Delivery
+                      ⚠️ Cannot be selected with Sendbox
                     </p>
                   )}
                 </div>
@@ -1168,7 +1168,7 @@ function StorefrontComponent() {
                   <strong>Currently enabled:</strong>{' '}
                   {[
                     deliveryMethods.pickup && 'Pickup',
-                    deliveryMethods.platform && 'Platform Delivery',
+                    deliveryMethods.platform && 'SendBox',
                     deliveryMethods.vendor && 'Vendor Delivery',
                     deliveryMethods.gig && 'GIG logistics'
                   ].filter(Boolean).join(', ')}
