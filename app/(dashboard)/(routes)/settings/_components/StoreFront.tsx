@@ -97,7 +97,7 @@ function StorefrontComponent() {
   const [availabilityEnabled, setAvailabilityEnabled] = useState(true);
   const [deliveryMethods, setDeliveryMethods] = useState({
     pickup: false,
-    platform: false,
+    sendbox: false,
     vendor: false,
     gig: false
   });
@@ -209,14 +209,14 @@ function StorefrontComponent() {
           const enabledModes = storeDetails.enabled_fulfillment_modes || [];
           setDeliveryMethods({
             pickup: enabledModes.includes('pickup'),
-            platform: enabledModes.includes('platform'),
+            sendbox: enabledModes.includes('sendbox'),
             vendor: enabledModes.includes('vendor'),
             gig: enabledModes.includes('gig')
           });
           
           console.log('✅ Loaded delivery methods:', {
             pickup: enabledModes.includes('pickup'),
-            platform: enabledModes.includes('platform'),
+            sendbox: enabledModes.includes('sendbox'),
             vendor: enabledModes.includes('vendor')
           });
 
@@ -544,22 +544,22 @@ function StorefrontComponent() {
     const enabledModes = storefrontData.enabled_fulfillment_modes || [];
     setDeliveryMethods({
       pickup: enabledModes.includes('pickup'),
-      platform: enabledModes.includes('platform'),
+      sendbox: enabledModes.includes('sendbox'),
       vendor: enabledModes.includes('vendor'),
       gig: enabledModes.includes('gig')
     });
   };
   
-  const handleDeliveryMethodChange = (method: 'pickup' | 'platform' | 'vendor'| 'gig') => {
+  const handleDeliveryMethodChange = (method: 'pickup' | 'sendbox' | 'vendor'| 'gig') => {
     setDeliveryMethods(prev => {
       const newState = { ...prev };
       
-      if (method === 'platform' && !prev.platform) {
-        newState.platform = true;
+      if (method === 'sendbox' && !prev.sendbox) {
+        newState.sendbox = true;
         newState.vendor = false;
       } else if (method === 'vendor' && !prev.vendor) {
         newState.vendor = true;
-        newState.platform = false;
+        newState.sendbox = false;
       } else {
         newState[method] = !prev[method];
       }
@@ -571,7 +571,7 @@ function StorefrontComponent() {
   const handleSaveDeliveryMethod = async () => {
     if (isSavingDeliveryMethod) return;
     
-    if (!deliveryMethods.pickup && !deliveryMethods.platform && !deliveryMethods.vendor) {
+    if (!deliveryMethods.pickup && !deliveryMethods.sendbox && !deliveryMethods.vendor) {
       toast.error('Please select at least one delivery method');
       return;
     }
@@ -581,7 +581,7 @@ function StorefrontComponent() {
     try {
       const enabledModes: string[] = [];
       if (deliveryMethods.pickup) enabledModes.push('pickup');
-      if (deliveryMethods.platform) enabledModes.push('platform');
+      if (deliveryMethods.sendbox) enabledModes.push('sendbox');
       if (deliveryMethods.vendor) enabledModes.push('vendor');
       if (deliveryMethods.gig) enabledModes.push('gig');
       
@@ -1086,15 +1086,15 @@ function StorefrontComponent() {
               <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
                 <input
                   type="checkbox"
-                  id="platform"
-                  checked={deliveryMethods.platform}
-                  onChange={() => handleDeliveryMethodChange('platform')}
+                  id="sendbox"
+                  checked={deliveryMethods.sendbox}
+                  onChange={() => handleDeliveryMethodChange('sendbox')}
                   disabled={!isEditingDeliveryMethod || deliveryMethods.vendor}
                   className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
                 />
                 <div className="flex-1">
                   <label 
-                    htmlFor="platform" 
+                    htmlFor="sendbox" 
                     className={`text-sm font-medium ${!isEditingDeliveryMethod || deliveryMethods.vendor ? 'cursor-not-allowed text-muted-foreground' : 'cursor-pointer'}`}
                   >
                    SendBox
@@ -1117,20 +1117,20 @@ function StorefrontComponent() {
                   id="vendor"
                   checked={deliveryMethods.vendor}
                   onChange={() => handleDeliveryMethodChange('vendor')}
-                  disabled={!isEditingDeliveryMethod || deliveryMethods.platform}
+                  disabled={!isEditingDeliveryMethod || deliveryMethods.sendbox}
                   className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
                 />
                 <div className="flex-1">
                   <label 
                     htmlFor="vendor" 
-                    className={`text-sm font-medium ${!isEditingDeliveryMethod || deliveryMethods.platform ? 'cursor-not-allowed text-muted-foreground' : 'cursor-pointer'}`}
+                    className={`text-sm font-medium ${!isEditingDeliveryMethod || deliveryMethods.sendbox ? 'cursor-not-allowed text-muted-foreground' : 'cursor-pointer'}`}
                   >
                     Vendor Delivery
                   </label>
                   <p className="text-xs text-muted-foreground mt-1">
                     You handle delivery logistics yourself
                   </p>
-                  {deliveryMethods.platform && (
+                  {deliveryMethods.sendbox && (
                     <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
                       ⚠️ Cannot be selected with Sendbox
                     </p>
@@ -1162,13 +1162,13 @@ function StorefrontComponent() {
             </div>
 
             {/* Info box showing current selection */}
-            {(deliveryMethods.pickup || deliveryMethods.platform || deliveryMethods.vendor || deliveryMethods.gig) && (
+            {(deliveryMethods.pickup || deliveryMethods.sendbox || deliveryMethods.vendor || deliveryMethods.gig) && (
               <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <p className="text-xs text-blue-700 dark:text-blue-300">
                   <strong>Currently enabled:</strong>{' '}
                   {[
                     deliveryMethods.pickup && 'Pickup',
-                    deliveryMethods.platform && 'SendBox',
+                    deliveryMethods.sendbox && 'SendBox',
                     deliveryMethods.vendor && 'Vendor Delivery',
                     deliveryMethods.gig && 'GIG logistics'
                   ].filter(Boolean).join(', ')}
