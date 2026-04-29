@@ -329,7 +329,7 @@ export default function PayoutsPage() {
 
       toast.dismiss(subscribeToast);
       toast.success('Redirecting to Paystack checkout...');
-      window.open(checkoutUrl, '_blank');
+      window.location.href = checkoutUrl;
 
     } catch (error) {
       console.error('❌ Error creating subscription:', error);
