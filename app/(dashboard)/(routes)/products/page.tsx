@@ -1,9 +1,8 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import React, { JSX, useState } from "react";
+import React, { JSX, useState, useEffect } from "react";
 import { RiShare2Fill } from "react-icons/ri";
-// import { ExportModal } from "../../_components/ExportModal";
 import { Card, CardContent } from "@/components/ui/card";
 import TotalSalesChart from "@/components/svgIcons/TotalSalesChart";
 import TotalOrdersChart from "@/components/svgIcons/TotalOrdersChart";
@@ -15,6 +14,7 @@ import LowStock from "@/components/svgIcons/LowStock";
 import OutOfStock from "@/components/svgIcons/OutOfStock";
 import PendingDispatch from "@/components/svgIcons/PendingDispatch";
 import ProductsTable from "./_components/ProductsTable";
+import FoodTable from "./_components/FoodTable";
 import { ExportModal } from "@/components/ExportModal";
 
 interface OverviewMetric {
@@ -29,12 +29,38 @@ interface OverviewMetric {
 
 function ProductsPage() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [businessType, setBusinessType] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStoreData = async () => {
+      try {
+        const response = await fetch('/api/store');
+        if (!response.ok) throw new Error('Failed to fetch store data');
+        
+        const result = await response.json();
+        if (result.status === 'success' && result.data?.storeDetails) {
+          setBusinessType(result.data.storeDetails.business_type || "");
+        }
+      } catch (error) {
+        console.error('Error fetching store data:', error);
+        // Default to empty string if fetch fails
+        setBusinessType("");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStoreData();
+  }, []);
+
+  const isRestaurant = businessType === "Restaurant/Food Service";
 
   const overviewMetrics: OverviewMetric[] = [
     {
       id: "total-products",
       icon1: <ProductsIcon />,
-      title: "Total Products",
+      title: isRestaurant ? "Total Food Items" : "Total Products",
       value: "0",
       change: 22.7,
       changeType: "positive",
@@ -43,7 +69,7 @@ function ProductsPage() {
     {
       id: "low-stock",
       icon1: <LowStock />,
-      title: "Low Stock",
+      title: isRestaurant ? "Low Stock Items" : "Low Stock",
       value: "0",
       change: 22.7,
       changeType: "positive",
@@ -67,7 +93,7 @@ function ProductsPage() {
       changeType: "positive",
       icon2: <TotalOrdersChart />,
     },
-  ]
+  ];
 
   const fieldOptions = [
     ...overviewMetrics.map((metric) => ({
@@ -75,18 +101,30 @@ function ProductsPage() {
       value: metric.id,
     })),
     { label: "Thumbnail", value: "Thumbnail" },
-    { label: "Product Name", value: "Product Name" },
+    { label: isRestaurant ? "Food Name" : "Product Name", value: "Product Name" },
     { label: "Stock", value: "Stock" },
     { label: "Remanent", value: "Remanent" },
     { label: "Sales", value: "Sales" },
     { label: "Status", value: "Status" },
   ];
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="flex items-center justify-center h-64">
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <div className="mb-6 flex items-center justify-between">
         <div className="flex-col">
-          <h3 className="text-sm font-bold">Products</h3>
+          <h3 className="text-sm font-bold">
+            {isRestaurant ? "Food Items" : "Products"}
+          </h3>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => setIsExportModalOpen(true)}>
@@ -102,17 +140,17 @@ function ProductsPage() {
         </div>
         <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
           <CardContent>
-            <ProductsTable/>
+            {isRestaurant ? <FoodTable /> : <ProductsTable />}
           </CardContent>
         </Card>
       </div>
-       <ExportModal
-             isOpen={isExportModalOpen}
-             onClose={() => setIsExportModalOpen(false)}
-             endpointPrefix="Products"
-             fieldOptions={fieldOptions}
-             dataName="Products"
-           />
+      <ExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        endpointPrefix={isRestaurant ? "FoodItems" : "Products"}
+        fieldOptions={fieldOptions}
+        dataName={isRestaurant ? "Food Items" : "Products"}
+      />
     </div>
   );
 }
