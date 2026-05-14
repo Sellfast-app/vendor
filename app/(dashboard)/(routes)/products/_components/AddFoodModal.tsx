@@ -7,12 +7,50 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, X, Check, CircleCheck } from 'lucide-react';
+import { Loader2, X, CircleCheck } from 'lucide-react';
 import React, { useState } from 'react';
 import Image from 'next/image';
 import BundleConfiguration from './BundleConfiguration';
 import CustomizationOptions from './CustomizationOptions';
 import PortionSetup from './PortionSetup';
+
+// ─── Types (shared with sub-components) ──────────────────────────────────────
+
+export interface PortionSize {
+    id: string;
+    name: string;
+    price: string;
+    prepTimeStart: string;
+    prepTimeEnd: string;
+    servings: string;
+    servingUnit: string;
+}
+
+export interface AddOnOption {
+    id: string;
+    name: string;
+    price: string;
+}
+
+export interface SavedGroup {
+    id: string;
+    groupName: string;
+    selection: 'single' | 'multiple';
+    maxSelections: number;
+    isRequired: boolean;
+    options: AddOnOption[];
+}
+
+export interface BundleSlot {
+    id: string;
+    name: string;
+    price: string;
+    category: string;
+    maxItems: number;
+    isRequired: boolean;
+}
+
+// ─── Props ────────────────────────────────────────────────────────────────────
 
 interface AddFoodModalProps {
     isOpen: boolean;
@@ -26,73 +64,43 @@ interface UploadedImage {
     id: string;
 }
 
-interface Variant {
-    id: string;
-    size: string | number;
-    quantity: number;
-    color: string;
-    price?: string;
-}
-
-// Helper to check if a color string is valid (name like 'red' or hex like '#FF0000')
-const isValidColor = (color: string): boolean => {
-    if (!color.trim()) return false;
-    const s = new Option().style;
-    s.color = color;
-    return s.color !== '';
-};
-
-// Resolve a color name or hex to a hex string for the swatch
-const resolveColorToHex = (color: string): string => {
-    if (!isValidColor(color)) return '';
-    try {
-        const canvas = document.createElement('canvas');
-        canvas.width = canvas.height = 1;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return '';
-        ctx.fillStyle = color;
-        ctx.fillRect(0, 0, 1, 1);
-        const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
-        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-    } catch {
-        return '';
-    }
-};
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function AddFoodModal({ isOpen, onClose }: AddFoodModalProps) {
+    // ── Basic fields ──────────────────────────────────────────────────────────
     const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
     const [productType, setProductType] = useState<'simple' | 'customizable' | 'bundle'>('simple');
-    const [variants, setVariants] = useState<Variant[]>([{
-        id: Math.random().toString(36).substr(2, 9),
-        size: '',
-        quantity: 0,
-        color: '#000000',
-        price: ''
-    }]);
     const [productName, setProductName] = useState('');
     const [description, setDescription] = useState('');
-    const [price, setPrice] = useState('');
-    const [weight, setWeight] = useState('1');
-    const [quantity, setQuantity] = useState('');
-    const [prodFrom, setProdFrom] = useState('');
-    const [prodTo, setProdTo] = useState('');
     const [status, setStatus] = useState('');
     const [timeAvailability, setTimeAvailability] = useState('');
     const [servingType, setServingType] = useState('');
     const [servingTypeCustom, setServingTypeCustom] = useState('');
+    const [servingTypes, setServingTypes] = useState<string[]>([]);
     const [foodCategory, setFoodCategory] = useState('');
     const [foodCategoryCustom, setFoodCategoryCustom] = useState('');
+    const [foodCategories, setFoodCategories] = useState<string[]>([]);
     const [dietaryLabel, setDietaryLabel] = useState('');
     const [dietaryLabelCustom, setDietaryLabelCustom] = useState('');
+    const [dietaryLabels, setDietaryLabels] = useState<string[]>([]);
+
+    // ── Lifted state from sub-components ─────────────────────────────────────
+    // PortionSetup (simple)
+    const [portions, setPortions] = useState<PortionSize[]>([]);
+    // CustomizationOptions (customizable)
+    const [savedGroups, setSavedGroups] = useState<SavedGroup[]>([]);
+    // BundleConfiguration (bundle)
+    const [bundleSlots, setBundleSlots] = useState<BundleSlot[]>([]);
+
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    // ── Image upload ──────────────────────────────────────────────────────────
 
     const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = event.target.files;
         if (!files) return;
-
-        if (uploadedImages.length + files.length > 5) {
-            return;
-        }
+        if (uploadedImages.length + files.length > 5) return;
 
         const validFiles: File[] = [];
         for (let i = 0; i < files.length; i++) {
@@ -101,11 +109,10 @@ export default function AddFoodModal({ isOpen, onClose }: AddFoodModalProps) {
             if (file.size > 10 * 1024 * 1024) continue;
             validFiles.push(file);
         }
-
         if (validFiles.length === 0) return;
 
         const newImages: UploadedImage[] = validFiles.map((file) => ({
-            file: file,
+            file,
             progress: 0,
             isUploading: true,
             id: Math.random().toString(36).substr(2, 9),
@@ -113,7 +120,6 @@ export default function AddFoodModal({ isOpen, onClose }: AddFoodModalProps) {
 
         setUploadedImages(prev => [...prev, ...newImages]);
 
-        // Simulate upload progress
         newImages.forEach((image, index) => {
             const timer = setInterval(() => {
                 setUploadedImages(prev => prev.map(img => {
@@ -135,58 +141,160 @@ export default function AddFoodModal({ isOpen, onClose }: AddFoodModalProps) {
         setUploadedImages(prev => prev.filter(img => img.id !== id));
     };
 
-    const handleVariantChange = (id: string, field: keyof Variant, value: string | number) => {
-        setVariants(prev => prev.map(variant =>
-            variant.id === id ? { ...variant, [field]: value } : variant
-        ));
+    const addServingType = () => {
+        const val = (servingTypeCustom.trim() || servingType).trim();
+        if (!val) return;
+        if (!servingTypes.includes(val)) {
+            setServingTypes(prev => [...prev, val]);
+        }
+        setServingTypeCustom('');
+        setServingType('');
+    };
+    
+    const addFoodCategory = () => {
+        const val = (foodCategoryCustom.trim() || foodCategory).trim();
+        if (!val) return;
+        if (!foodCategories.includes(val)) {
+            setFoodCategories(prev => [...prev, val]);
+        }
+        setFoodCategoryCustom('');
+        setFoodCategory('');
+    };
+    
+    const addDietaryLabel = () => {
+        const val = (dietaryLabelCustom.trim() || dietaryLabel).trim();
+        if (!val) return;
+        if (!dietaryLabels.includes(val)) {
+            setDietaryLabels(prev => [...prev, val]);
+        }
+        setDietaryLabelCustom('');
+        setDietaryLabel('');
     };
 
-    const handleColorInputChange = (variantId: string, rawValue: string) => {
-        handleVariantChange(variantId, 'color', rawValue);
+    // ── Submit ────────────────────────────────────────────────────────────────
+
+    const handleSubmit = async () => {
+        setError(null);
+
+        // Basic validation
+        if (!productName.trim()) return setError('Food name is required.');
+        if (!description.trim()) return setError('Description is required.');
+        if (!status) return setError('Product status is required.');
+        if (!timeAvailability) return setError('Time-based availability is required.');
+        if (servingTypes.length === 0) return setError('At least one serving type is required.');
+        if (foodCategories.length === 0) return setError('At least one food category is required.');
+        if (uploadedImages.length === 0) return setError('At least one image is required.');
+        if (uploadedImages.some(img => img.isUploading)) return setError('Please wait for images to finish uploading.');
+
+        // Type-specific validation
+        if (productType === 'simple' && portions.length === 0) return setError('Add at least one portion size.');
+        if (productType === 'customizable' && savedGroups.length === 0) return setError('Add at least one customization group.');
+        if (productType === 'bundle' && bundleSlots.length === 0) return setError('Add at least one bundle slot.');
+
+        setIsLoading(true);
+
+        try {
+            const formData = new FormData();
+
+            // Scalar fields
+            formData.append('name', productName);
+            formData.append('type', productType === 'simple' ? 'Simple' : productType === 'customizable' ? 'Customizable' : 'Bundle');
+            formData.append('description', description);
+            formData.append('status', status);
+            formData.append('availability', timeAvailability);
+
+            // Array fields — API expects JSON strings
+            formData.append('category', JSON.stringify(foodCategories));
+            formData.append('labels', JSON.stringify(dietaryLabels));
+            formData.append('servingType', JSON.stringify(servingTypes));
+
+            // Type-specific payload
+            if (productType === 'simple') {
+                const portionPayload = portions.map(p => ({
+                    name: p.name,
+                    price: parseFloat(p.price) || 0,
+                    startPrepTime: parseInt(p.prepTimeStart) || 0,
+                    endPrepTime: parseInt(p.prepTimeEnd) || 0,
+                    servingType: p.servingUnit,
+                    servingPerServingType: parseInt(p.servings) || 0,
+                }));
+                formData.append('portion', JSON.stringify(portionPayload));
+            }
+
+            if (productType === 'customizable') {
+                const addOnPayload = savedGroups.map(g => ({
+                    name: g.groupName,
+                    selection: g.selection,
+                    maxSelection: g.maxSelections,
+                    isRequired: g.isRequired,
+                    options: g.options.map(o => ({
+                        name: o.name,
+                        price: parseFloat(o.price) || 0,
+                    })),
+                }));
+                formData.append('addOnGroup', JSON.stringify(addOnPayload));
+            }
+
+            if (productType === 'bundle') {
+                const bundlePayload = bundleSlots.map(s => ({
+                    name: s.name,
+                    price: parseFloat(s.price) || 0,
+                    category: s.category,
+                    maxCount: s.maxItems,
+                }));
+                formData.append('bundleConfig', JSON.stringify(bundlePayload));
+            }
+
+            // Images
+            uploadedImages.forEach(img => {
+                formData.append('files', img.file);
+            });
+
+            const response = await fetch('/api/products/food', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                setError(result.message || 'Failed to add food item. Please try again.');
+                return;
+            }
+
+            resetForm();
+            onClose();
+
+        } catch (err) {
+            console.error('Submit error:', err);
+            setError('An unexpected error occurred. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
-    const handleAddVariant = () => {
-        setVariants(prev => [...prev, {
-            id: Math.random().toString(36).substr(2, 9),
-            size: '',
-            quantity: 0,
-            color: '#000000',
-            price: ''
-        }]);
-    };
-
-    const handleRemoveVariant = (id: string) => {
-        setVariants(prev => prev.filter(variant => variant.id !== id));
-    };
-
-    const handleSubmit = () => {
-        // UI-only submit - form validation still works
-        if (!productName.trim()) return;
-        if (!description.trim()) return;
-        if (!price || parseFloat(price) <= 0) return;
-        if (!weight || parseFloat(weight) <= 0) return;
-        if (productType === 'simple' && (!quantity || parseInt(quantity) <= 0)) return;
-        if (productType === 'customizable' && variants.some(v => !v.size || v.quantity <= 0)) return;
-        if (productType === 'customizable' && variants.some(v => !isValidColor(v.color))) return;
-        if (!prodFrom || !prodTo) return;
-        if (uploadedImages.length === 0) return;
-        if (uploadedImages.some(img => img.isUploading)) return;
-
-        // In real implementation, this would call an API
-        console.log('Form submitted successfully');
-        resetForm();
-        onClose();
-    };
+    // ── Reset ─────────────────────────────────────────────────────────────────
 
     const resetForm = () => {
+        setUploadedImages([]);
+        setProductType('simple');
+        setProductName('');
+        setDescription('');
         setStatus('');
         setTimeAvailability('');
         setServingType('');
         setServingTypeCustom('');
+        setServingTypes([]);
         setFoodCategory('');
         setFoodCategoryCustom('');
+        setFoodCategories([]);
         setDietaryLabel('');
         setDietaryLabelCustom('');
+        setDietaryLabels([]);
+        setPortions([]);
+        setSavedGroups([]);
+        setBundleSlots([]);
+        setError(null);
     };
 
     const handleClose = () => {
@@ -283,26 +391,26 @@ export default function AddFoodModal({ isOpen, onClose }: AddFoodModalProps) {
                                         <SelectValue placeholder="Select status" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value='available'>Available Today</SelectItem>
-                                        <SelectItem value='out-of-stock'>Out of Stock</SelectItem>
-                                        <SelectItem value='seasonal'>Seasonal</SelectItem>
+                                        <SelectItem value='Available Today'>Available Today</SelectItem>
+                                        <SelectItem value='Out of Stock'>Out of Stock</SelectItem>
+                                        <SelectItem value='Seasonal'>Seasonal</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
                             <div>
                                 <Label className='text-xs font-light mt-4 mb-2'>
-                                    Time-based Availablity<span className="text-destructive">*</span>
+                                    Time-based Availability<span className="text-destructive">*</span>
                                 </Label>
                                 <Select value={timeAvailability} onValueChange={setTimeAvailability} disabled={isLoading}>
                                     <SelectTrigger className='w-full'>
-                                        <SelectValue placeholder="Select status" />
+                                        <SelectValue placeholder="Select availability" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value='breakfast'>Breakfast only</SelectItem>
-                                        <SelectItem value='lunch'>Lunch</SelectItem>
-                                        <SelectItem value='dinner'>Dinner</SelectItem>
-                                        <SelectItem value='all-day'>All Day</SelectItem>
-                                        <SelectItem value='custom'>Custom</SelectItem>
+                                        <SelectItem value='Breakfast'>Breakfast only</SelectItem>
+                                        <SelectItem value='Lunch'>Lunch</SelectItem>
+                                        <SelectItem value='Dinner'>Dinner</SelectItem>
+                                        <SelectItem value='All Day'>All Day</SelectItem>
+                                        <SelectItem value='Custom'>Custom</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -312,7 +420,7 @@ export default function AddFoodModal({ isOpen, onClose }: AddFoodModalProps) {
                                 </Label>
                                 <Select value={servingType} onValueChange={setServingType} disabled={isLoading}>
                                     <SelectTrigger className='w-full'>
-                                        <SelectValue placeholder="Select status" />
+                                        <SelectValue placeholder="Select serving type" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value='plate'>Plate</SelectItem>
@@ -329,11 +437,34 @@ export default function AddFoodModal({ isOpen, onClose }: AddFoodModalProps) {
                                     </SelectContent>
                                 </Select>
                                 <div className='flex items-center gap-2 mt-2'>
-                                    <Input value={servingTypeCustom} onChange={(e) => setServingTypeCustom(e.target.value)} />
-                                    <Button size={'sm'} className='bg-white text-black border hover:bg-black hover:text-white'>
+                                    <Input
+                                        value={servingTypeCustom}
+                                        onChange={(e) => setServingTypeCustom(e.target.value)}
+                                        placeholder="or type a custom serving type"
+                                        disabled={isLoading}
+                                    />
+                                    <Button
+                                        type="button"
+                                        size={'sm'}
+                                        className='bg-white text-black border hover:bg-black hover:text-white'
+                                        onClick={addServingType}
+                                        disabled={isLoading}
+                                    >
                                         <CircleCheck /> Add
                                     </Button>
                                 </div>
+                                {servingTypes.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-2">
+                                        {servingTypes.map(t => (
+                                            <span key={t} className="flex items-center gap-1 text-xs bg-muted px-2 py-0.5 rounded-full">
+                                                {t}
+                                                <button type="button" onClick={() => setServingTypes(prev => prev.filter(x => x !== t))}>
+                                                    <X className="w-3 h-3" />
+                                                </button>
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                             <div>
                                 <Label className='text-xs font-light mt-4 mb-2'>
@@ -341,53 +472,105 @@ export default function AddFoodModal({ isOpen, onClose }: AddFoodModalProps) {
                                 </Label>
                                 <Select value={foodCategory} onValueChange={setFoodCategory} disabled={isLoading}>
                                     <SelectTrigger className='w-full'>
-                                        <SelectValue placeholder="Select status" />
+                                        <SelectValue placeholder="Select category" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value='rich-dishes'>Rich Dishes</SelectItem>
-                                        <SelectItem value='snacks'>Snacks</SelectItem>
-                                        <SelectItem value='drinks'>Drinks</SelectItem>
-                                        <SelectItem value='desserts'>Desserts</SelectItem>
+                                        <SelectItem value='Rice Dishes'>Rice Dishes</SelectItem>
+                                        <SelectItem value='Snacks'>Snacks</SelectItem>
+                                        <SelectItem value='Drinks'>Drinks</SelectItem>
+                                        <SelectItem value='Desserts'>Desserts</SelectItem>
                                         <SelectItem value='custom'>Custom</SelectItem>
                                     </SelectContent>
                                 </Select>
                                 <div className='flex items-center gap-2 mt-2'>
-                                    <Input value={foodCategoryCustom} onChange={(e) => setFoodCategoryCustom(e.target.value)} />
-                                    <Button size={'sm'} className='bg-white text-black border hover:bg-black hover:text-white'>
+                                    <Input
+                                        value={foodCategoryCustom}
+                                        onChange={(e) => setFoodCategoryCustom(e.target.value)}
+                                        placeholder="or type a custom category"
+                                        disabled={isLoading}
+                                    />
+                                    <Button
+                                        type="button"
+                                        size={'sm'}
+                                        className='bg-white text-black border hover:bg-black hover:text-white'
+                                        onClick={addFoodCategory}
+                                        disabled={isLoading}
+                                    >
                                         <CircleCheck /> Add
                                     </Button>
                                 </div>
+                                {foodCategories.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-2">
+                                        {foodCategories.map(c => (
+                                            <span key={c} className="flex items-center gap-1 text-xs bg-muted px-2 py-0.5 rounded-full">
+                                                {c}
+                                                <button type="button" onClick={() => setFoodCategories(prev => prev.filter(x => x !== c))}>
+                                                    <X className="w-3 h-3" />
+                                                </button>
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                             <div>
                                 <Label className='text-xs font-light mt-4 mb-2'>
-                                    Dietary Labels<span className="text-destructive">*</span>
+                                    Dietary Labels
                                 </Label>
                                 <Select value={dietaryLabel} onValueChange={setDietaryLabel} disabled={isLoading}>
                                     <SelectTrigger className='w-full'>
-                                        <SelectValue placeholder="Select status" />
+                                        <SelectValue placeholder="Select dietary label" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value='spicy'>Spicy</SelectItem>
-                                        <SelectItem value='vegetarian'>Vegetarian</SelectItem>
-                                        <SelectItem value='gluten-free'>Gluten-Free</SelectItem>
-                                        <SelectItem value='contains-nuts'>Contains nuts</SelectItem>
-                                        <SelectItem value='halal'>Halal</SelectItem>
-                                        <SelectItem value='diary-free'>Diary-free</SelectItem>
+                                        <SelectItem value='Spicy'>Spicy</SelectItem>
+                                        <SelectItem value='Vegetarian'>Vegetarian</SelectItem>
+                                        <SelectItem value='Gluten-Free'>Gluten-Free</SelectItem>
+                                        <SelectItem value='Contains Nuts'>Contains nuts</SelectItem>
+                                        <SelectItem value='Halal'>Halal</SelectItem>
+                                        <SelectItem value='Dairy-Free'>Dairy-free</SelectItem>
                                         <SelectItem value='custom'>Custom</SelectItem>
                                     </SelectContent>
                                 </Select>
                                 <div className='flex items-center gap-2 mt-2'>
-                                    <Input value={dietaryLabelCustom} onChange={(e) => setDietaryLabelCustom(e.target.value)} />
-                                    <Button size={'sm'} className='bg-white text-black border hover:bg-black hover:text-white'>
+                                    <Input
+                                        value={dietaryLabelCustom}
+                                        onChange={(e) => setDietaryLabelCustom(e.target.value)}
+                                        placeholder="or type a custom label"
+                                        disabled={isLoading}
+                                    />
+                                    <Button
+                                        type="button"
+                                        size={'sm'}
+                                        className='bg-white text-black border hover:bg-black hover:text-white'
+                                        onClick={addDietaryLabel}
+                                        disabled={isLoading}
+                                    >
                                         <CircleCheck /> Add
                                     </Button>
                                 </div>
+                                {dietaryLabels.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-2">
+                                        {dietaryLabels.map(l => (
+                                            <span key={l} className="flex items-center gap-1 text-xs bg-muted px-2 py-0.5 rounded-full">
+                                                {l}
+                                                <button type="button" onClick={() => setDietaryLabels(prev => prev.filter(x => x !== l))}>
+                                                    <X className="w-3 h-3" />
+                                                </button>
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
 
-                            {/* Variants Section */}
-                            {productType === 'simple' && <PortionSetup />}
-                            {productType === 'bundle' && <BundleConfiguration />}
-                            {productType === 'customizable' && <CustomizationOptions />}
+                            {/* Type-specific sections — state lifted up via onChange props */}
+                            {productType === 'simple' && (
+                                <PortionSetup portions={portions} onChange={setPortions} />
+                            )}
+                            {productType === 'customizable' && (
+                                <CustomizationOptions savedGroups={savedGroups} onChange={setSavedGroups} />
+                            )}
+                            {productType === 'bundle' && (
+                                <BundleConfiguration slots={bundleSlots} onSlotsChange={setBundleSlots} />
+                            )}
                         </div>
 
                         {/* Right - Image Upload */}
@@ -398,8 +581,7 @@ export default function AddFoodModal({ isOpen, onClose }: AddFoodModalProps) {
                                 <ImageIcon />
                                 <Label
                                     htmlFor="picture"
-                                    className={`flex items-center justify-center border rounded-lg p-2 ${isLoading ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-accent'
-                                        }`}
+                                    className={`flex items-center justify-center border rounded-lg p-2 ${isLoading ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-accent'}`}
                                 >
                                     <span className="text-sm text-muted-foreground">Upload Picture</span>
                                 </Label>
@@ -459,6 +641,10 @@ export default function AddFoodModal({ isOpen, onClose }: AddFoodModalProps) {
                             )}
                         </div>
                     </div>
+
+                    {error && (
+                        <p className="text-xs text-destructive mt-3 text-right">{error}</p>
+                    )}
 
                     <div className='flex justify-end gap-2 border-t mt-4 pt-4'>
                         <Button variant="outline" className="px-4 py-2 text-sm" onClick={handleClose} disabled={isLoading}>
