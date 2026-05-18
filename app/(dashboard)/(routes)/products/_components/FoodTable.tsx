@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChevronLeft, ChevronRight, FilterIcon, PlusIcon, SearchIcon } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { format } from "date-fns";
 import { BsThreeDots } from "react-icons/bs";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -31,8 +31,42 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import AddFoodModal from "./AddFoodModal";
+import Loading from "@/components/Loading";
+import { toast } from "sonner";
 
-interface FrontendProduct {
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+interface FoodApiItem {
+  id: number;
+  uid: string;
+  storeId: string;
+  name: string;
+  description: string;
+  product_images: string[];
+  type: string;
+  status: string;
+  availability: string;
+  servingType: string[];
+  category: string[];
+  labels: string[];
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: null | string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  addOnGroup: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  portion: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  bundleConfig: any[];
+}
+
+interface FoodApiResponse {
+  status: string;
+  message: string;
+  data: FoodApiItem[];
+}
+
+interface FrontendFoodItem {
   id: string;
   sku: string;
   productName: string;
@@ -43,26 +77,153 @@ interface FrontendProduct {
   status: string;
   createdAt: string;
   thumbnail: string | string[];
-  variants?: { id: string; size: string | number; color: string; price: number; quantity: number }[];
+  type: string;
+  category: string[];
+  availability: string;
 }
+
+const transformFoodItem = (item: FoodApiItem): FrontendFoodItem => ({
+  id: item.uid,  // Use uid as the ID
+  sku: item.uid.substring(0, 8).toUpperCase(),
+  productName: item.name,
+  description: item.description,
+  stock: 0,
+  remanent: 0,
+  sales: 0,
+  status: item.status,
+  createdAt: item.createdAt,
+  thumbnail: item.product_images?.[0] || "/thumbnails/default.png",
+  type: item.type,
+  category: item.category || [],
+  availability: item.availability,
+});
+
+const mapStatusFromApi = (status: string): string => {
+  const statusMap: { [key: string]: string } = {
+    'Available Today': 'Available Today',
+    'Out of Stock': 'Out of Stock',
+    'Seasonal': 'Seasonal',
+  };
+  return statusMap[status] || 'Available Today';
+};
+
+const mapStatusToApi = (status: string): string => {
+  const statusMap: { [key: string]: string } = {
+    'Available Today': 'Available Today',
+    'Out of Stock': 'Out of Stock',
+    'Seasonal': 'Seasonal',
+  };
+  return statusMap[status] || 'Available Today';
+};
+
+// ─── Component ──────────────────────────────────────────────────────────────
 
 export default function FoodTable() {
   const [currentPage, setCurrentPage] = useState(0);
   const pageSize = 6;
   const [searchTerm, setSearchTerm] = useState("");
-  const [products, setProducts] = useState<FrontendProduct[]>([]);
-  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [foodItems, setFoodItems] = useState<FrontendFoodItem[]>([]);
+  const [selectedFoodItems, setSelectedFoodItems] = useState<string[]>([]);
   const [isAddFoodModalOpen, setIsAddFoodModalOpen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [filterDateRange, setFilterDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined });
   const [filterStatus, setFilterStatus] = useState<string>("");
-  const [filterStockRange, setFilterStockRange] = useState<{ min: number; max: number }>({ min: 0, max: Infinity });
   const [sortBy, setSortBy] = useState<string>("default");
-  const [isLoading, setIsLoading] = useState(false);
-  const [totalProducts, setTotalProducts] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [totalFoodItems, setTotalFoodItems] = useState(0);
 
-  const totalPages = Math.ceil(totalProducts / pageSize);
-  const displayedProducts = products;
+  // Fetch food items from API
+  const fetchFoodItems = useCallback(async () => {
+    try {
+      setIsLoading(true);
+
+      const response = await fetch(`/api/products/food`);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch food items');
+      }
+
+      const result: FoodApiResponse = await response.json();
+
+      if (result.status === 'success') {
+        let items = result.data.map(transformFoodItem);  // data is already an array
+
+        // Client-side filtering
+        if (searchTerm) {
+          const searchLower = searchTerm.toLowerCase();
+          items = items.filter(item =>
+            item.productName.toLowerCase().includes(searchLower) ||
+            item.sku.toLowerCase().includes(searchLower)
+          );
+        }
+
+        if (filterStatus) {
+          items = items.filter(item => item.status === filterStatus);
+        }
+
+        // Client-side sorting
+        if (sortBy !== "default") {
+          items.sort((a, b) => {
+            if (sortBy.includes("product name")) {
+              return sortBy.includes("(A-Z)")
+                ? a.productName.localeCompare(b.productName)
+                : b.productName.localeCompare(a.productName);
+            }
+            if (sortBy.includes("stock")) {
+              return sortBy.includes("(High-Low)")
+                ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                : new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+            }
+            return 0;
+          });
+        }
+
+        // Client-side pagination
+        setTotalFoodItems(items.length);
+        const start = currentPage * pageSize;
+        const paginatedItems = items.slice(start, start + pageSize);
+        setFoodItems(paginatedItems);
+      } else {
+        throw new Error(result.message || 'Failed to fetch food items');
+      }
+    } catch (error) {
+      console.error('Error fetching food items:', error);
+      setFoodItems([]);
+      toast.error('Failed to fetch food items');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentPage, searchTerm, filterStatus, sortBy, pageSize]);
+
+  // Fetch food items when filters or page changes
+  useEffect(() => {
+    fetchFoodItems();
+  }, [fetchFoodItems]);
+
+  // Add event listener for food item addition
+  useEffect(() => {
+    const handleFoodAdded = () => {
+      fetchFoodItems();
+      setCurrentPage(0);
+    };
+
+    window.addEventListener("foodAdded", handleFoodAdded);
+
+    return () => {
+      window.removeEventListener("foodAdded", handleFoodAdded);
+    };
+  }, [fetchFoodItems]);
+
+  // Helper function to get the first thumbnail URL
+  const getFirstThumbnail = (thumbnail: string | string[]): string => {
+    if (Array.isArray(thumbnail)) {
+      return thumbnail[0] || '/thumbnails/default.png';
+    }
+    return thumbnail || '/thumbnails/default.png';
+  };
+
+  const totalPages = Math.ceil(totalFoodItems / pageSize);
+  const displayedFoodItems = foodItems;
 
   const getPageNumbers = () => {
     const pages = [];
@@ -80,25 +241,25 @@ export default function FoodTable() {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedProducts(displayedProducts.map((product) => product.sku));
+      setSelectedFoodItems(displayedFoodItems.map((item) => item.sku));
     } else {
-      setSelectedProducts([]);
+      setSelectedFoodItems([]);
     }
   };
 
-  const handleSelectProduct = (sku: string, checked: boolean) => {
+  const handleSelectFoodItem = (sku: string, checked: boolean) => {
     if (checked) {
-      setSelectedProducts((prev) => [...prev, sku]);
+      setSelectedFoodItems((prev) => [...prev, sku]);
     } else {
-      setSelectedProducts((prev) => prev.filter((id) => id !== sku));
+      setSelectedFoodItems((prev) => prev.filter((id) => id !== sku));
     }
   };
 
   const getStatusClass = (status: string) => {
     switch (status) {
-      case "Ready Stock":
+      case "Available Today":
         return "bg-[#EFFFE9] rounded-xl";
-      case "Made-to-order":
+      case "Seasonal":
         return "bg-[#FFF5E8] rounded-xl";
       case "Out of Stock":
         return "bg-[#FFEFEF] rounded-xl";
@@ -110,22 +271,10 @@ export default function FoodTable() {
   const clearFilters = () => {
     setFilterDateRange({ from: undefined, to: undefined });
     setFilterStatus("");
-    setFilterStockRange({ min: 0, max: Infinity });
     setSortBy("default");
     setIsFilterOpen(false);
     setSearchTerm("");
-  };
-
-  // Helper function to get the first thumbnail URL
-  const getFirstThumbnail = (thumbnail: string | string[]): string => {
-    if (Array.isArray(thumbnail)) {
-      return thumbnail[0] || '/thumbnails/default.png';
-    }
-    return thumbnail || '/thumbnails/default.png';
-  };
-
-  const handleAddFoodItem = () => {
-    setIsAddFoodModalOpen(true);
+    toast.info('Filters cleared');
   };
 
   return (
@@ -134,7 +283,7 @@ export default function FoodTable() {
         <div className="relative flex items-center pb-2">
           <Input
             type="text"
-            placeholder="Search by name/SKU..."
+            placeholder="Search by name..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full sm:w-64 md:w-84 pr-8 py-2 text-xs sm:text-sm dark:bg-background rounded-lg border-[#F5F5F5] dark:border-[#1F1F1F]"
@@ -158,7 +307,7 @@ export default function FoodTable() {
           <Button
             variant="outline"
             className="border-[#4FCA6A] text-[#4FCA6A] dark:bg-background"
-            onClick={handleAddFoodItem}
+            onClick={() => setIsAddFoodModalOpen(true)}
           >
             <PlusIcon className="text-[#4FCA6A]" />
             <span className="hidden sm:inline ml-2">Add Food Item</span>
@@ -168,7 +317,7 @@ export default function FoodTable() {
 
       {isFilterOpen && (
         <div className="mb-4 p-4 bg-white dark:bg-[#1F1F1F] rounded-lg border border-[#F5F5F5] dark:border-[#2D2D2D]">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="dateFilter">Date Range</Label>
               <Popover>
@@ -200,35 +349,14 @@ export default function FoodTable() {
               </Popover>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="stockFilter">Stock</Label>
-              <div className="flex gap-2">
-                <Input
-                  type="number"
-                  id="stockMin"
-                  value={filterStockRange.min === 0 ? "" : filterStockRange.min}
-                  onChange={(e) => setFilterStockRange((prev) => ({ ...prev, min: e.target.value ? parseInt(e.target.value) : 0 }))}
-                  placeholder="From"
-                  className="dark:bg-background"
-                />
-                <Input
-                  type="number"
-                  id="stockMax"
-                  value={filterStockRange.max === Infinity ? "" : filterStockRange.max}
-                  onChange={(e) => setFilterStockRange((prev) => ({ ...prev, max: e.target.value ? parseInt(e.target.value) : Infinity }))}
-                  placeholder="To"
-                  className="dark:bg-background"
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="statusFilter">Status</Label>
               <Select onValueChange={setFilterStatus} value={filterStatus}>
                 <SelectTrigger className="w-full dark:bg-background">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Ready Stock">Ready Stock</SelectItem>
-                  <SelectItem value="Made-to-order">Made-to-order</SelectItem>
+                  <SelectItem value="Available Today">Available Today</SelectItem>
+                  <SelectItem value="Seasonal">Seasonal</SelectItem>
                   <SelectItem value="Out of Stock">Out of Stock</SelectItem>
                 </SelectContent>
               </Select>
@@ -241,10 +369,10 @@ export default function FoodTable() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="default">Default</SelectItem>
-                  <SelectItem value="product name (A-Z)">Product Name (A-Z)</SelectItem>
-                  <SelectItem value="product name (Z-A)">Product Name (Z-A)</SelectItem>
-                  <SelectItem value="stock (High-Low)">Stock (High-Low)</SelectItem>
-                  <SelectItem value="stock (Low-High)">Stock (Low-High)</SelectItem>
+                  <SelectItem value="product name (A-Z)">Name (A-Z)</SelectItem>
+                  <SelectItem value="product name (Z-A)">Name (Z-A)</SelectItem>
+                  <SelectItem value="stock (High-Low)">Newest First</SelectItem>
+                  <SelectItem value="stock (Low-High)">Oldest First</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -257,16 +385,16 @@ export default function FoodTable() {
           <TableRow>
             <TableHead className="w-[50px]">
               <Checkbox
-                checked={selectedProducts.length === displayedProducts.length && displayedProducts.length > 0}
+                checked={selectedFoodItems.length === displayedFoodItems.length && displayedFoodItems.length > 0}
                 onCheckedChange={handleSelectAll}
               />
             </TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">SKU</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Thumbnail</TableHead>
-            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Product Name</TableHead>
-            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Stock</TableHead>
-            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Remnant</TableHead>
-            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Sales</TableHead>
+            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Food Name</TableHead>
+            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Type</TableHead>
+            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Category</TableHead>
+            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Availability</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Status</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Actions</TableHead>
           </TableRow>
@@ -275,24 +403,24 @@ export default function FoodTable() {
           {isLoading ? (
             <TableRow>
               <TableCell colSpan={9} className="text-center py-8">
-                Loading...
+                <Loading />
               </TableCell>
             </TableRow>
-          ) : displayedProducts.length > 0 ? (
-            displayedProducts.map((product) => (
-              <TableRow key={product.sku}>
+          ) : displayedFoodItems.length > 0 ? (
+            displayedFoodItems.map((item) => (
+              <TableRow key={item.sku}>
                 <TableCell>
                   <Checkbox
-                    checked={selectedProducts.includes(product.sku)}
-                    onCheckedChange={(checked) => handleSelectProduct(product.sku, checked as boolean)}
+                    checked={selectedFoodItems.includes(item.sku)}
+                    onCheckedChange={(checked) => handleSelectFoodItem(item.sku, checked as boolean)}
                   />
                 </TableCell>
-                <TableCell className="text-[#4FCA6A] underline">{product.sku}</TableCell>
+                <TableCell className="text-[#4FCA6A] underline">{item.sku}</TableCell>
                 <TableCell>
                   <div className="relative w-12 h-12 rounded overflow-hidden">
                     <Image
-                      src={getFirstThumbnail(product.thumbnail)}
-                      alt={product.productName}
+                      src={getFirstThumbnail(item.thumbnail)}
+                      alt={item.productName}
                       fill
                       className="object-cover"
                       sizes="48px"
@@ -300,18 +428,18 @@ export default function FoodTable() {
                     />
                   </div>
                 </TableCell>
-                <TableCell>{product.productName}</TableCell>
-                <TableCell>{product.stock}</TableCell>
-                <TableCell>{product.remanent}</TableCell>
-                <TableCell>₦{product.sales.toLocaleString()}</TableCell>
+                <TableCell>{item.productName}</TableCell>
+                <TableCell>{item.type}</TableCell>
+                <TableCell>{item.category?.join(", ") || "-"}</TableCell>
+                <TableCell>{item.availability}</TableCell>
+
                 <TableCell>
-                  <span className={`flex items-center px-2 py-1 text-black rounded text-sm ${getStatusClass(product.status)}`}>
-                    <span className={`w-2 h-2 rounded-full mr-2 ${
-                      product.status === "Ready Stock" ? "bg-[#53DC19]" :
-                      product.status === "Made-to-order" ? "bg-[#FFB347]" :
-                      product.status === "Out of Stock" ? "bg-[#E40101]" : ""
-                    }`} />
-                    {product.status}
+                  <span className={`flex items-center px-2 py-1 text-black rounded text-sm ${getStatusClass(item.status)}`}>
+                    <span className={`w-2 h-2 rounded-full mr-2 ${item.status === "Available Today" ? "bg-[#53DC19]" :
+                        item.status === "Seasonal" ? "bg-[#FFB347]" :
+                          item.status === "Out of Stock" ? "bg-[#E40101]" : ""
+                      }`} />
+                    {item.status}
                   </span>
                 </TableCell>
                 <TableCell>
@@ -326,13 +454,13 @@ export default function FoodTable() {
                         <EyeIcon /> View Details
                       </DropdownMenuItem>
                       <DropdownMenuItem>
-                        <EditIcon /> Edit Product
+                        <EditIcon /> Edit Item
                       </DropdownMenuItem>
                       <DropdownMenuItem>
-                        <DeleteIcon /> <span className="text-[#E40101]">Delete Product</span>
+                        <DeleteIcon /> <span className="text-[#E40101]">Delete Item</span>
                       </DropdownMenuItem>
                       <DropdownMenuItem>
-                        <ArchiveIcon /> Archive Product
+                        <ArchiveIcon /> Archive Item
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -351,7 +479,7 @@ export default function FoodTable() {
 
       <div className="flex justify-center mt-4 space-x-2">
         <span className="text-sm">
-          {`${(currentPage * pageSize) + 1}-${Math.min((currentPage + 1) * pageSize, totalProducts)} of ${totalProducts}`}
+          {`${(currentPage * pageSize) + 1}-${Math.min((currentPage + 1) * pageSize, totalFoodItems)} of ${totalFoodItems}`}
         </span>
         <Button
           variant="outline"
@@ -387,7 +515,6 @@ export default function FoodTable() {
         </Button>
       </div>
 
-      {/* Add Food Modal */}
       <AddFoodModal
         isOpen={isAddFoodModalOpen}
         onClose={() => setIsAddFoodModalOpen(false)}

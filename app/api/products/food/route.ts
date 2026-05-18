@@ -1,25 +1,39 @@
 // app/api/products/food/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-export async function POST(request: Request) {
+const CACHE_DURATION = 300; // 5 minutes
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const cache = new Map<string, { data: any; timestamp: number }>();
+
+function clearFoodCache(storeId: string) {
+  const keysToDelete: string[] = [];
+  cache.forEach((_, key) => {
+    if (key.startsWith(`food-${storeId}`)) keysToDelete.push(key);
+  });
+  keysToDelete.forEach(key => cache.delete(key));
+  console.log(`✅ Cleared ${keysToDelete.length} food cache entries for store ${storeId}`);
+}
+
+function parseCookies(cookieHeader: string | null): Record<string, string> {
+  if (!cookieHeader) return {};
+  return cookieHeader.split(";").reduce((acc, cookie) => {
+    const [name, value] = cookie.trim().split("=");
+    acc[name] = value;
+    return acc;
+  }, {} as Record<string, string>);
+}
+
+
+export async function GET(request: NextRequest) {
   try {
-    // Get token and store_id from cookies
     const cookieHeader = request.headers.get("cookie");
-    let token = null;
-    let storeId = null;
-    
-    if (cookieHeader) {
-      const cookies = cookieHeader.split(";").reduce((acc, cookie) => {
-        const [name, value] = cookie.trim().split("=");
-        acc[name] = value;
-        return acc;
-      }, {} as Record<string, string>);
-      token = cookies.accessToken || null;
-      storeId = cookies.store_id || null;
-    }
-    
+    const cookies = parseCookies(cookieHeader);
+    const token = cookies.accessToken || null;
+    const storeId = cookies.store_id || null;
+
     if (!token) {
       return NextResponse.json(
         { status: "error", message: "Authentication required" },
@@ -33,95 +47,68 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    
-    // Get form data from request
-    const formData = await request.formData();
-    
-    // Add store_id if not present (don't use .set() as it might corrupt FormData)
-    if (!formData.has('store_id')) {
-      formData.append('store_id', storeId);
-    }
-    
-    // Log for debugging
-    console.log("🍔 Food API - FormData entries:");
-    for (const [key, value] of formData.entries()) {
-      if (value instanceof File) {
-        console.log(`  ${key}: File - name: ${value.name}, size: ${value.size}, type: ${value.type}`);
-      } else {
-        const strValue = typeof value === 'string' ? value : String(value);
-        console.log(`  ${key}: ${strValue.substring(0, 100)}`);
+
+    const { searchParams } = new URL(request.url);
+    const page = searchParams.get("page") || "1";
+    const pageSize = searchParams.get("pageSize") || "10";
+    const search = searchParams.get("search") || "";
+    const status = searchParams.get("status") || "";
+    const sort = searchParams.get("sort") || "";
+    const dir = searchParams.get("dir") || "";
+    const bustCache = searchParams.get("_t");
+
+    const cacheKey = `food-${storeId}-${page}-${pageSize}-${search}-${status}-${sort}-${dir}`;
+    const shouldBypassCache = !!bustCache;
+
+    if (!shouldBypassCache) {
+      const cachedData = cache.get(cacheKey);
+      if (cachedData && Date.now() - cachedData.timestamp < CACHE_DURATION * 1000) {
+        console.log('📦 Returning cached food items data');
+        return NextResponse.json(cachedData.data);
       }
     }
-    
-    // Prepare request to external API
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
-    
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/products/food`, {
-        method: "POST",
+
+    // Build query string
+    const queryParams = new URLSearchParams({
+      page,
+      pageSize,
+      ...(search && { search }),
+      ...(status && { status }),
+      ...(sort && { sort }),
+      ...(dir && { dir }),
+    });
+
+    const response = await fetch(
+      `${API_BASE_URL}/api/products/food/${storeId}?${queryParams}`,
+      {
+        method: "GET",
         headers: {
           "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
-        body: formData,
-        signal: controller.signal,
-      });
-      
-      clearTimeout(timeoutId);
-      
-      // Check content type before parsing as JSON
-      const contentType = response.headers.get("content-type");
-      
-      if (!contentType || !contentType.includes("application/json")) {
-        const textResponse = await response.text();
-        console.error("❌ Non-JSON response received:", textResponse.substring(0, 500));
-        
-        return NextResponse.json(
-          { 
-            status: "error", 
-            message: `Server returned unexpected response: ${response.status} ${response.statusText}` 
-          },
-          { status: 502 }
-        );
       }
-      
-      // Parse as JSON
-      const result = await response.json();
-      
-      console.log("🍔 Food API Response:", JSON.stringify(result, null, 2));
-      
-      if (!response.ok) {
-        return NextResponse.json(
-          { status: "error", message: result.message || "Failed to add food item" },
-          { status: response.status }
-        );
-      }
+    );
 
-      return NextResponse.json(result, { status: response.status });
-      
-    }
-   // eslint-disable-next-line @typescript-eslint/no-explicit-any 
-    catch (fetchError: any) {
-      clearTimeout(timeoutId);
-      
-      if (fetchError.name === "AbortError") {
-        return NextResponse.json(
-          { status: "error", message: "Request timeout. Please try again." },
-          { status: 408 }
-        );
-      }
-      
-      console.error("❌ API connection error:", fetchError);
+    if (!response.ok) {
+      const error = await response.json();
       return NextResponse.json(
-        { status: "error", message: "Unable to connect to food service. Please try again later." },
-        { status: 503 }
+        { status: "error", message: error.message || "Failed to fetch food items" },
+        { status: response.status }
       );
     }
-    
-  }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-   catch (error: any) {
-    console.error("❌ Unexpected error in food API route:", error);
+
+    const result = await response.json();
+
+    if (result.status === 'success' && !shouldBypassCache) {
+      cache.set(cacheKey, { data: result, timestamp: Date.now() });
+      console.log('💾 Cached food items for key:', cacheKey);
+    }
+
+    return NextResponse.json(result);
+
+  } // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  catch (error: any) {
+    console.error("Error fetching food items:", error);
     return NextResponse.json(
       { status: "error", message: "Internal server error" },
       { status: 500 }

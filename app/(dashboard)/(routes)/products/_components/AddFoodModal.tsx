@@ -55,6 +55,7 @@ export interface BundleSlot {
 interface AddFoodModalProps {
     isOpen: boolean;
     onClose: () => void;
+    onFoodAdded?: () => void;
 }
 
 interface UploadedImage {
@@ -66,7 +67,7 @@ interface UploadedImage {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function AddFoodModal({ isOpen, onClose }: AddFoodModalProps) {
+export default function AddFoodModal({ isOpen, onClose, onFoodAdded }: AddFoodModalProps) {
     // ── Basic fields ──────────────────────────────────────────────────────────
     const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
     const [productType, setProductType] = useState<'simple' | 'customizable' | 'bundle'>('simple');
@@ -262,6 +263,7 @@ export default function AddFoodModal({ isOpen, onClose }: AddFoodModalProps) {
                 return;
             }
 
+            onFoodAdded?.();
             resetForm();
             onClose();
 

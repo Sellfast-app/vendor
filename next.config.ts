@@ -49,14 +49,15 @@ const withPWA = require('next-pwa')({
 
 const nextConfig: NextConfig = {
   images: {
-    // Option 1: Using domains (legacy but still works)
+    // Legacy domains config
     domains: [
       'res.cloudinary.com',
-      'api.swiftree.app', // Add this line
+      'api.swiftree.app',
       'api-staging-africa-705709517595.africa-south1.run.app',
-      'staging.swiftree.app'
+      'staging.swiftree.app',
+      'swiftree-foodvendorpull.b-cdn.net', // Add this line
     ],
-    // Option 2: Using remotePatterns (recommended)
+    // Recommended remotePatterns config
     remotePatterns: [
       {
         protocol: 'https',
@@ -67,6 +68,18 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'api.swiftree.app', 
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'swiftree-foodvendorpull.b-cdn.net', // Add this block
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.b-cdn.net', // Add wildcard for any BunnyCDN subdomain
         port: '',
         pathname: '/**',
       },
