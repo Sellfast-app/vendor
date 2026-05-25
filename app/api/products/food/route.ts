@@ -115,3 +115,121 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const cookieHeader = request.headers.get("cookie");
+    const cookies = parseCookies(cookieHeader);
+    const token = cookies.accessToken || null;
+    const storeId = cookies.store_id || null;
+
+    if (!token) {
+      return NextResponse.json({ status: "error", message: "Authentication required" }, { status: 401 });
+    }
+
+    if (!storeId) {
+      return NextResponse.json({ status: "error", message: "Store ID not found" }, { status: 400 });
+    }
+
+    // Parse the incoming FormData
+    const formData = await request.formData();
+
+    // Build a FRESH FormData - this is the correct way to avoid boundary corruption
+    const newFormData = new FormData();
+
+    // 🔑 Add store_id FIRST
+    newFormData.append("store_id", storeId);
+
+    // Copy all fields EXCEPT store_id (we already added it)
+    for (const [key, value] of formData.entries()) {
+      if (key === "store_id") continue;
+      
+      if (value instanceof File) {
+        // Append file with its original name
+        newFormData.append(key, value, value.name);
+      } else {
+        newFormData.append(key, value);
+      }
+    }
+
+    // Debug: log what we're sending
+    console.log("🍔 Forwarding food POST request with fields:");
+    let totalSize = 0;
+    for (const [key, value] of newFormData.entries()) {
+      if (value instanceof File) {
+        totalSize += value.size;
+        console.log(`  📁 ${key}: ${value.name} (${(value.size / 1024).toFixed(1)}KB, ${value.type})`);
+      } else {
+        const str = String(value);
+        console.log(`  📝 ${key}: ${str.substring(0, 100)}`);
+      }
+    }
+    console.log(`  📦 Total size: ${(totalSize / 1024 / 1024).toFixed(2)}MB`);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/products/food`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+        body: newFormData,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      const contentType = response.headers.get("content-type");
+
+      if (!contentType || !contentType.includes("application/json")) {
+        const textResponse = await response.text();
+        console.error("❌ Non-JSON response:", textResponse.substring(0, 500));
+        return NextResponse.json(
+          { status: "error", message: `Upstream error: ${response.status}` },
+          { status: 502 }
+        );
+      }
+
+      const result = await response.json();
+      console.log("🍔 Food API response:", result.status, result.message || "");
+
+      if (!response.ok) {
+        return NextResponse.json(
+          { status: "error", message: result.message || "Failed to add food item" },
+          { status: response.status }
+        );
+      }
+
+      clearFoodCache(storeId);
+      return NextResponse.json(result, { status: response.status });
+
+    }// eslint-disable-next-line @typescript-eslint/no-explicit-any 
+    catch (fetchError: any) {
+      clearTimeout(timeoutId);
+
+      if (fetchError.name === "AbortError") {
+        console.error("❌ Request timed out after 120s");
+        return NextResponse.json(
+          { status: "error", message: "Request timed out. Please try again with smaller images." },
+          { status: 408 }
+        );
+      }
+
+      console.error("❌ API connection error:", fetchError.message);
+      return NextResponse.json(
+        { status: "error", message: "Unable to connect to food service." },
+        { status: 503 }
+      );
+    }
+
+  } // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  catch (error: any) {
+    console.error("❌ Unexpected error:", error);
+    return NextResponse.json(
+      { status: "error", message: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}

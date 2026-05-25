@@ -14,7 +14,7 @@ interface BundleAddOnOption {
     price: string;
 }
 
-interface BundleAddOnGroup {
+export interface BundleAddOnGroup {
     id: string;
     groupName: string;
     selection: 'single' | 'multiple';
@@ -27,6 +27,8 @@ interface BundleAddOnGroup {
 interface BundleConfigurationProps {
     slots: BundleSlot[];
     onSlotsChange: (slots: BundleSlot[]) => void;
+    addOnGroups: BundleAddOnGroup[];
+    onAddOnGroupsChange: (groups: BundleAddOnGroup[] | ((prev: BundleAddOnGroup[]) => BundleAddOnGroup[])) => void;
 }
 
 function BundleSlotRow({ slot, onRemove, onEdit }: { slot: BundleSlot; onRemove: (id: string) => void; onEdit: (id: string) => void }) {
@@ -113,7 +115,7 @@ function AddOnGroupCard({ group, onChange, onRemove, onAddOption, onRemoveOption
     );
 }
 
-export default function BundleConfiguration({ slots, onSlotsChange }: BundleConfigurationProps) {
+export default function BundleConfiguration({ slots, onSlotsChange ,  addOnGroups,onAddOnGroupsChange }: BundleConfigurationProps) {
     const [bundleName, setBundleName] = useState('');
     const [bundlePrice, setBundlePrice] = useState('');
     const [bundleCategory, setBundleCategory] = useState('');
@@ -121,7 +123,6 @@ export default function BundleConfiguration({ slots, onSlotsChange }: BundleConf
     const [isSlotRequired, setIsSlotRequired] = useState(false);
     const [bundleOpen, setBundleOpen] = useState(true);
     const [customizationEnabled, setCustomizationEnabled] = useState(false);
-    const [addOnGroups, setAddOnGroups] = useState<BundleAddOnGroup[]>([]);
 
     const handleAddSlot = () => {
         if (!bundleName.trim() || !bundleCategory) return;
@@ -143,7 +144,7 @@ export default function BundleConfiguration({ slots, onSlotsChange }: BundleConf
     };
 
     const handleAddGroup = () => {
-        setAddOnGroups((prev) => [...prev, {
+        onAddOnGroupsChange((prev) => [...prev, {
             id: Math.random().toString(36).substr(2, 9),
             groupName: '', selection: 'single', maxSelections: 2, isRequired: false,
             options: [], draftOptionName: '', draftOptionPrice: '',
@@ -151,20 +152,20 @@ export default function BundleConfiguration({ slots, onSlotsChange }: BundleConf
     };
 
     const handleGroupChange = (id: string, field: keyof BundleAddOnGroup, value: unknown) => {
-        setAddOnGroups((prev) => prev.map((g) => (g.id === id ? { ...g, [field]: value } : g)));
+        onAddOnGroupsChange((prev) => prev.map((g) => (g.id === id ? { ...g, [field]: value } : g)));
     };
 
-    const handleRemoveGroup = (id: string) => setAddOnGroups((prev) => prev.filter((g) => g.id !== id));
+    const handleRemoveGroup = (id: string) => onAddOnGroupsChange((prev) => prev.filter((g) => g.id !== id));
 
     const handleAddOption = (groupId: string) => {
-        setAddOnGroups((prev) => prev.map((g) => {
+        onAddOnGroupsChange((prev) => prev.map((g) => {
             if (g.id !== groupId || !g.draftOptionName.trim()) return g;
             return { ...g, options: [...g.options, { id: Math.random().toString(36).substr(2, 9), name: g.draftOptionName, price: g.draftOptionPrice }], draftOptionName: '', draftOptionPrice: '' };
         }));
     };
 
     const handleRemoveOption = (groupId: string, optionId: string) => {
-        setAddOnGroups((prev) => prev.map((g) => g.id === groupId ? { ...g, options: g.options.filter((o) => o.id !== optionId) } : g));
+        onAddOnGroupsChange((prev) => prev.map((g) => g.id === groupId ? { ...g, options: g.options.filter((o) => o.id !== optionId) } : g));
     };
 
     return (

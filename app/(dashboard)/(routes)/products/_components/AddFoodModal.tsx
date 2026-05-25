@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Loader2, X, CircleCheck } from 'lucide-react';
 import React, { useState } from 'react';
 import Image from 'next/image';
-import BundleConfiguration from './BundleConfiguration';
+import BundleConfiguration, { BundleAddOnGroup } from './BundleConfiguration';
 import CustomizationOptions from './CustomizationOptions';
 import PortionSetup from './PortionSetup';
 
@@ -84,6 +84,7 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded }: AddFoodMo
     const [dietaryLabel, setDietaryLabel] = useState('');
     const [dietaryLabelCustom, setDietaryLabelCustom] = useState('');
     const [dietaryLabels, setDietaryLabels] = useState<string[]>([]);
+    const [bundleAddOnGroups, setBundleAddOnGroups] = useState<BundleAddOnGroup[]>([]);
 
     // ── Lifted state from sub-components ─────────────────────────────────────
     // PortionSetup (simple)
@@ -243,6 +244,20 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded }: AddFoodMo
                     category: s.category,
                     maxCount: s.maxItems,
                 }));
+                
+                // Build addOnGroup from bundleAddOnGroups
+                const addOnPayload = bundleAddOnGroups.map(g => ({
+                    name: g.groupName,
+                    selection: g.selection,
+                    maxSelection: g.maxSelections,
+                    isRequired: g.isRequired,
+                    options: g.options.map(o => ({
+                        name: o.name,
+                        price: parseFloat(o.price) || 0,
+                    })),
+                }));
+                
+                formData.append('addOnGroup', JSON.stringify(addOnPayload));
                 formData.append('bundleConfig', JSON.stringify(bundlePayload));
             }
 
@@ -296,6 +311,7 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded }: AddFoodMo
         setPortions([]);
         setSavedGroups([]);
         setBundleSlots([]);
+        setBundleAddOnGroups([]); 
         setError(null);
     };
 
@@ -571,7 +587,8 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded }: AddFoodMo
                                 <CustomizationOptions savedGroups={savedGroups} onChange={setSavedGroups} />
                             )}
                             {productType === 'bundle' && (
-                                <BundleConfiguration slots={bundleSlots} onSlotsChange={setBundleSlots} />
+                                <BundleConfiguration slots={bundleSlots} onSlotsChange={setBundleSlots}    addOnGroups={bundleAddOnGroups}
+                                onAddOnGroupsChange={setBundleAddOnGroups}/>
                             )}
                         </div>
 
