@@ -64,6 +64,42 @@ async function checkTasksCompletion() {
     subscription: false,
   };
 
+  // First, detect if this is a food store
+  let isFoodStore = false;
+  try {
+    const storeResponse = await fetch('/api/store');
+    const storeResult = await storeResponse.json();
+    if (storeResult.status === 'success' && storeResult.data?.storeDetails) {
+      const store = storeResult.data.storeDetails;
+      const businessType = store.business_type || '';
+      isFoodStore = businessType === 'Restaurant/Food Service';
+      console.log('🍽️ Store type:', businessType, '| Is food store:', isFoodStore);
+
+      // Check pickup address
+      const metadata = store.metadata;
+      if (metadata?.address && metadata?.city && metadata?.state && metadata?.country) {
+        tasks.pickupAddress = true;
+        console.log('✅ Pickup address detected');
+      }
+
+      // Check logo AND banner (both required)
+      const hasLogo = !!store.logo || !!store.logo_url;
+      const hasBanner = !!store.banner || !!store.banner_url;
+      
+      if (hasLogo && hasBanner) {
+        tasks.logoAndBanner = true;
+        console.log('✅ Both logo and banner detected');
+      } else {
+        console.log('❌ Missing:', {
+          missingLogo: !hasLogo,
+          missingBanner: !hasBanner
+        });
+      }
+    }
+  } catch (error) {
+    console.log('ℹ️ Error checking store:', error);
+  }
+
   try {
     // Check bank account
     const bankResponse = await fetch('/api/payments/bank-details');
@@ -77,88 +113,59 @@ async function checkTasksCompletion() {
   }
 
   try {
-    // Check pickup address
-    const storeResponse = await fetch('/api/store');
-    const storeResult = await storeResponse.json();
-    if (storeResult.status === 'success' && storeResult.data?.storeDetails?.metadata) {
-      const metadata = storeResult.data.storeDetails.metadata;
-      // Check if address fields are filled
-      if (metadata.address && metadata.city && metadata.state && metadata.country) {
-        tasks.pickupAddress = true;
-        console.log('✅ Pickup address detected');
-      }
-    }
-  } catch (error) {
-    console.log('ℹ️ No pickup address found');
-  }
-
-  try {
-    // Check logo AND banner (both required)
-    const storeResponse = await fetch('/api/store');
-    const storeResult = await storeResponse.json();
-    
-    if (storeResult.status === 'success' && storeResult.data?.storeDetails) {
-      const store = storeResult.data.storeDetails;
+    // 🔑 Check products - use different endpoint for food stores
+    if (isFoodStore) {
+      // Food vendors: check /api/products/food
+      const foodResponse = await fetch('/api/products/food');
+      const foodResult = await foodResponse.json();
       
-      // Check if both logo and banner exist
-      const hasLogo = !!store.logo || !!store.logo_url;
-      const hasBanner = !!store.banner || !!store.banner_url;
-      
-      console.log('🖼️ Logo/Banner check:', {
-        logo: store.logo || store.logo_url,
-        banner: store.banner || store.banner_url,
-        hasLogo,
-        hasBanner
+      console.log('🍔 Food items check response:', {
+        status: foodResult.status,
+        hasData: !!foodResult.data,
+        dataType: Array.isArray(foodResult.data) ? 'array' : typeof foodResult.data,
+        itemsCount: Array.isArray(foodResult.data) ? foodResult.data.length : 'N/A',
       });
       
-      if (hasLogo && hasBanner) {
-        tasks.logoAndBanner = true;
-        console.log('✅ Both logo and banner detected');
-      } else {
-        console.log('❌ Missing:', {
-          missingLogo: !hasLogo,
-          missingBanner: !hasBanner
-        });
-      }
-    }
-  } catch (error) {
-    console.log('ℹ️ Error checking logo/banner:', error);
-  }
-
-  try {
-    // UPDATED: Check products - look for at least one product
-    const productsResponse = await fetch('/api/products?limit=1&pageSize=1');
-    const productsResult = await productsResponse.json();
-    
-    console.log('📦 Products check response:', {
-      status: productsResult.status,
-      hasData: !!productsResult.data,
-      total: productsResult.data?.total,
-      items: productsResult.data?.items?.length
-    });
-    
-    if (productsResult.status === 'success') {
-      // Check if there are any products
-      // Multiple ways to check:
-      // 1. Check if data exists and has items array with length > 0
-      if (productsResult.data?.items && productsResult.data.items.length > 0) {
-        tasks.products = true;
-        console.log('✅ Products detected:', productsResult.data.items.length);
-      }
-      // 2. Check if total count > 0
-      else if (productsResult.data?.total && productsResult.data.total > 0) {
-        tasks.products = true;
-        console.log('✅ Products detected (by total):', productsResult.data.total);
-      }
-      // 3. Check if the response has products array directly
-      else if (productsResult.data?.products && productsResult.data.products.length > 0) {
-        tasks.products = true;
-        console.log('✅ Products detected (by products array):', productsResult.data.products.length);
-      } else {
-        console.log('❌ No products found');
+      if (foodResult.status === 'success') {
+        // The food API returns data as an array directly
+        if (Array.isArray(foodResult.data) && foodResult.data.length > 0) {
+          tasks.products = true;
+          console.log('✅ Food items detected:', foodResult.data.length);
+        } else if (foodResult.data?.items && foodResult.data.items.length > 0) {
+          // Fallback: if data is wrapped in items
+          tasks.products = true;
+          console.log('✅ Food items detected (items):', foodResult.data.items.length);
+        } else if (foodResult.data?.total && foodResult.data.total > 0) {
+          // Fallback: if total is provided
+          tasks.products = true;
+          console.log('✅ Food items detected (total):', foodResult.data.total);
+        } else {
+          console.log('❌ No food items found');
+        }
       }
     } else {
-      console.log('ℹ️ Products API returned non-success status');
+      // Regular vendors: check /api/products
+      const productsResponse = await fetch('/api/products?limit=1&pageSize=1');
+      const productsResult = await productsResponse.json();
+      
+      console.log('📦 Products check response:', {
+        status: productsResult.status,
+        hasData: !!productsResult.data,
+        total: productsResult.data?.total,
+        items: productsResult.data?.items?.length
+      });
+      
+      if (productsResult.status === 'success') {
+        if (productsResult.data?.items && productsResult.data.items.length > 0) {
+          tasks.products = true;
+          console.log('✅ Products detected:', productsResult.data.items.length);
+        } else if (productsResult.data?.total && productsResult.data.total > 0) {
+          tasks.products = true;
+          console.log('✅ Products detected (by total):', productsResult.data.total);
+        } else {
+          console.log('❌ No products found');
+        }
+      }
     }
   } catch (error) {
     console.log('ℹ️ Error checking products:', error);
