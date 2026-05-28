@@ -233,3 +233,107 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const cookieHeader = request.headers.get("cookie");
+    const cookies = parseCookies(cookieHeader);
+    const token = cookies.accessToken || null;
+    const storeId = cookies.store_id || null;
+
+    if (!token) {
+      return NextResponse.json({ status: "error", message: "Authentication required" }, { status: 401 });
+    }
+
+    if (!storeId) {
+      return NextResponse.json({ status: "error", message: "Store ID not found" }, { status: 400 });
+    }
+
+    const body = await request.json();
+    const response = await fetch(`${API_BASE_URL}/api/products/food`, {
+      method: "PATCH",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        ...body,
+        store_id: storeId,
+      }),
+    });
+
+    const contentType = response.headers.get("content-type") || "";
+    const result = contentType.includes("application/json")
+      ? await response.json()
+      : { status: "error", message: await response.text() };
+
+    if (!response.ok) {
+      return NextResponse.json(
+        { status: "error", message: result.message || "Failed to update food item" },
+        { status: response.status }
+      );
+    }
+
+    clearFoodCache(storeId);
+    return NextResponse.json(result, { status: response.status === 204 ? 200 : response.status });
+  } catch (error) {
+    console.error("❌ Error updating food item:", error);
+    return NextResponse.json(
+      { status: "error", message: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const cookieHeader = request.headers.get("cookie");
+    const cookies = parseCookies(cookieHeader);
+    const token = cookies.accessToken || null;
+    const storeId = cookies.store_id || null;
+
+    if (!token) {
+      return NextResponse.json({ status: "error", message: "Authentication required" }, { status: 401 });
+    }
+
+    if (!storeId) {
+      return NextResponse.json({ status: "error", message: "Store ID not found" }, { status: 400 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const uid = searchParams.get("uid");
+
+    if (!uid) {
+      return NextResponse.json({ status: "error", message: "Food item ID is required" }, { status: 400 });
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/products/food/${uid}/${storeId}`, {
+      method: "DELETE",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    const contentType = response.headers.get("content-type") || "";
+    const result = contentType.includes("application/json")
+      ? await response.json()
+      : { status: response.ok ? "success" : "error", message: await response.text() };
+
+    if (!response.ok) {
+      return NextResponse.json(
+        { status: "error", message: result.message || "Failed to delete food item" },
+        { status: response.status }
+      );
+    }
+
+    clearFoodCache(storeId);
+    return NextResponse.json(result, { status: response.status === 204 ? 200 : response.status });
+  } catch (error) {
+    console.error("❌ Error deleting food item:", error);
+    return NextResponse.json(
+      { status: "error", message: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}

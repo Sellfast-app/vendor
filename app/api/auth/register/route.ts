@@ -48,14 +48,12 @@ export async function POST(request: Request) {
       !data.business_details?.type ||
       !data.business_details?.metadata?.brand_color?.primary
     ) {
-      console.log("Validation failed: Missing required fields", data);
+      console.log("Validation failed: Missing required fields");
       return NextResponse.json(
         { status: "error", message: "Missing required fields", success: false },
         { status: 400 }
       );
     }
-
-    console.log("Register API payload:", JSON.stringify(data, null, 2));
 
     // External API call with timeout
     const controller = new AbortController();

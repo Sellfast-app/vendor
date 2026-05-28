@@ -58,8 +58,6 @@ export async function POST(request: Request) {
     const timeoutId = setTimeout(() => controller.abort(), EXTERNAL_API_TIMEOUT);
 
     try {
-      console.log(`[LOGIN] External API URL: ${loginUrl}`);
-
       const response = await fetch(loginUrl, {
         method: "POST",
         headers: {
@@ -86,7 +84,6 @@ export async function POST(request: Request) {
         console.error("[LOGIN] Non-JSON auth response", {
           status: response.status,
           contentType,
-          url: loginUrl,
           body: body.slice(0, 500),
         });
 

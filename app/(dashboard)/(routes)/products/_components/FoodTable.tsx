@@ -13,6 +13,8 @@ import EyeIcon from "@/components/svgIcons/EyeIcon";
 import EditIcon from "@/components/svgIcons/EditIcon";
 import ArchiveIcon from "@/components/svgIcons/ArchiveIcon";
 import DeleteIcon from "@/components/svgIcons/DeleteIcon";
+import DeleteIcon2 from "@/components/svgIcons/DeleteIcon2";
+import ActionModal from "@/components/ActionModal";
 import Image from "next/image";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -30,7 +32,7 @@ import {
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
-import AddFoodModal from "./AddFoodModal";
+import AddFoodModal, { EditableFoodItem } from "./AddFoodModal";
 import Loading from "@/components/Loading";
 import { toast } from "sonner";
 
@@ -66,7 +68,7 @@ interface FoodApiResponse {
   data: FoodApiItem[];
 }
 
-interface FrontendFoodItem {
+interface FrontendFoodItem extends EditableFoodItem {
   id: string;
   sku: string;
   productName: string;
@@ -77,37 +79,33 @@ interface FrontendFoodItem {
   status: string;
   createdAt: string;
   thumbnail: string | string[];
-  type: string;
-  category: string[];
-  availability: string;
 }
 
 const transformFoodItem = (item: FoodApiItem): FrontendFoodItem => ({
+  uid: item.uid,
   id: item.uid,  // Use uid as the ID
   sku: item.uid.substring(0, 8).toUpperCase(),
+  name: item.name,
   productName: item.name,
   description: item.description,
+  product_images: item.product_images || [],
   stock: 0,
   remanent: 0,
   sales: 0,
-  status: item.status,
+  status: mapStatusFromApi(item.status),
   createdAt: item.createdAt,
   thumbnail: item.product_images?.[0] || "/thumbnails/default.png",
   type: item.type,
   category: item.category || [],
+  labels: item.labels || [],
+  servingType: item.servingType || [],
   availability: item.availability,
+  addOnGroup: item.addOnGroup || [],
+  portion: item.portion || [],
+  bundleConfig: item.bundleConfig || [],
 });
 
 const mapStatusFromApi = (status: string): string => {
-  const statusMap: { [key: string]: string } = {
-    'Available Today': 'Available Today',
-    'Out of Stock': 'Out of Stock',
-    'Seasonal': 'Seasonal',
-  };
-  return statusMap[status] || 'Available Today';
-};
-
-const mapStatusToApi = (status: string): string => {
   const statusMap: { [key: string]: string } = {
     'Available Today': 'Available Today',
     'Out of Stock': 'Out of Stock',
@@ -125,6 +123,8 @@ export default function FoodTable() {
   const [foodItems, setFoodItems] = useState<FrontendFoodItem[]>([]);
   const [selectedFoodItems, setSelectedFoodItems] = useState<string[]>([]);
   const [isAddFoodModalOpen, setIsAddFoodModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [selectedFoodItem, setSelectedFoodItem] = useState<FrontendFoodItem | null>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [filterDateRange, setFilterDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined });
   const [filterStatus, setFilterStatus] = useState<string>("");
@@ -277,6 +277,61 @@ export default function FoodTable() {
     toast.info('Filters cleared');
   };
 
+  const handleFoodAdded = () => {
+    window.dispatchEvent(new CustomEvent("foodAdded"));
+    setCurrentPage(0);
+    toast.success('Food item added successfully!');
+  };
+
+  const handleFoodUpdated = () => {
+    window.dispatchEvent(new CustomEvent("foodAdded"));
+    setSelectedFoodItem(null);
+    setIsAddFoodModalOpen(false);
+    setCurrentPage(0);
+    toast.success('Food item updated successfully!');
+  };
+
+  const openEditModal = (item: FrontendFoodItem) => {
+    setSelectedFoodItem(item);
+    setIsAddFoodModalOpen(true);
+  };
+
+  const openDeleteModal = (item: FrontendFoodItem) => {
+    setSelectedFoodItem(item);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedFoodItem) return;
+
+    try {
+      setIsLoading(true);
+      const response = await fetch(`/api/products/food?uid=${encodeURIComponent(selectedFoodItem.uid)}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || `Failed to delete food item: ${response.status}`);
+      }
+
+      setFoodItems((prev) => prev.filter((item) => item.uid !== selectedFoodItem.uid));
+      setTotalFoodItems((prev) => Math.max(prev - 1, 0));
+      toast.success('Food item deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting food item:', error);
+      toast.error(`Failed to delete food item: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsDeleteModalOpen(false);
+      setSelectedFoodItem(null);
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="w-full">
       <div className="flex justify-between mb-4 space-x-4">
@@ -307,7 +362,10 @@ export default function FoodTable() {
           <Button
             variant="outline"
             className="border-[#4FCA6A] text-[#4FCA6A] dark:bg-background"
-            onClick={() => setIsAddFoodModalOpen(true)}
+            onClick={() => {
+              setSelectedFoodItem(null);
+              setIsAddFoodModalOpen(true);
+            }}
           >
             <PlusIcon className="text-[#4FCA6A]" />
             <span className="hidden sm:inline ml-2">Add Food Item</span>
@@ -453,10 +511,10 @@ export default function FoodTable() {
                       <DropdownMenuItem>
                         <EyeIcon /> View Details
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => openEditModal(item)}>
                         <EditIcon /> Edit Item
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => openDeleteModal(item)}>
                         <DeleteIcon /> <span className="text-[#E40101]">Delete Item</span>
                       </DropdownMenuItem>
                       <DropdownMenuItem>
@@ -517,7 +575,30 @@ export default function FoodTable() {
 
       <AddFoodModal
         isOpen={isAddFoodModalOpen}
-        onClose={() => setIsAddFoodModalOpen(false)}
+        onClose={() => {
+          setIsAddFoodModalOpen(false);
+          setSelectedFoodItem(null);
+        }}
+        onFoodAdded={handleFoodAdded}
+        onFoodUpdated={handleFoodUpdated}
+        editFoodItem={selectedFoodItem}
+      />
+      <ActionModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        titleText="Confirm Action"
+        icon={<DeleteIcon2 />}
+        heading="Delete Food Item"
+        description="Are you sure you want to delete this food item? This action cannot be undone."
+        productImage={selectedFoodItem ? getFirstThumbnail(selectedFoodItem.thumbnail) : '/thumbnails/default.png'}
+        productName={selectedFoodItem?.productName || ""}
+        productId={selectedFoodItem?.sku || ""}
+        productPrice={selectedFoodItem?.sales.toLocaleString() || "0"}
+        productStock={selectedFoodItem?.stock.toString() || "0"}
+        confirmButtonColor="#E40101"
+        confirmText="Delete"
+        cancelText="Cancel"
       />
     </div>
   );

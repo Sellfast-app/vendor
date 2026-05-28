@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, X, CircleCheck } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import BundleConfiguration, { BundleAddOnGroup } from './BundleConfiguration';
 import CustomizationOptions from './CustomizationOptions';
@@ -50,12 +50,40 @@ export interface BundleSlot {
     isRequired: boolean;
 }
 
+export interface EditableFoodItem {
+    uid: string;
+    name: string;
+    description?: string;
+    product_images?: string[];
+    type: string;
+    status: string;
+    availability: string;
+    servingType?: string[];
+    category?: string[];
+    labels?: string[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    addOnGroup?: any[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    portion?: any[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    bundleConfig?: any[];
+}
+
+interface ApiAddOnOption {
+    uid?: string;
+    id?: string;
+    name?: string;
+    price?: number | string;
+}
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface AddFoodModalProps {
     isOpen: boolean;
     onClose: () => void;
     onFoodAdded?: () => void;
+    onFoodUpdated?: () => void;
+    editFoodItem?: EditableFoodItem | null;
 }
 
 interface UploadedImage {
@@ -67,9 +95,10 @@ interface UploadedImage {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function AddFoodModal({ isOpen, onClose, onFoodAdded }: AddFoodModalProps) {
+export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdated, editFoodItem }: AddFoodModalProps) {
     // ── Basic fields ──────────────────────────────────────────────────────────
     const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
+    const [existingImages, setExistingImages] = useState<string[]>([]);
     const [productType, setProductType] = useState<'simple' | 'customizable' | 'bundle'>('simple');
     const [productName, setProductName] = useState('');
     const [description, setDescription] = useState('');
@@ -96,6 +125,38 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded }: AddFoodMo
 
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const isEditMode = !!editFoodItem;
+
+    useEffect(() => {
+        if (!isOpen) return;
+
+        if (!editFoodItem) {
+            resetForm();
+            return;
+        }
+
+        setUploadedImages([]);
+        setExistingImages(editFoodItem.product_images || []);
+        setProductType(mapFoodTypeToForm(editFoodItem.type));
+        setProductName(editFoodItem.name || '');
+        setDescription(editFoodItem.description || '');
+        setStatus(editFoodItem.status || '');
+        setTimeAvailability(editFoodItem.availability || '');
+        setServingType('');
+        setServingTypeCustom('');
+        setServingTypes(editFoodItem.servingType || []);
+        setFoodCategory('');
+        setFoodCategoryCustom('');
+        setFoodCategories(editFoodItem.category || []);
+        setDietaryLabel('');
+        setDietaryLabelCustom('');
+        setDietaryLabels(editFoodItem.labels || []);
+        setPortions((editFoodItem.portion || []).map(mapApiPortionToForm));
+        setSavedGroups((editFoodItem.addOnGroup || []).map(mapApiAddOnGroupToForm));
+        setBundleSlots((editFoodItem.bundleConfig || []).map(mapApiBundleSlotToForm));
+        setBundleAddOnGroups((editFoodItem.addOnGroup || []).map(mapApiBundleAddOnGroupToForm));
+        setError(null);
+    }, [editFoodItem, isOpen]);
 
     // ── Image upload ──────────────────────────────────────────────────────────
 
@@ -185,7 +246,9 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded }: AddFoodMo
         if (!timeAvailability) return setError('Time-based availability is required.');
         if (servingTypes.length === 0) return setError('At least one serving type is required.');
         if (foodCategories.length === 0) return setError('At least one food category is required.');
-        if (uploadedImages.length === 0) return setError('At least one image is required.');
+        if (!isEditMode && uploadedImages.length === 0) return setError('At least one image is required.');
+        if (isEditMode && existingImages.length === 0 && uploadedImages.length === 0) return setError('At least one image is required.');
+        if (isEditMode && uploadedImages.length > 0) return setError('Image updates are not supported for food edits yet.');
         if (uploadedImages.some(img => img.isUploading)) return setError('Please wait for images to finish uploading.');
 
         // Type-specific validation
@@ -196,6 +259,27 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded }: AddFoodMo
         setIsLoading(true);
 
         try {
+            if (isEditMode) {
+                const payload = buildUpdatePayload();
+                const response = await fetch('/api/products/food', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    setError(result.message || 'Failed to update food item. Please try again.');
+                    return;
+                }
+
+                onFoodUpdated?.();
+                resetForm();
+                onClose();
+                return;
+            }
+
             const formData = new FormData();
 
             // Scalar fields
@@ -294,6 +378,7 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded }: AddFoodMo
 
     const resetForm = () => {
         setUploadedImages([]);
+        setExistingImages([]);
         setProductType('simple');
         setProductName('');
         setDescription('');
@@ -314,6 +399,45 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded }: AddFoodMo
         setBundleAddOnGroups([]); 
         setError(null);
     };
+
+    const buildUpdatePayload = () => ({
+        uid: editFoodItem?.uid,
+        type: productType === 'simple' ? 'Simple' : productType === 'customizable' ? 'Customizable' : 'Bundle',
+        name: productName,
+        description,
+        status,
+        availability: timeAvailability,
+        category: foodCategories,
+        labels: dietaryLabels,
+        servingType: servingTypes,
+        ...(productType === 'simple' && {
+            portion: portions.map(p => ({
+                ...(isPersistedId(p.id) && { uid: p.id }),
+                productUid: editFoodItem?.uid,
+                name: p.name,
+                price: parseFloat(p.price) || 0,
+                startPrepTime: parseInt(p.prepTimeStart) || 0,
+                endPrepTime: parseInt(p.prepTimeEnd) || 0,
+                servingType: p.servingUnit,
+                servingPerServingType: parseInt(p.servings) || 0,
+            })),
+        }),
+        ...(productType === 'customizable' && {
+            addOnGroup: savedGroups.map(group => mapFormAddOnGroupToApi(group, editFoodItem?.uid)),
+        }),
+        ...(productType === 'bundle' && {
+            addOnGroup: bundleAddOnGroups.map(group => mapFormBundleAddOnGroupToApi(group, editFoodItem?.uid)),
+            bundleConfig: bundleSlots.map(s => ({
+                ...(isPersistedId(s.id) && { uid: s.id }),
+                productUid: editFoodItem?.uid,
+                name: s.name,
+                price: parseFloat(s.price) || 0,
+                category: s.category,
+                maxCount: s.maxItems,
+                isRequired: s.isRequired,
+            })),
+        }),
+    });
 
     const handleClose = () => {
         if (isLoading) return;
@@ -336,8 +460,10 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded }: AddFoodMo
                 <div className="h-full p-4 overflow-y-auto">
                     <div className="flex justify-between py-2 items-center border-b border-[#F8F8F8] dark:border-[#2A2A2A]">
                         <div className="flex flex-col gap-0">
-                            <h2 className="text-sm font-semibold">Add Food Item</h2>
-                            <p className='text-xs font-light text-[#A0A0A0]'>Fill in the details to create a new food item for your restaurant.</p>
+                            <h2 className="text-sm font-semibold">{isEditMode ? 'Edit Food Item' : 'Add Food Item'}</h2>
+                            <p className='text-xs font-light text-[#A0A0A0]'>
+                                {isEditMode ? 'Update the details for this food item.' : 'Fill in the details to create a new food item for your restaurant.'}
+                            </p>
                         </div>
                         <Button variant="ghost" className="p-0 h-auto" onClick={handleClose} disabled={isLoading}>
                             <X className="h-5 w-5" />
@@ -616,6 +742,27 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded }: AddFoodMo
                                 <p className='text-xs text-[#A0A0A0]'>PNG, JPG, GIF up to 10MB, max 5 images</p>
                             </div>
 
+                            {existingImages.length > 0 && (
+                                <div className="mt-4">
+                                    <p className="text-xs text-muted-foreground mb-2">Current images</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {existingImages.map((image) => (
+                                            <div key={image} className="relative w-10 h-10">
+                                                <div className="relative w-full h-full rounded border overflow-hidden">
+                                                    <Image
+                                                        src={image}
+                                                        alt="Existing food"
+                                                        fill
+                                                        className="object-cover"
+                                                        sizes="40px"
+                                                    />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
                             {uploadedImages.length > 0 && (
                                 <div className="mt-4">
                                     <div className="flex flex-wrap gap-2">
@@ -672,15 +819,15 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded }: AddFoodMo
                         <Button
                             className="px-4 py-2 text-sm"
                             onClick={handleSubmit}
-                            disabled={isLoading || uploadedImages.length === 0}
+                            disabled={isLoading || (!isEditMode && uploadedImages.length === 0)}
                         >
                             {isLoading ? (
                                 <>
                                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                    Adding Food Item...
+                                    {isEditMode ? 'Updating Food Item...' : 'Adding Food Item...'}
                                 </>
                             ) : (
-                                'Add Food Item'
+                                isEditMode ? 'Update Food Item' : 'Add Food Item'
                             )}
                         </Button>
                     </div>
@@ -688,4 +835,86 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded }: AddFoodMo
             </div>
         </div>
     );
+}
+
+function mapFoodTypeToForm(type: string): 'simple' | 'customizable' | 'bundle' {
+    const normalized = type.toLowerCase();
+    if (normalized === 'customizable') return 'customizable';
+    if (normalized === 'bundle') return 'bundle';
+    return 'simple';
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapApiPortionToForm(portion: any): PortionSize {
+    return {
+        id: portion.uid || portion.id || Math.random().toString(36).substr(2, 9),
+        name: portion.name || '',
+        price: String(portion.price ?? ''),
+        prepTimeStart: String(portion.startPrepTime ?? portion.prepTimeStart ?? ''),
+        prepTimeEnd: String(portion.endPrepTime ?? portion.prepTimeEnd ?? ''),
+        servings: String(portion.servingPerServingType ?? portion.servings ?? ''),
+        servingUnit: portion.servingType || portion.servingUnit || 'plate',
+    };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapApiAddOnGroupToForm(group: any): SavedGroup {
+    return {
+        id: group.uid || group.id || Math.random().toString(36).substr(2, 9),
+        groupName: group.name || group.groupName || '',
+        selection: group.selection === 'multiple' ? 'multiple' : 'single',
+        maxSelections: group.maxSelection || group.maxSelections || 1,
+        isRequired: !!group.isRequired,
+        options: (group.options || []).map((option: ApiAddOnOption) => ({
+            id: option.uid || option.id || Math.random().toString(36).substr(2, 9),
+            name: option.name || '',
+            price: String(option.price ?? ''),
+        })),
+    };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapApiBundleAddOnGroupToForm(group: any): BundleAddOnGroup {
+    return {
+        ...mapApiAddOnGroupToForm(group),
+        draftOptionName: '',
+        draftOptionPrice: '',
+    };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapApiBundleSlotToForm(slot: any): BundleSlot {
+    return {
+        id: slot.uid || slot.id || Math.random().toString(36).substr(2, 9),
+        name: slot.name || '',
+        price: String(slot.price ?? ''),
+        category: slot.category || '',
+        maxItems: slot.maxCount || slot.maxItems || 1,
+        isRequired: !!slot.isRequired,
+    };
+}
+
+function isPersistedId(id: string) {
+    return id.includes('-') || id.length > 12;
+}
+
+function mapFormAddOnGroupToApi(group: SavedGroup, productUid?: string) {
+    return {
+        ...(isPersistedId(group.id) && { uid: group.id }),
+        productUid,
+        name: group.groupName,
+        selection: group.selection,
+        maxSelection: group.maxSelections,
+        isRequired: group.isRequired,
+        options: group.options.map(option => ({
+            ...(isPersistedId(option.id) && { uid: option.id }),
+            ...(isPersistedId(group.id) && { addOnGroupUid: group.id }),
+            name: option.name,
+            price: parseFloat(option.price) || 0,
+        })),
+    };
+}
+
+function mapFormBundleAddOnGroupToApi(group: BundleAddOnGroup, productUid?: string) {
+    return mapFormAddOnGroupToApi(group, productUid);
 }

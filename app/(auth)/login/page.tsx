@@ -29,21 +29,16 @@ export default function LoginPage() {
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const isValid = emailRegex.test(email);
-    console.log("validateEmail:", { email, isValid });
-    return isValid;
+    return emailRegex.test(email);
   };
 
   const validatePassword = (password: string) => {
     // Simplified to match common requirements (8+ characters)
-    const isValid = password.length >= 8;
-    console.log("validatePassword:", { password, isValid });
-    return isValid;
+    return password.length >= 8;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("handleSubmit triggered", { email, password });
 
     // Validation with toast errors
     if (!email || !validateEmail(email)) {
