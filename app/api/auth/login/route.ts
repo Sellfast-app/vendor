@@ -1,7 +1,7 @@
 // app/api/auth/login/route.ts - Complete Updated Version
 import { NextResponse } from "next/server";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.trim().replace(/\/+$/, "");
 const EXTERNAL_API_TIMEOUT = 15000; // Increased to 15 seconds
 
 // Cache for rate limiting (in-memory, for production use Redis)
@@ -45,11 +45,22 @@ export async function POST(request: Request) {
     }
 
     // Prepare fetch with better timeout handling
+    if (!API_BASE_URL) {
+      console.error("[LOGIN] Missing NEXT_PUBLIC_API_BASE_URL");
+      return NextResponse.json(
+        { status: "error", message: "Authentication service is not configured.", success: false },
+        { status: 500 }
+      );
+    }
+
+    const loginUrl = `${API_BASE_URL}/auth/login`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), EXTERNAL_API_TIMEOUT);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      console.log(`[LOGIN] External API URL: ${loginUrl}`);
+
+      const response = await fetch(loginUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -64,8 +75,30 @@ export async function POST(request: Request) {
 
       clearTimeout(timeoutId);
       const responseTime = Date.now() - startTime;
+      const contentType = response.headers.get("content-type") || "";
       
-      console.log(`[LOGIN] External API response - Status: ${response.status}, Time: ${responseTime}ms`);
+      console.log(
+        `[LOGIN] External API response - Status: ${response.status}, Content-Type: ${contentType}, Time: ${responseTime}ms`
+      );
+
+      if (!contentType.includes("application/json")) {
+        const body = await response.text();
+        console.error("[LOGIN] Non-JSON auth response", {
+          status: response.status,
+          contentType,
+          url: loginUrl,
+          body: body.slice(0, 500),
+        });
+
+        return NextResponse.json(
+          {
+            status: "error",
+            message: "Authentication service returned an invalid response.",
+            success: false,
+          },
+          { status: 502 }
+        );
+      }
 
       const result = await response.json();
 
