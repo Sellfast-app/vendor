@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import React, { JSX, useState } from "react";
+import React, { JSX, useEffect, useState } from "react";
 import { RiShare2Fill } from "react-icons/ri";
 import { OverviewMetric } from "./_components/OverviewMetric";
 import TotalSales from "@/components/svgIcons/TotalSales";
@@ -25,6 +25,7 @@ import SalesRevenueChart from "./_components/SalesRevenueChart";
 import BestSellingProducts from "./_components/BestSellingProducts";
 import { ExportModal } from "@/components/ExportModal";
 import AddProductModal from "../products/_components/AddProductModal";
+import AddFoodModal from "../products/_components/AddFoodModal";
 import { Card, CardContent } from "@/components/ui/card";
 import RecentOrdersTable from "./_components/RecentOrdersTable";
 
@@ -54,6 +55,29 @@ interface Product {
 function DashboardPage() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [isFoodModalOpen, setIsFoodModalOpen] = useState(false);
+  const [businessType, setBusinessType] = useState<string>("");
+
+  useEffect(() => {
+    const fetchStoreData = async () => {
+      try {
+        const response = await fetch("/api/store");
+        if (!response.ok) throw new Error("Failed to fetch store data");
+
+        const result = await response.json();
+        if (result.status === "success" && result.data?.storeDetails) {
+          setBusinessType(result.data.storeDetails.business_type || "");
+        }
+      } catch (error) {
+        console.error("Error fetching store data:", error);
+        setBusinessType("");
+      }
+    };
+
+    fetchStoreData();
+  }, []);
+
+  const isRestaurant = businessType === "Restaurant/Food Service";
 
   const overviewMetrics: OverviewMetric[] = [
     {
@@ -68,7 +92,7 @@ function DashboardPage() {
     {
       id: "total-products",
       icon1: <TotalProducts />,
-      title: "Total Products",
+      title: isRestaurant ? "Total Food Items" : "Total Products",
       value: "0",
       change: 22.7,
       changeType: "positive",
@@ -146,6 +170,20 @@ function DashboardPage() {
     setIsProductModalOpen(false); // Close the modal after adding
   };
 
+  const handleFoodAdded = () => {
+    window.dispatchEvent(new CustomEvent("foodAdded"));
+    setIsFoodModalOpen(false);
+  };
+
+  const handleOpenAddModal = () => {
+    if (isRestaurant) {
+      setIsFoodModalOpen(true);
+      return;
+    }
+
+    setIsProductModalOpen(true);
+  };
+
   return (
     <div className="min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <div className="mb-6 flex items-center justify-between">
@@ -161,7 +199,7 @@ function DashboardPage() {
             <RiShare2Fill />
             <span className="hidden sm:inline ml-2">Export</span>
           </Button>
-          <Button onClick={() => setIsProductModalOpen(true)}>
+          <Button onClick={handleOpenAddModal}>
             <PlusIcon />
             <span className="hidden sm:inline ml-2">Add Product</span>
           </Button>
@@ -188,12 +226,17 @@ function DashboardPage() {
         onClose={() => setIsProductModalOpen(false)}
         onAddProduct={handleAddProduct}
       />
+      <AddFoodModal
+        isOpen={isFoodModalOpen}
+        onClose={() => setIsFoodModalOpen(false)}
+        onFoodAdded={handleFoodAdded}
+      />
       <ExportModal
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
-        endpointPrefix="Products"
+        endpointPrefix={isRestaurant ? "FoodItems" : "Products"}
         fieldOptions={fieldOptions}
-        dataName="Products"
+        dataName={isRestaurant ? "Food Items" : "Products"}
       />
     </div>
   );
