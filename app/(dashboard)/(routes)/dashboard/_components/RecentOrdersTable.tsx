@@ -315,7 +315,7 @@ export default function RecentOrdersTable() {
           {/* View All Button */}
           <Button
             variant="link"
-            className="text-[#4FCA6A] hover:text-[#45B862] text-xs lg:text-sm whitespace-nowrap p-0 h-auto"
+            className="text-primary hover:text-primary-secondary text-xs lg:text-sm whitespace-nowrap p-0 h-auto"
             onClick={() => router.push("/orders")}
           >
             View All →
@@ -380,7 +380,7 @@ export default function RecentOrdersTable() {
                   className="hover:bg-gray-50 dark:hover:bg-gray-900"
                 >
                   <TableCell
-                    className="text-[#4FCA6A] underline cursor-pointer font-medium text-xs lg:text-sm whitespace-nowrap"
+                    className="text-primary underline cursor-pointer font-medium text-xs lg:text-sm whitespace-nowrap"
                     onClick={() => {
                       localStorage.setItem(
                         "selectedOrder",

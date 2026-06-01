@@ -64,7 +64,7 @@ export default function PortionSetup({ portions, onChange }: PortionSetupProps) 
 
             {isOpen && (
                 <div className="mt-3 space-y-3">
-                    <div className="border border-dashed border-[#4FCA6A] rounded-lg p-4 space-y-3">
+                    <div className="border border-dashed border-primary rounded-lg p-4 space-y-3">
                         <div>
                             <Label className="text-xs font-light mb-1">Portion Name<span className="text-destructive">*</span></Label>
                             <Input value={portionName} onChange={(e) => setPortionName(e.target.value)} placeholder="e.g. Small, Regular, Large" />
@@ -131,7 +131,7 @@ export default function PortionSetup({ portions, onChange }: PortionSetupProps) 
                                             <span className="text-xs text-[#A0A0A0] truncate">{timeRange}&nbsp;&nbsp;{srv}&nbsp;&nbsp;{price}</span>
                                         </div>
                                         <div className="flex items-center gap-2 ml-2 flex-shrink-0">
-                                            <button type="button" onClick={() => handleEdit(p.id)} className="text-[#4FCA6A] hover:text-green-700 transition-colors"><Pencil className="w-4 h-4" /></button>
+                                            <button type="button" onClick={() => handleEdit(p.id)} className="text-primary hover:text-primary-secondary transition-colors"><Pencil className="w-4 h-4" /></button>
                                             <button type="button" onClick={() => handleRemove(p.id)} className="text-red-400 hover:text-red-600 transition-colors"><Trash2 className="w-4 h-4" /></button>
                                         </div>
                                     </div>

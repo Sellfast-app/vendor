@@ -361,13 +361,13 @@ export default function FoodTable() {
           </Button>
           <Button
             variant="outline"
-            className="border-[#4FCA6A] text-[#4FCA6A] dark:bg-background"
+            className="border-primary text-primary dark:bg-background"
             onClick={() => {
               setSelectedFoodItem(null);
               setIsAddFoodModalOpen(true);
             }}
           >
-            <PlusIcon className="text-[#4FCA6A]" />
+            <PlusIcon className="text-primary" />
             <span className="hidden sm:inline ml-2">Add Food Item</span>
           </Button>
         </div>
@@ -473,7 +473,7 @@ export default function FoodTable() {
                     onCheckedChange={(checked) => handleSelectFoodItem(item.sku, checked as boolean)}
                   />
                 </TableCell>
-                <TableCell className="text-[#4FCA6A] underline">{item.sku}</TableCell>
+                <TableCell className="text-primary underline">{item.sku}</TableCell>
                 <TableCell>
                   <div className="relative w-12 h-12 rounded overflow-hidden">
                     <Image

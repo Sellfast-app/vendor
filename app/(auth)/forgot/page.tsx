@@ -93,7 +93,7 @@ export default function ForgotPasswordPage() {
               onChange={(e) => setEmail(e.target.value)}
               onFocus={() => setEmailFocused(true)}
               onBlur={() => setEmailFocused(false)}
-              className="w-full h-12 bg-[#F8F8F8] border-0 pl-3 pr-4 rounded-lg focus:ring-2 focus:ring-[#4FCA6A] transition-all duration-200"
+              className="w-full h-12 bg-[#F8F8F8] border-0 pl-3 pr-4 rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200"
               disabled={isLoading}
               placeholder={emailFocused ? "" : "Enter your email"}
             />
@@ -108,7 +108,7 @@ export default function ForgotPasswordPage() {
           type="submit"
           className={`w-full py-3 rounded-lg transition-colors duration-200 font-medium ${
             email && validateEmail(email) && !isLoading 
-              ? "bg-[#4FCA6A] text-white hover:bg-[#45b860]" 
+              ? "bg-primary text-white hover:bg-primary-secondary" 
               : "bg-gray-200 text-gray-500 cursor-not-allowed"
           }`}
           disabled={!email || !validateEmail(email) || isLoading}
@@ -118,7 +118,7 @@ export default function ForgotPasswordPage() {
         <div className="text-center">
           <Link 
             href="/login" 
-            className="text-sm text-[#4FCA6A] hover:underline transition-colors"
+            className="text-sm text-primary hover:underline transition-colors"
           >
             Back to Login
           </Link>

@@ -893,7 +893,7 @@ const handleUploadAll = async () => {
 
               {/* Clickable Upload Area - Using your preferred style */}
               <div
-                className={`border-1 border-dashed border-primary rounded-2xl p-8 text-center cursor-pointer hover:bg-muted/30 transition-colors ${!isEditingBusiness ? 'opacity-50 cursor-not-allowed' : cacFile ? 'bg-white dark:bg-gray-800 border-gray-300' : ' border-[#4FCA6A] '
+                className={`border-1 border-dashed border-primary rounded-2xl p-8 text-center cursor-pointer hover:bg-muted/30 transition-colors ${!isEditingBusiness ? 'opacity-50 cursor-not-allowed' : cacFile ? 'bg-white dark:bg-gray-800 border-gray-300' : ' border-primary '
                   }`}
                 onClick={() => {
                   if (isEditingBusiness && !isUploadingCac && !cacFile) {
@@ -918,7 +918,7 @@ const handleUploadAll = async () => {
                       <Imag />
                     </span>
                     <p className="text-sm">
-                      <span className="text-[#4FCA6A]">Click to upload</span> or drag and drop
+                      <span className="text-primary">Click to upload</span> or drag and drop
                     </p>
                     <p className="text-xs text-gray-400">Max File Size: 10MB</p>
                   </div>
@@ -973,7 +973,7 @@ const handleUploadAll = async () => {
                       {isUploadingCac && (
                         <div className="w-full rounded-full bg-gray-200 dark:bg-gray-700 h-1">
                           <div
-                            className="h-1 rounded-full bg-[#4FCA6A]"
+                            className="h-1 rounded-full bg-primary"
                             style={{ width: `${uploadProgress}%` }}
                           ></div>
                         </div>

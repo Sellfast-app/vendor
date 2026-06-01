@@ -41,7 +41,7 @@ function BundleSlotRow({ slot, onRemove, onEdit }: { slot: BundleSlot; onRemove:
                 </span>
             </div>
             <div className="flex items-center gap-2">
-                <button onClick={() => onEdit(slot.id)} className="text-[#4FCA6A] hover:text-green-700 transition-colors" type="button"><Pencil className="w-4 h-4" /></button>
+                <button onClick={() => onEdit(slot.id)} className="text-primary hover:text-primary-secondary transition-colors" type="button"><Pencil className="w-4 h-4" /></button>
                 <button onClick={() => onRemove(slot.id)} className="text-red-400 hover:text-red-600 transition-colors" type="button"><Trash2 className="w-4 h-4" /></button>
             </div>
         </div>
@@ -53,7 +53,7 @@ function AddOnGroupCard({ group, onChange, onRemove, onAddOption, onRemoveOption
     onRemove: (id: string) => void; onAddOption: (groupId: string) => void; onRemoveOption: (groupId: string, optionId: string) => void;
 }) {
     return (
-        <div className="border border-dashed border-[#4FCA6A] rounded-lg p-4 mb-4">
+        <div className="border border-dashed border-primary rounded-lg p-4 mb-4">
             <div className="flex items-center justify-between mb-3">
                 <h4 className="text-sm font-semibold">Add-On Group</h4>
                 <button onClick={() => onRemove(group.id)} type="button" className="text-[#A0A0A0] hover:text-red-500 transition-colors"><X className="w-4 h-4" /></button>
@@ -81,7 +81,7 @@ function AddOnGroupCard({ group, onChange, onRemove, onAddOption, onRemoveOption
             <div className="flex flex-col gap-1.5 mb-4">
                 <Label className="text-xs font-light">Is this required?</Label>
                 <div className="flex items-center gap-2">
-                    <input type="checkbox" id={`required-${group.id}`} checked={group.isRequired} onChange={(e) => onChange(group.id, 'isRequired', e.target.checked)} className="w-3.5 h-3.5 accent-[#4FCA6A] cursor-pointer" />
+                    <input type="checkbox" id={`required-${group.id}`} checked={group.isRequired} onChange={(e) => onChange(group.id, 'isRequired', e.target.checked)} className="w-3.5 h-3.5 accent-primary cursor-pointer" />
                     <Label htmlFor={`required-${group.id}`} className="text-xs font-medium cursor-pointer">Yes, customers must select</Label>
                 </div>
             </div>
@@ -181,7 +181,7 @@ export default function BundleConfiguration({ slots, onSlotsChange ,  addOnGroup
 
                 {bundleOpen && (
                     <div className="pb-4">
-                        <div className="border border-dashed border-[#4FCA6A] rounded-lg p-4 mt-4 space-y-3">
+                        <div className="border border-dashed border-primary rounded-lg p-4 mt-4 space-y-3">
                             <div>
                                 <Label className="text-xs font-light mb-1">Bundle Name<span className="text-destructive">*</span></Label>
                                 <Input value={bundleName} onChange={(e) => setBundleName(e.target.value)} placeholder="e.g. Main Dish" />
@@ -216,7 +216,7 @@ export default function BundleConfiguration({ slots, onSlotsChange ,  addOnGroup
                             <div className="flex flex-col gap-1.5">
                                 <Label className="text-xs font-light">Is this required?</Label>
                                 <div className="flex items-center gap-2">
-                                    <input type="checkbox" id="slot-required" checked={isSlotRequired} onChange={(e) => setIsSlotRequired(e.target.checked)} className="w-3.5 h-3.5 accent-[#4FCA6A] cursor-pointer" />
+                                    <input type="checkbox" id="slot-required" checked={isSlotRequired} onChange={(e) => setIsSlotRequired(e.target.checked)} className="w-3.5 h-3.5 accent-primary cursor-pointer" />
                                     <Label htmlFor="slot-required" className="text-xs font-medium cursor-pointer">Yes, customers must select</Label>
                                 </div>
                             </div>
@@ -243,7 +243,7 @@ export default function BundleConfiguration({ slots, onSlotsChange ,  addOnGroup
                         <h3 className="text-sm font-semibold">Customization Options</h3>
                         <p className="text-xs text-[#A0A0A0] mt-0.5">Add extras customers can select when ordering.</p>
                     </div>
-                    <input type="checkbox" checked={customizationEnabled} onChange={(e) => setCustomizationEnabled(e.target.checked)} className="w-4 h-4 accent-[#4FCA6A] mt-1 cursor-pointer" />
+                    <input type="checkbox" checked={customizationEnabled} onChange={(e) => setCustomizationEnabled(e.target.checked)} className="w-4 h-4 accent-primary mt-1 cursor-pointer" />
                 </div>
 
                 {customizationEnabled && (

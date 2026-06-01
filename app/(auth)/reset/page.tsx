@@ -226,7 +226,7 @@ export default function ResetPasswordPage() {
               onChange={(e) => setPassword(e.target.value)}
               onFocus={() => setPasswordFocused(true)}
               onBlur={() => setPasswordFocused(false)}
-              className="w-full h-12 bg-[#F8F8F8] border-0 pl-4 pr-10 rounded-lg focus:ring-2 focus:ring-[#4FCA6A] transition-all duration-200"
+              className="w-full h-12 bg-[#F8F8F8] border-0 pl-4 pr-10 rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200"
               placeholder=" "
               disabled={isLoading}
             />
@@ -261,7 +261,7 @@ export default function ResetPasswordPage() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               onFocus={() => setConfirmPasswordFocused(true)}
               onBlur={() => setConfirmPasswordFocused(false)}
-              className="w-full h-12 bg-[#F8F8F8] border-0 pl-4 pr-10 rounded-lg focus:ring-2 focus:ring-[#4FCA6A] transition-all duration-200"
+              className="w-full h-12 bg-[#F8F8F8] border-0 pl-4 pr-10 rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200"
               placeholder=" "
               disabled={isLoading}
             />
@@ -325,7 +325,7 @@ export default function ResetPasswordPage() {
           type="submit"
           className={`w-full py-3 rounded-lg transition-colors duration-200 font-medium ${
             password && confirmPassword && isPasswordValid && !isLoading
-              ? "bg-[#4FCA6A] text-white hover:bg-[#45b860]" 
+              ? "bg-primary text-white hover:bg-primary-secondary" 
               : "bg-gray-200 text-gray-500 cursor-not-allowed"
           }`}
           disabled={!password || !confirmPassword || !isPasswordValid || isLoading}

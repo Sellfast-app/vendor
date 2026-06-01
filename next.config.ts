@@ -73,6 +73,12 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
+        hostname: 'staging.swiftree.app',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
         hostname: 'swiftree-foodvendorpull.b-cdn.net', // Add this block
         port: '',
         pathname: '/**',

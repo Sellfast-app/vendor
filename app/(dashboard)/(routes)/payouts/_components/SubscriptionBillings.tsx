@@ -336,7 +336,7 @@ export default function SubscriptionBillingTable() {
                     onCheckedChange={(checked) => handleSelectBilling(billing.id, checked as boolean)}
                   />
                 </TableCell>
-                <TableCell className="text-[#4FCA6A] underline">{billing.id}</TableCell>
+                <TableCell className="text-primary underline">{billing.id}</TableCell>
                 <TableCell>{billing.card}</TableCell>
                 <TableCell>₦{billing.amount.toLocaleString()}</TableCell>
                 <TableCell>{billing.plan}</TableCell>

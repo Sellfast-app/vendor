@@ -62,7 +62,7 @@ export default function CustomizationOptions({ savedGroups, onChange }: Customiz
 
             {isOpen && (
                 <div className="mt-4 space-y-4">
-                    <div className="border border-dashed border-[#4FCA6A] rounded-lg p-4 space-y-3">
+                    <div className="border border-dashed border-primary rounded-lg p-4 space-y-3">
                         <h4 className="text-sm font-semibold">Add-On Group</h4>
                         <div>
                             <Label className="text-xs font-light mb-1">Group Name<span className="text-destructive">*</span></Label>
@@ -87,7 +87,7 @@ export default function CustomizationOptions({ savedGroups, onChange }: Customiz
                         <div className="flex flex-col gap-1.5">
                             <Label className="text-xs font-light">Is this required?<span className="text-destructive">*</span></Label>
                             <div className="flex items-center gap-2">
-                                <input type="checkbox" id="customization-required" checked={isRequired} onChange={(e) => setIsRequired(e.target.checked)} className="w-3.5 h-3.5 accent-[#4FCA6A] cursor-pointer" />
+                                <input type="checkbox" id="customization-required" checked={isRequired} onChange={(e) => setIsRequired(e.target.checked)} className="w-3.5 h-3.5 accent-primary cursor-pointer" />
                                 <Label htmlFor="customization-required" className="text-xs font-medium cursor-pointer">Yes, customers must select</Label>
                             </div>
                         </div>
