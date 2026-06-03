@@ -43,7 +43,6 @@ export default function ForgotPasswordPage() {
       });
 
       const data = await res.json();
-      console.log("Reset password mail response:", data);
       
       if (res.ok && data.success) {
         toast.success("Password reset link sent! Please check your email.");

@@ -65,7 +65,7 @@ export async function POST(request: Request) {
         console.error("[RESEND_OTP] Upstream resend failed", {
           status: response.status,
           statusText: response.statusText,
-          body: result,
+          message: getApiMessage(result, "Verification service failed."),
         });
       }
 
@@ -82,7 +82,6 @@ export async function POST(request: Request) {
                 debug: {
                   upstream_status: response.status,
                   upstream_status_text: response.statusText,
-                  upstream_response: result,
                 },
               }
             : {}),
@@ -108,7 +107,7 @@ export async function POST(request: Request) {
         });
       } else if (response.ok) {
         console.warn("[RESEND_OTP] Upstream resend response did not include a replacement token", {
-          body: result,
+          status: response.status,
         });
       }
 

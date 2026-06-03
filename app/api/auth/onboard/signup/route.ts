@@ -46,7 +46,6 @@ function getErrorPayload(
     payload.debug = {
       upstream_status: response.status,
       upstream_status_text: response.statusText,
-      upstream_response: result,
     };
   }
 
@@ -116,7 +115,7 @@ export async function POST(request: Request) {
         console.error("[ONBOARD_SIGNUP] Upstream signup failed", {
           status: response.status,
           statusText: response.statusText,
-          body: result,
+          message: getApiMessage(result, "Signup service failed."),
         });
 
         return NextResponse.json(
@@ -129,7 +128,6 @@ export async function POST(request: Request) {
       if (!token) {
         console.error("[ONBOARD_SIGNUP] Upstream signup response missing token", {
           status: response.status,
-          body: result,
         });
 
         return NextResponse.json(
@@ -138,7 +136,7 @@ export async function POST(request: Request) {
             message: "Signup response did not include a verification token.",
             success: false,
             ...(process.env.NODE_ENV !== "production"
-              ? { debug: { upstream_status: response.status, upstream_response: result } }
+              ? { debug: { upstream_status: response.status } }
               : {}),
           },
           { status: 502 }

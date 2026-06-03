@@ -515,11 +515,11 @@ export default function MultiStepSignupPage() {
       // Save store name to cookie for sidebar access (backup to cookie set by API)
       document.cookie = `store_name=${encodeURIComponent(result.data.store_name)}; path=/; max-age=2592000; SameSite=Lax`;
   
-      console.log('✅ Registration data saved:', {
-        storeName: result.data.store_name,
-        storeId: result.data.store_id,
-        storeUrl: result.data.store_url,
-        qrCode: result.data.qrCode,
+      console.log('Registration data saved', {
+        hasStoreName: Boolean(result.data.store_name),
+        hasStoreId: Boolean(result.data.store_id),
+        hasStoreUrl: Boolean(result.data.store_url),
+        hasQrCode: Boolean(result.data.qrCode),
       });
   
       setSuccessData(result);
@@ -932,7 +932,7 @@ export default function MultiStepSignupPage() {
               className="object-contain p-2"
               sizes="128px"
               onError={(e) => {
-                console.error('QR Code failed to load:', successData.data.qrCode);
+                console.error('QR Code failed to load');
                 e.currentTarget.style.display = 'none';
               }}
             />

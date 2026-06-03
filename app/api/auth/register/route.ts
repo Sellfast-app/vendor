@@ -72,7 +72,6 @@ export async function POST(request: Request) {
       clearTimeout(timeoutId);
 
       console.log("External API response status:", response.status);
-      console.log("External API response headers:", Object.fromEntries(response.headers.entries()));
 
       // Check if response is JSON
       const contentType = response.headers.get('content-type');
@@ -80,10 +79,12 @@ export async function POST(request: Request) {
       
       if (contentType && contentType.includes('application/json')) {
         result = await response.json();
-        console.log("External API response:", JSON.stringify(result, null, 2));
       } else {
         const textResponse = await response.text();
-        console.error('Non-JSON response:', textResponse);
+        console.error('Non-JSON response from registration API', {
+          status: response.status,
+          contentType,
+        });
         result = { message: textResponse.substring(0, 200) };
       }
 
@@ -121,12 +122,12 @@ export async function POST(request: Request) {
       const userEmail = result.data?.user_email || null;
 
       console.log(`[REGISTER] Registration successful:`, {
-        userId,
-        userEmail,
-        storeName,
-        storeId,
-        storeUrl,
-        qrCode
+        hasUserId: Boolean(userId),
+        hasUserEmail: Boolean(userEmail),
+        hasStoreName: Boolean(storeName),
+        hasStoreId: Boolean(storeId),
+        hasStoreUrl: Boolean(storeUrl),
+        hasQrCode: Boolean(qrCode),
       });
 
       // Convert relative QR code path to full URL if needed
@@ -134,7 +135,9 @@ export async function POST(request: Request) {
         ? (qrCode.startsWith('http') ? qrCode : `${API_BASE_URL}${qrCode}`)
         : null;
 
-      console.log(`[REGISTER] QR Code URL: ${fullQrCodeUrl}`);
+      if (fullQrCodeUrl) {
+        console.log("[REGISTER] QR Code URL generated");
+      }
       
       const nextResponse = NextResponse.json(
         {
@@ -176,7 +179,7 @@ export async function POST(request: Request) {
           httpOnly: false,
           maxAge: 2592000, // 30 days
         });
-        console.log(`[REGISTER] ✅ User ID saved to cookie: ${userId}`);
+        console.log("[REGISTER] User ID cookie set");
       }
 
       // Set user_email cookie (accessible to client)
@@ -186,7 +189,7 @@ export async function POST(request: Request) {
           httpOnly: false,
           maxAge: 2592000, // 30 days
         });
-        console.log(`[REGISTER] ✅ User ID saved to cookie: ${userEmail}`);
+        console.log("[REGISTER] User email cookie set");
       }
 
       // Set store_name cookie (httpOnly: false so client can access)
@@ -195,7 +198,7 @@ export async function POST(request: Request) {
         httpOnly: false,
         maxAge: 2592000, // 30 days
       });
-      console.log(`[REGISTER] ✅ Store name saved to cookie: ${storeName}`);
+      console.log("[REGISTER] Store name cookie set");
 
       // Set store_id cookie if available
       if (storeId) {
@@ -204,7 +207,7 @@ export async function POST(request: Request) {
           httpOnly: false,
           maxAge: 2592000, // 30 days
         });
-        console.log(`[REGISTER] ✅ Store ID saved to cookie: ${storeId}`);
+        console.log("[REGISTER] Store ID cookie set");
       } else {
         console.warn("[REGISTER] ⚠️ No store ID available to save to cookie");
       }
@@ -216,7 +219,7 @@ export async function POST(request: Request) {
           httpOnly: false,
           maxAge: 2592000, // 30 days
         });
-        console.log(`[REGISTER] ✅ Store URL saved to cookie: ${storeUrl}`);
+        console.log("[REGISTER] Store URL cookie set");
       }
 
       return nextResponse;

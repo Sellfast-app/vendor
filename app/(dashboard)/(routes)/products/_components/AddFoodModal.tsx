@@ -50,6 +50,13 @@ export interface BundleSlot {
     isRequired: boolean;
 }
 
+interface ApiServingTypePrice {
+    servingType?: string;
+    name?: string;
+    type?: string;
+    price?: number | string;
+}
+
 export interface EditableFoodItem {
     uid: string;
     name: string;
@@ -59,6 +66,8 @@ export interface EditableFoodItem {
     status: string;
     availability: string;
     servingType?: string[];
+    servingTypePricing?: ApiServingTypePrice[];
+    servingTypePrices?: ApiServingTypePrice[];
     category?: string[];
     labels?: string[];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -107,6 +116,7 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
     const [servingType, setServingType] = useState('');
     const [servingTypeCustom, setServingTypeCustom] = useState('');
     const [servingTypes, setServingTypes] = useState<string[]>([]);
+    const [servingTypePrices, setServingTypePrices] = useState<Record<string, string>>({});
     const [foodCategory, setFoodCategory] = useState('');
     const [foodCategoryCustom, setFoodCategoryCustom] = useState('');
     const [foodCategories, setFoodCategories] = useState<string[]>([]);
@@ -145,6 +155,7 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
         setServingType('');
         setServingTypeCustom('');
         setServingTypes(editFoodItem.servingType || []);
+        setServingTypePrices(mapApiServingTypePricesToForm(editFoodItem));
         setFoodCategory('');
         setFoodCategoryCustom('');
         setFoodCategories(editFoodItem.category || []);
@@ -209,9 +220,19 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
         if (!val) return;
         if (!servingTypes.includes(val)) {
             setServingTypes(prev => [...prev, val]);
+            setServingTypePrices(prev => ({ ...prev, [val]: prev[val] || '' }));
         }
         setServingTypeCustom('');
         setServingType('');
+    };
+
+    const removeServingType = (type: string) => {
+        setServingTypes(prev => prev.filter(x => x !== type));
+        setServingTypePrices(prev => {
+            const next = { ...prev };
+            delete next[type];
+            return next;
+        });
     };
     
     const addFoodCategory = () => {
@@ -254,6 +275,9 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
         // Type-specific validation
         if (productType === 'simple' && portions.length === 0) return setError('Add at least one portion size.');
         if (productType === 'customizable' && savedGroups.length === 0) return setError('Add at least one customization group.');
+        if (productType === 'customizable' && servingTypes.some(type => !servingTypePrices[type] || parseFloat(servingTypePrices[type]) <= 0)) {
+            return setError('Add a valid base price for each serving type.');
+        }
         if (productType === 'bundle' && bundleSlots.length === 0) return setError('Add at least one bundle slot.');
 
         setIsLoading(true);
@@ -308,6 +332,10 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
             }
 
             if (productType === 'customizable') {
+                const servingTypePricingPayload = servingTypes.map(type => ({
+                    servingType: type,
+                    price: parseFloat(servingTypePrices[type]) || 0,
+                }));
                 const addOnPayload = savedGroups.map(g => ({
                     name: g.groupName,
                     selection: g.selection,
@@ -319,6 +347,7 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                     })),
                 }));
                 formData.append('addOnGroup', JSON.stringify(addOnPayload));
+                formData.append('servingTypePricing', JSON.stringify(servingTypePricingPayload));
             }
 
             if (productType === 'bundle') {
@@ -387,6 +416,7 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
         setServingType('');
         setServingTypeCustom('');
         setServingTypes([]);
+        setServingTypePrices({});
         setFoodCategory('');
         setFoodCategoryCustom('');
         setFoodCategories([]);
@@ -410,6 +440,12 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
         category: foodCategories,
         labels: dietaryLabels,
         servingType: servingTypes,
+        ...(productType === 'customizable' && {
+            servingTypePricing: servingTypes.map(type => ({
+                servingType: type,
+                price: parseFloat(servingTypePrices[type]) || 0,
+            })),
+        }),
         ...(productType === 'simple' && {
             portion: portions.map(p => ({
                 ...(isPersistedId(p.id) && { uid: p.id }),
@@ -602,11 +638,43 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                                         {servingTypes.map(t => (
                                             <span key={t} className="flex items-center gap-1 text-xs bg-muted px-2 py-0.5 rounded-full">
                                                 {t}
-                                                <button type="button" onClick={() => setServingTypes(prev => prev.filter(x => x !== t))}>
+                                                <button type="button" onClick={() => removeServingType(t)}>
                                                     <X className="w-3 h-3" />
                                                 </button>
                                             </span>
                                         ))}
+                                    </div>
+                                )}
+                                {productType === 'customizable' && servingTypes.length > 0 && (
+                                    <div className="mt-3 rounded-lg border border-dashed border-primary p-3 space-y-3">
+                                        <div>
+                                            <h4 className="text-xs font-semibold">Serving Type Base Prices</h4>
+                                            <p className="text-[11px] text-muted-foreground">
+                                                Set the actual food price for each serving type. Add-ons remain extra charges.
+                                            </p>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            {servingTypes.map((type) => (
+                                                <div key={type}>
+                                                    <Label className="text-xs font-light mb-1 capitalize">
+                                                        {type} price<span className="text-destructive">*</span>
+                                                    </Label>
+                                                    <div className="flex items-center border rounded-md bg-background overflow-hidden">
+                                                        <span className="px-3 py-2 text-sm text-muted-foreground border-r">₦</span>
+                                                        <input
+                                                            type="number"
+                                                            min={0}
+                                                            step="0.01"
+                                                            value={servingTypePrices[type] || ''}
+                                                            onChange={(e) => setServingTypePrices(prev => ({ ...prev, [type]: e.target.value }))}
+                                                            placeholder="0.00"
+                                                            className="flex-1 py-2 pr-3 text-sm outline-none bg-transparent"
+                                                            disabled={isLoading}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -842,6 +910,20 @@ function mapFoodTypeToForm(type: string): 'simple' | 'customizable' | 'bundle' {
     if (normalized === 'customizable') return 'customizable';
     if (normalized === 'bundle') return 'bundle';
     return 'simple';
+}
+
+function mapApiServingTypePricesToForm(item: EditableFoodItem): Record<string, string> {
+    const entries = item.servingTypePricing || item.servingTypePrices || [];
+    const prices: Record<string, string> = {};
+
+    for (const entry of entries) {
+        const servingType = entry?.servingType || entry?.name || entry?.type;
+        if (typeof servingType === 'string' && servingType.trim()) {
+            prices[servingType] = String(entry?.price ?? '');
+        }
+    }
+
+    return prices;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

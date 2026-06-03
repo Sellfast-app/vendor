@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
         console.error("[VERIFY_OTP] Upstream verify failed", {
           status: response.status,
           statusText: response.statusText,
-          body: result,
+          message: getApiMessage(result, "Verification service failed."),
         });
       }
 
@@ -80,7 +80,6 @@ export async function POST(request: NextRequest) {
                 debug: {
                   upstream_status: response.status,
                   upstream_status_text: response.statusText,
-                  upstream_response: result,
                 },
               }
             : {}),
