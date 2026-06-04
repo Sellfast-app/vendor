@@ -48,7 +48,10 @@ interface FoodApiItem {
   type: string;
   status: string;
   availability: string;
+  availabilityPeriod?: EditableFoodItem["availabilityPeriod"] | EditableFoodItem["availabilityPeriod"][];
   servingType: string[];
+  servingTypePricing?: EditableFoodItem["servingTypePricing"];
+  servingTypePrices?: EditableFoodItem["servingTypePrices"];
   category: string[];
   labels: string[];
   createdAt: string;
@@ -99,7 +102,9 @@ const transformFoodItem = (item: FoodApiItem): FrontendFoodItem => ({
   category: item.category || [],
   labels: item.labels || [],
   servingType: item.servingType || [],
+  servingTypePricing: item.servingTypePricing || item.servingTypePrices || [],
   availability: item.availability,
+  availabilityPeriod: Array.isArray(item.availabilityPeriod) ? item.availabilityPeriod[0] : item.availabilityPeriod,
   addOnGroup: item.addOnGroup || [],
   portion: item.portion || [],
   bundleConfig: item.bundleConfig || [],
@@ -178,11 +183,8 @@ export default function FoodTable() {
           });
         }
 
-        // Client-side pagination
         setTotalFoodItems(items.length);
-        const start = currentPage * pageSize;
-        const paginatedItems = items.slice(start, start + pageSize);
-        setFoodItems(paginatedItems);
+        setFoodItems(items);
       } else {
         throw new Error(result.message || 'Failed to fetch food items');
       }
@@ -193,12 +195,16 @@ export default function FoodTable() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, searchTerm, filterStatus, sortBy, pageSize]);
+  }, [searchTerm, filterStatus, sortBy]);
 
   // Fetch food items when filters or page changes
   useEffect(() => {
     fetchFoodItems();
   }, [fetchFoodItems]);
+
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [searchTerm, filterStatus, sortBy]);
 
   // Add event listener for food item addition
   useEffect(() => {
@@ -223,7 +229,7 @@ export default function FoodTable() {
   };
 
   const totalPages = Math.ceil(totalFoodItems / pageSize);
-  const displayedFoodItems = foodItems;
+  const displayedFoodItems = foodItems.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
 
   const getPageNumbers = () => {
     const pages = [];
@@ -241,17 +247,17 @@ export default function FoodTable() {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedFoodItems(displayedFoodItems.map((item) => item.sku));
+      setSelectedFoodItems(displayedFoodItems.map((item) => item.uid));
     } else {
       setSelectedFoodItems([]);
     }
   };
 
-  const handleSelectFoodItem = (sku: string, checked: boolean) => {
+  const handleSelectFoodItem = (uid: string, checked: boolean) => {
     if (checked) {
-      setSelectedFoodItems((prev) => [...prev, sku]);
+      setSelectedFoodItems((prev) => [...prev, uid]);
     } else {
-      setSelectedFoodItems((prev) => prev.filter((id) => id !== sku));
+      setSelectedFoodItems((prev) => prev.filter((id) => id !== uid));
     }
   };
 
@@ -466,11 +472,11 @@ export default function FoodTable() {
             </TableRow>
           ) : displayedFoodItems.length > 0 ? (
             displayedFoodItems.map((item) => (
-              <TableRow key={item.sku}>
+              <TableRow key={item.uid}>
                 <TableCell>
                   <Checkbox
-                    checked={selectedFoodItems.includes(item.sku)}
-                    onCheckedChange={(checked) => handleSelectFoodItem(item.sku, checked as boolean)}
+                    checked={selectedFoodItems.includes(item.uid)}
+                    onCheckedChange={(checked) => handleSelectFoodItem(item.uid, checked as boolean)}
                   />
                 </TableCell>
                 <TableCell className="text-primary underline">{item.sku}</TableCell>
@@ -537,7 +543,9 @@ export default function FoodTable() {
 
       <div className="flex justify-center mt-4 space-x-2">
         <span className="text-sm">
-          {`${(currentPage * pageSize) + 1}-${Math.min((currentPage + 1) * pageSize, totalFoodItems)} of ${totalFoodItems}`}
+          {totalFoodItems > 0
+            ? `${(currentPage * pageSize) + 1}-${Math.min((currentPage + 1) * pageSize, totalFoodItems)} of ${totalFoodItems}`
+            : "0 of 0"}
         </span>
         <Button
           variant="outline"
@@ -566,7 +574,7 @@ export default function FoodTable() {
         <Button
           variant="outline"
           size="icon"
-          onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages - 1))}
+          onClick={() => setCurrentPage((p) => Math.min(p + 1, Math.max(totalPages - 1, 0)))}
           disabled={currentPage >= totalPages - 1}
         >
           <ChevronRight className="h-4 w-4" />

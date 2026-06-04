@@ -57,6 +57,11 @@ interface ApiServingTypePrice {
     price?: number | string;
 }
 
+interface AvailabilityPeriod {
+    startTime?: string;
+    endTime?: string;
+}
+
 export interface EditableFoodItem {
     uid: string;
     name: string;
@@ -65,6 +70,7 @@ export interface EditableFoodItem {
     type: string;
     status: string;
     availability: string;
+    availabilityPeriod?: AvailabilityPeriod;
     servingType?: string[];
     servingTypePricing?: ApiServingTypePrice[];
     servingTypePrices?: ApiServingTypePrice[];
@@ -113,6 +119,8 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
     const [description, setDescription] = useState('');
     const [status, setStatus] = useState('');
     const [timeAvailability, setTimeAvailability] = useState('');
+    const [availabilityStartTime, setAvailabilityStartTime] = useState('09:00');
+    const [availabilityEndTime, setAvailabilityEndTime] = useState('21:00');
     const [servingType, setServingType] = useState('');
     const [servingTypeCustom, setServingTypeCustom] = useState('');
     const [servingTypes, setServingTypes] = useState<string[]>([]);
@@ -152,6 +160,8 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
         setDescription(editFoodItem.description || '');
         setStatus(editFoodItem.status || '');
         setTimeAvailability(editFoodItem.availability || '');
+        setAvailabilityStartTime(formatTimeValue(editFoodItem.availabilityPeriod?.startTime) || '09:00');
+        setAvailabilityEndTime(formatTimeValue(editFoodItem.availabilityPeriod?.endTime) || '21:00');
         setServingType('');
         setServingTypeCustom('');
         setServingTypes(editFoodItem.servingType || []);
@@ -265,6 +275,14 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
         if (!description.trim()) return setError('Description is required.');
         if (!status) return setError('Product status is required.');
         if (!timeAvailability) return setError('Time-based availability is required.');
+        if (timeAvailability === 'Custom') {
+            if (!availabilityStartTime || !availabilityEndTime) {
+                return setError('Custom availability start and end time are required.');
+            }
+            if (availabilityStartTime >= availabilityEndTime) {
+                return setError('Custom availability end time must be after the start time.');
+            }
+        }
         if (servingTypes.length === 0) return setError('At least one serving type is required.');
         if (foodCategories.length === 0) return setError('At least one food category is required.');
         if (!isEditMode && uploadedImages.length === 0) return setError('At least one image is required.');
@@ -312,6 +330,9 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
             formData.append('description', description);
             formData.append('status', status);
             formData.append('availability', timeAvailability);
+            if (timeAvailability === 'Custom') {
+                formData.append('availabilityPeriod', JSON.stringify(buildAvailabilityPeriod()));
+            }
 
             // Array fields — API expects JSON strings
             formData.append('category', JSON.stringify(foodCategories));
@@ -413,6 +434,8 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
         setDescription('');
         setStatus('');
         setTimeAvailability('');
+        setAvailabilityStartTime('09:00');
+        setAvailabilityEndTime('21:00');
         setServingType('');
         setServingTypeCustom('');
         setServingTypes([]);
@@ -430,6 +453,11 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
         setError(null);
     };
 
+    const buildAvailabilityPeriod = () => ({
+        startTime: buildFixedAvailabilityIso('2026-06-15', availabilityStartTime),
+        endTime: buildFixedAvailabilityIso('2026-06-20', availabilityEndTime),
+    });
+
     const buildUpdatePayload = () => ({
         uid: editFoodItem?.uid,
         type: productType === 'simple' ? 'Simple' : productType === 'customizable' ? 'Customizable' : 'Bundle',
@@ -440,6 +468,9 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
         category: foodCategories,
         labels: dietaryLabels,
         servingType: servingTypes,
+        ...(timeAvailability === 'Custom' && {
+            availabilityPeriod: buildAvailabilityPeriod(),
+        }),
         ...(productType === 'customizable' && {
             servingTypePricing: servingTypes.map(type => ({
                 servingType: type,
@@ -593,6 +624,34 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                                         <SelectItem value='Custom'>Custom</SelectItem>
                                     </SelectContent>
                                 </Select>
+                                {timeAvailability === 'Custom' && (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                                        <div>
+                                            <Label className='text-xs font-light mb-1' htmlFor='availability-start'>
+                                                Start Time<span className="text-destructive">*</span>
+                                            </Label>
+                                            <Input
+                                                id='availability-start'
+                                                type='time'
+                                                value={availabilityStartTime}
+                                                onChange={(e) => setAvailabilityStartTime(e.target.value)}
+                                                disabled={isLoading}
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label className='text-xs font-light mb-1' htmlFor='availability-end'>
+                                                End Time<span className="text-destructive">*</span>
+                                            </Label>
+                                            <Input
+                                                id='availability-end'
+                                                type='time'
+                                                value={availabilityEndTime}
+                                                onChange={(e) => setAvailabilityEndTime(e.target.value)}
+                                                disabled={isLoading}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                             <div>
                                 <Label className='text-xs font-light mt-4 mb-2'>
@@ -903,6 +962,18 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
             </div>
         </div>
     );
+}
+
+function buildFixedAvailabilityIso(date: string, time: string) {
+    return new Date(`${date}T${time}:00.000Z`).toISOString();
+}
+
+function formatTimeValue(value?: string) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+
+    return date.toISOString().slice(11, 16);
 }
 
 function mapFoodTypeToForm(type: string): 'simple' | 'customizable' | 'bundle' {

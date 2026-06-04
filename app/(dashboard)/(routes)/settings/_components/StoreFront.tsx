@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Camera, Trash2, Copy, ExternalLink, PlusIcon, Loader2, ImageIcon } from "lucide-react";
+import { Camera, Copy, ExternalLink, PlusIcon, Loader2, ImageIcon } from "lucide-react";
 import EditIcon from "@/components/svgIcons/Edit";
 import SaveIcon from "@/components/svgIcons/SaveIcon";
 import { Card, CardContent } from "@/components/ui/card";
