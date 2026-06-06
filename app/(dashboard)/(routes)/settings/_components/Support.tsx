@@ -10,6 +10,7 @@ import ChatIcon from "@/components/svgIcons/ChatIcon";
 import Tutorialcon from "@/components/svgIcons/Tutorialcon";
 import CommunityIcon from "@/components/svgIcons/CommunityIcon";
 import Emailcon from "@/components/svgIcons/Emailcon";
+import { useRouter } from "next/navigation";
 
 interface FAQ {
   id: string;
@@ -19,13 +20,14 @@ interface FAQ {
 }
 
 function SupportComponent() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   // const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [faqs, setFaqs] = useState<FAQ[]>([
     {
       id: "1",
       question: "How to withdraw?",
-      answer: "To withdraw funds, navigate to the Payouts section, select your linked bank account, enter the amount you wish to withdraw, and click the 'Withdraw' button. Withdrawals typically process within 1-3 business days.",
+      answer: "With Swiftree, you do not need to manually initiate a withdrawal! We do not operate on an escrow system, which means all your payouts are completely automated.\n\nHere is how our automatic payout timeline works:\n\nStandard Transactions: Once a customer completes a purchase on your storefront, the funds are automatically credited to your account within 8 to 12 hours via our payment processing partner.\n\nWeekend Transactions: If a customer makes a purchase on a Friday or over the weekend, your funds will be automatically credited to your account on the next business day (typically Monday).\n\nAll credits are processed automatically, ensuring you receive your money directly and seamlessly.",
       isOpen: false,
     },
     {
@@ -99,7 +101,7 @@ function SupportComponent() {
                     )}
                   </button>
                   {faq.isOpen && (
-                    <div className="px-4 pb-4 text-sm text-muted-foreground border-t pt-4">
+                    <div className="px-4 pb-4 text-sm text-muted-foreground border-t pt-4 whitespace-pre-line">
                       {faq.answer}
                     </div>
                   )}
@@ -121,7 +123,11 @@ function SupportComponent() {
         <CardContent>
           <div className="flex items-center justify-between py-6">
               <span className="text-sm font-medium">Chat Support</span>
-            <Button variant={"outline"}>
+            <Button
+              variant="outline"
+              onClick={() => router.push("/settings/chat")}
+              aria-label="Open chat support"
+            >
               <ChatIcon/>
             </Button>
           </div>
@@ -151,10 +157,15 @@ function SupportComponent() {
                   <span className="text-sm font-medium">Community Forums</span>
                 </div>
                 <LinkIcon className="text-green-500 hover:text-green-600"/>
-                </button>
+              </button>
 
               {/* Contact Email */}
-              <button className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-900 rounded-lg transition-colors">
+              <a
+                href="mailto:support@swiftree.app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-900 rounded-lg transition-colors"
+              >
                 <div className="flex items-center gap-3">
                   <Emailcon />
                   <span className="text-sm font-medium">Contact Email</span>
@@ -163,7 +174,7 @@ function SupportComponent() {
                   <span className="text-sm text-muted-foreground">support@swiftree.app</span>
                   <LinkIcon className="text-green-500 hover:text-green-600"/>
                   </div>
-              </button>
+              </a>
             </div>
           </div>
         </CardContent>

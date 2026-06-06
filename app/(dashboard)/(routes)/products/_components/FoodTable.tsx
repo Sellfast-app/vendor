@@ -232,15 +232,23 @@ export default function FoodTable() {
   const displayedFoodItems = foodItems.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
 
   const getPageNumbers = () => {
-    const pages = [];
+    const pages: Array<number | string> = [];
     if (totalPages <= 3) {
       for (let i = 0; i < totalPages; i++) pages.push(i);
     } else {
+      const lastPage = totalPages - 1;
+      const startPage = Math.max(1, currentPage - 1);
+      const endPage = Math.min(lastPage - 1, currentPage + 1);
+
       pages.push(0);
-      if (currentPage > 2) pages.push(currentPage - 1, currentPage);
-      else pages.push(1);
-      if (currentPage < totalPages - 2) pages.push("...");
-      pages.push(totalPages - 1);
+      if (startPage > 1) pages.push("...");
+
+      for (let page = startPage; page <= endPage; page++) {
+        pages.push(page);
+      }
+
+      if (endPage < lastPage - 1) pages.push("...");
+      pages.push(lastPage);
     }
     return pages;
   };
