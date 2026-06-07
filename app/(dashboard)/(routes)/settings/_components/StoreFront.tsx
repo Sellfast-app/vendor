@@ -65,6 +65,12 @@ interface StoreDetails {
 
 type Meridiem = "AM" | "PM";
 
+interface StoreAvailabilityEntry {
+  day: string;
+  openTime: string;
+  closeTime: string;
+}
+
 interface AvailabilityDay {
   day: string;
   enabled: boolean;
@@ -102,6 +108,50 @@ const hours = Array.from({ length: 13 }, (_, index) =>
 const minutes = Array.from({ length: 60 }, (_, index) =>
   String(index).padStart(2, "0")
 );
+
+const fromTwentyFourHourTime = (time: string) => {
+  const [hourValue = "00", minuteValue = "00"] = time.split(":");
+  const numericHour = Number(hourValue);
+  const period: Meridiem = numericHour >= 12 ? "PM" : "AM";
+  const hour =
+    numericHour === 0
+      ? "00"
+      : String(numericHour > 12 ? numericHour - 12 : numericHour).padStart(
+          2,
+          "0"
+        );
+
+  return {
+    hour,
+    minute: minuteValue.padStart(2, "0"),
+    period,
+  };
+};
+
+const mapStoreAvailability = (
+  entries: StoreAvailabilityEntry[]
+): AvailabilityDay[] => {
+  const entriesByDay = new Map(entries.map((entry) => [entry.day, entry]));
+
+  return defaultAvailability.map((defaultDay) => {
+    const entry = entriesByDay.get(defaultDay.day);
+    if (!entry) return { ...defaultDay };
+
+    const opening = fromTwentyFourHourTime(entry.openTime);
+    const closing = fromTwentyFourHourTime(entry.closeTime);
+
+    return {
+      ...defaultDay,
+      enabled: true,
+      openingHour: opening.hour,
+      openingMinute: opening.minute,
+      openingPeriod: opening.period,
+      closingHour: closing.hour,
+      closingMinute: closing.minute,
+      closingPeriod: closing.period,
+    };
+  });
+};
 
 function StorefrontComponent() {
   const [isEditingStorefront, setIsEditingStorefront] = useState(false);
@@ -313,6 +363,21 @@ function StorefrontComponent() {
           else if (formattedPhone.startsWith('+254')) formattedPhone = formattedPhone.slice(4);
 
           const enabledModes = storeDetails.enabled_fulfillment_modes || [];
+          const storeAvailability = Array.isArray(storeDetails.availability)
+            ? storeDetails.availability.filter(
+                (entry: unknown): entry is StoreAvailabilityEntry => {
+                  if (!entry || typeof entry !== "object") return false;
+                  const value = entry as Partial<StoreAvailabilityEntry>;
+                  return (
+                    typeof value.day === "string" &&
+                    typeof value.openTime === "string" &&
+                    typeof value.closeTime === "string"
+                  );
+                }
+              )
+            : [];
+
+          setAvailability(mapStoreAvailability(storeAvailability));
 
           // ── Set delivery methods including relay ────────────────────────
           setDeliveryMethods({
