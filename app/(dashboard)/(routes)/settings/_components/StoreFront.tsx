@@ -63,6 +63,46 @@ interface StoreDetails {
   enabled_fulfillment_modes?: string[];
 }
 
+type Meridiem = "AM" | "PM";
+
+interface AvailabilityDay {
+  day: string;
+  enabled: boolean;
+  openingHour: string;
+  openingMinute: string;
+  openingPeriod: Meridiem;
+  closingHour: string;
+  closingMinute: string;
+  closingPeriod: Meridiem;
+}
+
+const defaultAvailability: AvailabilityDay[] = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+].map((day) => ({
+  day,
+  enabled: false,
+  openingHour: "00",
+  openingMinute: "00",
+  openingPeriod: "AM",
+  closingHour: "00",
+  closingMinute: "00",
+  closingPeriod: "AM",
+}));
+
+const hours = Array.from({ length: 13 }, (_, index) =>
+  String(index).padStart(2, "0")
+);
+
+const minutes = Array.from({ length: 60 }, (_, index) =>
+  String(index).padStart(2, "0")
+);
+
 function StorefrontComponent() {
   const [isEditingStorefront, setIsEditingStorefront] = useState(false);
   const [isEditingTheme, setIsEditingTheme] = useState(false);
@@ -76,6 +116,7 @@ function StorefrontComponent() {
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
   const [isSavingTheme, setIsSavingTheme] = useState(false);
   const [isSavingDeliveryMethod, setIsSavingDeliveryMethod] = useState(false);
+  const [isSavingAvailability, setIsSavingAvailability] = useState(false);
   const [isFoodVendor, setIsFoodVendor] = useState(false); // ← NEW
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
@@ -96,6 +137,8 @@ function StorefrontComponent() {
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [themeColor, setThemeColor] = useState("Surge Green");
   const [availabilityEnabled, setAvailabilityEnabled] = useState(true);
+  const [availability, setAvailability] =
+    useState<AvailabilityDay[]>(defaultAvailability);
 
   // ── Delivery methods state — now includes relay ───────────────────────────
   const [deliveryMethods, setDeliveryMethods] = useState({
@@ -114,6 +157,92 @@ function StorefrontComponent() {
       'Purple Elegance': { primary: '#8B5CF6', secondary: '#7C3AED', accent: '#EDE8FF' }
     };
     return themeMap[themeName] || themeMap['Surge Green'];
+  };
+
+  const updateAvailabilityDay = (
+    index: number,
+    field: keyof Omit<AvailabilityDay, "day">,
+    value: string | boolean
+  ) => {
+    setAvailability((current) =>
+      current.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [field]: value } : item
+      )
+    );
+  };
+
+  const resetAvailability = () => {
+    setAvailability(defaultAvailability.map((item) => ({ ...item })));
+  };
+
+  const toTwentyFourHourTime = (
+    hour: string,
+    minute: string,
+    period: Meridiem
+  ) => {
+    const numericHour = Number(hour);
+    const convertedHour =
+      period === "AM"
+        ? numericHour % 12
+        : numericHour === 12
+          ? 12
+          : numericHour + 12;
+
+    return `${String(convertedHour).padStart(2, "0")}:${minute}`;
+  };
+
+  const saveAvailability = async () => {
+    if (isSavingAvailability) return;
+
+    const availableDateTimes = availability
+      .filter((item) => item.enabled)
+      .map((item) => ({
+        day: item.day,
+        openTime: toTwentyFourHourTime(
+          item.openingHour,
+          item.openingMinute,
+          item.openingPeriod
+        ),
+        closeTime: toTwentyFourHourTime(
+          item.closingHour,
+          item.closingMinute,
+          item.closingPeriod
+        ),
+      }));
+
+    if (availableDateTimes.length === 0) {
+      toast.error("Enable at least one day before saving availability");
+      return;
+    }
+
+    setIsSavingAvailability(true);
+    try {
+      const response = await fetch("/api/store/availability", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ availableDateTimes }),
+      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          result.error || result.message || "Failed to save availability"
+        );
+      }
+
+      toast.success(
+        result.message || "Availability saved successfully"
+      );
+    } catch (error) {
+      console.error("Error saving availability:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to save availability"
+      );
+    } finally {
+      setIsSavingAvailability(false);
+    }
   };
 
   const getThemeFromBrandColor = (brandColor?: BrandColor): string => {
@@ -837,14 +966,169 @@ function StorefrontComponent() {
         </CardContent>
       </Card>
 
-      {/* Availability Setup — unchanged */}
+      {/* Availability Setup */}
       <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
         <CardContent>
-          <div className="space-y-4 pt-6">
+          <div className="space-y-5 pt-6">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium">Availability Setup</h3>
-              <Switch checked={availabilityEnabled} onCheckedChange={setAvailabilityEnabled} />
+              <Switch
+                checked={availabilityEnabled}
+                onCheckedChange={setAvailabilityEnabled}
+                aria-label="Enable availability schedule"
+              />
             </div>
+
+            {availabilityEnabled && (
+              <div className="border-t pt-5">
+                <div className="mb-3 flex items-center justify-between gap-4">
+                  <h4 className="text-sm font-medium">Opening and Closing time</h4>
+                  <button
+                    type="button"
+                    onClick={resetAvailability}
+                    className="text-xs font-medium text-primary hover:underline"
+                  >
+                    Use default
+                  </button>
+                </div>
+
+                <div className="divide-y">
+                  {availability.map((item, index) => (
+                    <div
+                      key={item.day}
+                      className="grid gap-3 py-3 md:grid-cols-[112px_minmax(0,1fr)] md:items-center"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Switch
+                          checked={item.enabled}
+                          onCheckedChange={(checked) =>
+                            updateAvailabilityDay(index, "enabled", checked)
+                          }
+                          aria-label={`${item.enabled ? "Disable" : "Enable"} ${item.day}`}
+                          className="h-4 w-7 [&_[data-slot=switch-thumb]]:size-3.5"
+                        />
+                        <span className="text-xs font-medium">{item.day}</span>
+                      </div>
+
+                      <div
+                        className={`flex flex-wrap items-center gap-2 transition-opacity ${
+                          item.enabled ? "opacity-100" : "pointer-events-none opacity-40"
+                        }`}
+                      >
+                        <div className="flex items-center rounded-md border bg-background">
+                          <select
+                            value={item.openingHour}
+                            onChange={(event) =>
+                              updateAvailabilityDay(index, "openingHour", event.target.value)
+                            }
+                            aria-label={`${item.day} opening hour`}
+                            className="h-8 w-12 appearance-none bg-transparent px-2 text-center text-xs outline-none"
+                          >
+                            {hours.map((hour) => (
+                              <option key={hour} value={hour}>{hour}</option>
+                            ))}
+                          </select>
+                          <span className="text-xs text-muted-foreground">:</span>
+                          <select
+                            value={item.openingMinute}
+                            onChange={(event) =>
+                              updateAvailabilityDay(index, "openingMinute", event.target.value)
+                            }
+                            aria-label={`${item.day} opening minute`}
+                            className="h-8 w-12 appearance-none bg-transparent px-2 text-center text-xs outline-none"
+                          >
+                            {minutes.map((minute) => (
+                              <option key={minute} value={minute}>{minute}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="flex overflow-hidden rounded-md border bg-background">
+                          {(["AM", "PM"] as const).map((period) => (
+                            <button
+                              key={period}
+                              type="button"
+                              onClick={() =>
+                                updateAvailabilityDay(index, "openingPeriod", period)
+                              }
+                              className={`h-8 px-2 text-[11px] transition-colors ${
+                                item.openingPeriod === period
+                                  ? "bg-muted font-medium text-foreground"
+                                  : "text-muted-foreground"
+                              }`}
+                            >
+                              {period}
+                            </button>
+                          ))}
+                        </div>
+
+                        <span className="px-1 text-xs text-muted-foreground">to</span>
+
+                        <div className="flex items-center rounded-md border bg-background">
+                          <select
+                            value={item.closingHour}
+                            onChange={(event) =>
+                              updateAvailabilityDay(index, "closingHour", event.target.value)
+                            }
+                            aria-label={`${item.day} closing hour`}
+                            className="h-8 w-12 appearance-none bg-transparent px-2 text-center text-xs outline-none"
+                          >
+                            {hours.map((hour) => (
+                              <option key={hour} value={hour}>{hour}</option>
+                            ))}
+                          </select>
+                          <span className="text-xs text-muted-foreground">:</span>
+                          <select
+                            value={item.closingMinute}
+                            onChange={(event) =>
+                              updateAvailabilityDay(index, "closingMinute", event.target.value)
+                            }
+                            aria-label={`${item.day} closing minute`}
+                            className="h-8 w-12 appearance-none bg-transparent px-2 text-center text-xs outline-none"
+                          >
+                            {minutes.map((minute) => (
+                              <option key={minute} value={minute}>{minute}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="flex overflow-hidden rounded-md border bg-background">
+                          {(["AM", "PM"] as const).map((period) => (
+                            <button
+                              key={period}
+                              type="button"
+                              onClick={() =>
+                                updateAvailabilityDay(index, "closingPeriod", period)
+                              }
+                              className={`h-8 px-2 text-[11px] transition-colors ${
+                                item.closingPeriod === period
+                                  ? "bg-muted font-medium text-foreground"
+                                  : "text-muted-foreground"
+                              }`}
+                            >
+                              {period}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={saveAvailability}
+                  disabled={isSavingAvailability}
+                  className="mt-4"
+                >
+                  {isSavingAvailability && (
+                    <Loader2 className="size-4 animate-spin" />
+                  )}
+                  {isSavingAvailability ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
