@@ -1,7 +1,7 @@
 // app/api/auth/login/route.ts - Complete Updated Version
 import { NextResponse } from "next/server";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.trim().replace(/\/+$/, "");
 const EXTERNAL_API_TIMEOUT = 15000; // Increased to 15 seconds
 
 // Cache for rate limiting (in-memory, for production use Redis)
@@ -12,9 +12,8 @@ export async function POST(request: Request) {
   const clientIP = request.headers.get('x-forwarded-for') || 'unknown';
   
   try {
-    const { email, password } = await request.json();
-
-    console.log(`[LOGIN] Attempt for: ${email}, IP: ${clientIP}`);
+    const { email: rawEmail, password } = await request.json();
+    const email = typeof rawEmail === "string" ? rawEmail.trim() : "";
 
     // Rate limiting check
     const now = Date.now();
@@ -28,7 +27,7 @@ export async function POST(request: Request) {
     }
 
     // Basic validation
-    if (!email?.trim() || !password) {
+    if (!email || !password) {
       return NextResponse.json(
         { status: "error", message: "Email and password are required", success: false },
         { status: 400 }
@@ -37,26 +36,37 @@ export async function POST(request: Request) {
 
     // Email format validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
+    if (!emailRegex.test(email)) {
       return NextResponse.json(
         { status: "error", message: "Please enter a valid email address", success: false },
         { status: 400 }
       );
     }
 
+    console.log(`[LOGIN] Attempt received, IP: ${clientIP}`);
+
     // Prepare fetch with better timeout handling
+    if (!API_BASE_URL) {
+      console.error("[LOGIN] Missing NEXT_PUBLIC_API_BASE_URL");
+      return NextResponse.json(
+        { status: "error", message: "Authentication service is not configured.", success: false },
+        { status: 500 }
+      );
+    }
+
+    const loginUrl = `${API_BASE_URL}/auth/login`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), EXTERNAL_API_TIMEOUT);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      const response = await fetch(loginUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "User-Agent": "Swiftree-Frontend/1.0",
         },
         body: JSON.stringify({ 
-          email: email.trim(), 
+          email,
           password 
         }),
         signal: controller.signal,
@@ -64,8 +74,28 @@ export async function POST(request: Request) {
 
       clearTimeout(timeoutId);
       const responseTime = Date.now() - startTime;
+      const contentType = response.headers.get("content-type") || "";
       
-      console.log(`[LOGIN] External API response - Status: ${response.status}, Time: ${responseTime}ms`);
+      console.log(
+        `[LOGIN] External API response - Status: ${response.status}, Content-Type: ${contentType}, Time: ${responseTime}ms`
+      );
+
+      if (!contentType.includes("application/json")) {
+        await response.text();
+        console.error("[LOGIN] Non-JSON auth response", {
+          status: response.status,
+          contentType,
+        });
+
+        return NextResponse.json(
+          {
+            status: "error",
+            message: "Authentication service returned an invalid response.",
+            success: false,
+          },
+          { status: 502 }
+        );
+      }
 
       const result = await response.json();
 
@@ -104,7 +134,7 @@ export async function POST(request: Request) {
       }
 
       // Extract user and store info
-      const userEmail = email.trim();
+      const userEmail = email;
       const userId = result.data?.id || null;
       let storeName = email.split('@')[0] + "'s Store";
       let storeId = null;
@@ -118,11 +148,10 @@ export async function POST(request: Request) {
       }
 
       console.log(`[LOGIN] User info extracted:`, {
-        userId,
-        userEmail,
-        storeName,
-        storeId,
-        storeUrl
+        hasUserId: Boolean(userId),
+        hasStoreName: Boolean(storeName),
+        hasStoreId: Boolean(storeId),
+        hasStoreUrl: Boolean(storeUrl),
       });
 
       // Create successful response
@@ -162,7 +191,7 @@ export async function POST(request: Request) {
           httpOnly: false,
           maxAge: 2592000, // 30 days
         });
-        console.log(`[LOGIN] ✅ User ID saved to cookie: ${userId}`);
+        console.log("[LOGIN] User ID cookie set");
       }
 
       // Set user_email cookie (accessible to client)
@@ -171,7 +200,7 @@ export async function POST(request: Request) {
         httpOnly: false,
         maxAge: 2592000, // 30 days
       });
-      console.log(`[LOGIN] ✅ User email saved to cookie: ${userEmail}`);
+      console.log("[LOGIN] User email cookie set");
 
       // Set store_name cookie (accessible to client)
       nextResponse.cookies.set("store_name", storeName, { 
@@ -179,7 +208,7 @@ export async function POST(request: Request) {
         httpOnly: false,
         maxAge: 2592000, // 30 days
       });
-      console.log(`[LOGIN] ✅ Store name saved to cookie: ${storeName}`);
+      console.log("[LOGIN] Store name cookie set");
       
       // Set store_id cookie if available
       if (storeId) {
@@ -188,7 +217,7 @@ export async function POST(request: Request) {
           httpOnly: false,
           maxAge: 2592000, // 30 days
         });
-        console.log(`[LOGIN] ✅ Store ID saved to cookie: ${storeId}`);
+        console.log("[LOGIN] Store ID cookie set");
       }
 
       // Set store_url cookie if available
@@ -198,13 +227,13 @@ export async function POST(request: Request) {
           httpOnly: false,
           maxAge: 2592000, // 30 days
         });
-        console.log(`[LOGIN] ✅ Store URL saved to cookie: ${storeUrl}`);
+        console.log("[LOGIN] Store URL cookie set");
       }
 
       // Clear login attempts on success
       loginAttempts.delete(email);
       
-      console.log(`[LOGIN] Success for: ${email}, Total time: ${Date.now() - startTime}ms`);
+      console.log(`[LOGIN] Success, Total time: ${Date.now() - startTime}ms`);
       return nextResponse;
 
     }   // eslint-disable-next-line @typescript-eslint/no-explicit-any 
@@ -212,7 +241,7 @@ export async function POST(request: Request) {
       clearTimeout(timeoutId);
       
       if (fetchError.name === "AbortError") {
-        console.error(`[LOGIN] Timeout for: ${email}, IP: ${clientIP}`);
+        console.error(`[LOGIN] Timeout, IP: ${clientIP}`);
         return NextResponse.json(
           { 
             status: "error", 
@@ -223,7 +252,7 @@ export async function POST(request: Request) {
         );
       }
       
-      console.error(`[LOGIN] Connection error for: ${email}`, fetchError);
+      console.error("[LOGIN] Connection error", fetchError);
       return NextResponse.json(
         { 
           status: "error", 

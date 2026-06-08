@@ -29,35 +29,27 @@ export default function LoginPage() {
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const isValid = emailRegex.test(email);
-    console.log("validateEmail:", { email, isValid });
-    return isValid;
+    return emailRegex.test(email);
   };
 
   const validatePassword = (password: string) => {
     // Simplified to match common requirements (8+ characters)
-    const isValid = password.length >= 8;
-    console.log("validatePassword:", { password, isValid });
-    return isValid;
+    return password.length >= 8;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("handleSubmit triggered", { email, password });
 
     // Validation with toast errors
     if (!email || !validateEmail(email)) {
-      console.log("Validation failed: Invalid email");
       toast.error("Please enter a valid email address");
       return;
     }
     if (!password) {
-      console.log("Validation failed: Password missing");
       toast.error("Password is required");
       return;
     }
     if (!validatePassword(password)) {
-      console.log("Validation failed: Invalid password");
       toast.error("Password must be at least 8 characters");
       return;
     }
@@ -73,26 +65,21 @@ export default function LoginPage() {
       });
 
       const data: LoginResponse = await res.json();
-      console.log("Login response:", data);
 
       if (res.ok && data.success) {
         // Store store_name in localStorage
         if (data.data.store_name) {
-          console.log("Storing store_name:", data.data.store_name);
           localStorage.setItem("store_name", data.data.store_name);
         }
         toast.success("Login successful! Redirecting...");
-        console.log("Redirecting to:", from);
         
         // FIXED: Use window.location for PWA compatibility
         // Wait a bit for cookies to be processed, then hard redirect
         setTimeout(() => {
-          console.log("Performing hard redirect to:", from);
           window.location.href = from;
           // Alternative: window.location.replace(from) to prevent back navigation
         }, 300);
       } else {
-        console.log("Login failed:", data.message);
         toast.error(data.message || "Login failed");
       }
     } catch (err) {
@@ -101,7 +88,6 @@ export default function LoginPage() {
       toast.error(errorMessage);
     } finally {
       setIsLoading(false);
-      console.log("handleSubmit completed");
     }
   };
 

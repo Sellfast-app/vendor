@@ -346,7 +346,7 @@ export default function EscrowTable() {
                     onCheckedChange={(checked) => handleSelectEscrow(escrow.id, checked as boolean)}
                   />
                 </TableCell>
-                <TableCell className="text-[#4FCA6A] underline">{escrow.id}</TableCell>
+                <TableCell className="text-primary underline">{escrow.id}</TableCell>
                 <TableCell>₦{escrow.amount.toLocaleString()}</TableCell>
                 <TableCell>
                   <span className={`flex items-center px-2 py-1 rounded text-sm ${getStatusClass(escrow.status)}`}>

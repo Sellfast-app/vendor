@@ -14,16 +14,30 @@ export function ThemeProvider({ children, ...props }: CustomThemeProviderProps) 
   const pathname = usePathname();
 
   useEffect(() => {
-    // Apply custom theme only on dashboard routes
-    if (['/dashboard', '/products', '/orders', '/analytics', '/payouts', '/settings'].some(route => pathname.startsWith(route))) {
+    const isDashboardRoute = ['/dashboard', '/products', '/orders', '/analytics', '/payouts', '/settings'].some(route => pathname.startsWith(route));
+
+    const syncTheme = () => {
+      if (!isDashboardRoute) {
+        setUserTheme('surge-green');
+        return;
+      }
+
       const storedTheme = localStorage.getItem('colorScheme') as ThemeName;
       if (storedTheme && themes[storedTheme]) {
         setUserTheme(storedTheme);
+      } else {
+        setUserTheme('surge-green');
       }
-    } else {
-      // Default to surge-green for auth screens
-      setUserTheme('surge-green');
-    }
+    };
+
+    syncTheme();
+    window.addEventListener('themeChange', syncTheme);
+    window.addEventListener('storage', syncTheme);
+
+    return () => {
+      window.removeEventListener('themeChange', syncTheme);
+      window.removeEventListener('storage', syncTheme);
+    };
   }, [pathname]);
 
   useEffect(() => {

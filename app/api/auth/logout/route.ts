@@ -60,7 +60,6 @@ export async function POST(request: Request) {
     let result: LogoutResponse | ApiError;
     try {
       result = await response.json();
-      console.log("External API response data:", result);
     } catch (jsonError) {
       console.log("Failed to parse JSON response:", jsonError);
       // If JSON parsing fails, still clear cookies locally
@@ -79,7 +78,7 @@ export async function POST(request: Request) {
     }
 
     if (!response.ok) {
-      console.log("External API error:", result);
+      console.log("External API logout failed with status:", response.status);
       // Even if the API call fails, we should clear local cookies
       const nextResponse = NextResponse.json(
         { status: "success", message: "Logged out successfully (session cleared locally)" },

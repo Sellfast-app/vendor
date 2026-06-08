@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
 import { useState } from 'react';
-import { Eye, EyeOff, ChevronDown, ArrowLeft, Download, Copy } from 'lucide-react';
+import { Eye, EyeOff, ChevronDown, ArrowLeft, Download, Copy, Mail, RefreshCw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Label } from '@radix-ui/react-label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -38,6 +38,7 @@ interface BrandColor {
 
 interface BusinessMetadata {
   brand_color: BrandColor;
+  whatsapp_phone_number?: string;
 }
 
 interface BusinessDetails {
@@ -47,8 +48,14 @@ interface BusinessDetails {
   metadata: BusinessMetadata;
 }
 
-interface RegisterRequest {
-  user_details: UserDetails;
+interface SignupRequest {
+  first_name: string;
+  last_name: string;
+  user_email: string;
+  user_password: string;
+}
+
+interface OnboardCreateRequest {
   business_details: BusinessDetails;
 }
 
@@ -57,13 +64,28 @@ interface RegisterResponse {
   message: string;
   success: boolean;
   data: {
-    token: string;
-    user_id: string;
-    user_email: string;
+    token?: string | null;
+    user_id?: string | null;
+    user_email?: string | null;
     store_name: string;
-    store_id: string;
-    store_url: string;
-    qrCode: string;
+    store_id?: string | null;
+    store_url?: string | null;
+    qrCode?: string | null;
+  };
+}
+
+async function readApiResponse(response: Response) {
+  const contentType = response.headers.get('content-type') || '';
+
+  if (contentType.includes('application/json')) {
+    return response.json();
+  }
+
+  const text = await response.text();
+  return {
+    status: 'error',
+    message: text || `Request failed with status ${response.status}`,
+    success: false,
   };
 }
 
@@ -174,13 +196,16 @@ const ColorSchemeSelector = ({ selectedScheme, onSchemeSelect }: { selectedSchem
 
 export default function MultiStepSignupPage() {
   const [currentStep, setCurrentStep] = useState(1);
+  const [accountPhase, setAccountPhase] = useState<'details' | 'verify'>('details');
   const [isLoading, setIsLoading] = useState(false);
+  const [isResendingOtp, setIsResendingOtp] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [successData, setSuccessData] = useState<RegisterResponse | null>(null);
+  const [otp, setOtp] = useState('');
   const router = useRouter();
 
   // Updated form data state with metadata wrapper
-  const [formData, setFormData] = useState<RegisterRequest & { agreeToTerms: boolean; countryCode: string; colorScheme: ThemeName }>({
+  const [formData, setFormData] = useState<{ user_details: UserDetails; business_details: BusinessDetails; agreeToTerms: boolean; countryCode: string; colorScheme: ThemeName }>({
     user_details: {
       firstName: '',
       lastName: '',
@@ -194,9 +219,9 @@ export default function MultiStepSignupPage() {
       description: '',
       metadata: {
         brand_color: {
-          primary: '',
-          secondary: '',
-          accent: '',
+          primary: themes['surge-green'].light.primary,
+          secondary: themes['surge-green'].light.secondary,
+          accent: themes['surge-green'].light.tertiary,
         },
       },
     },
@@ -284,6 +309,112 @@ export default function MultiStepSignupPage() {
     setCurrentStep(currentStep - 1);
   };
 
+  const handleStartEmailVerification = async () => {
+    if (!validateStep(1)) return;
+
+    setIsLoading(true);
+
+    try {
+      const payload: SignupRequest = {
+        first_name: formData.user_details.firstName.trim(),
+        last_name: formData.user_details.lastName.trim(),
+        user_email: formData.user_details.email.trim(),
+        user_password: formData.user_details.password,
+      };
+
+      const response = await fetch('/api/auth/onboard/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await readApiResponse(response);
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Failed to start email verification');
+      }
+
+      if (result.data?.user_id) {
+        localStorage.setItem('user_id', result.data.user_id);
+      }
+      if (result.data?.user_email) {
+        localStorage.setItem('user_email', result.data.user_email);
+      }
+
+      toast.success(result.message || 'Verification code sent to your email');
+      setAccountPhase('verify');
+    } catch (error) {
+      console.error('Signup error:', error);
+      toast.error(error instanceof Error ? error.message : 'An unexpected error occurred');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerifyEmail = async () => {
+    const cleanOtp = otp.trim();
+
+    if (!cleanOtp) {
+      toast.error('Enter the verification code sent to your email');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/auth/onboard/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ otp: cleanOtp }),
+      });
+
+      const result = await readApiResponse(response);
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Email verification failed');
+      }
+
+      toast.success(result.message || 'Email verified successfully');
+      setCurrentStep(2);
+    } catch (error) {
+      console.error('Email verification error:', error);
+      toast.error(error instanceof Error ? error.message : 'An unexpected error occurred');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setIsResendingOtp(true);
+
+    try {
+      const response = await fetch('/api/auth/onboard/resend-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_email: formData.user_details.email.trim() }),
+      });
+
+      const result = await readApiResponse(response);
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Failed to resend verification code');
+      }
+
+      toast.success(result.message || 'Verification code resent');
+    } catch (error) {
+      console.error('Resend OTP error:', error);
+      toast.error(error instanceof Error ? error.message : 'An unexpected error occurred');
+    } finally {
+      setIsResendingOtp(false);
+    }
+  };
+
   // Updated to return metadata wrapper
   const mapColorSchemeToBrandColor = (scheme: ThemeName): BusinessMetadata => {
     const colors = themes[scheme].light;
@@ -336,16 +467,18 @@ export default function MultiStepSignupPage() {
   
     try {
       const phone_number = `${formData.countryCode}${formData.user_details.phone_number}`.replace(/\s/g, '');
-      const payload: RegisterRequest = {
-        user_details: {
-          ...formData.user_details,
-          phone_number,
+      const payload: OnboardCreateRequest = {
+        business_details: {
+          ...formData.business_details,
+          metadata: {
+            ...formData.business_details.metadata,
+            whatsapp_phone_number: phone_number,
+          },
         },
-        business_details: formData.business_details,
       };
   
   
-      const response = await fetch('/api/auth/register', {
+      const response = await fetch('/api/auth/onboard/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -353,34 +486,44 @@ export default function MultiStepSignupPage() {
         body: JSON.stringify(payload),
       });
   
-      const result: RegisterResponse = await response.json();
+      const result: RegisterResponse = await readApiResponse(response);
   
   
       if (!response.ok || !result.success) {
-        throw new Error(result.message || 'Failed to create account');
+        throw new Error(result.message || 'Failed to create storefront');
       }
   
       // Save data to localStorage
       localStorage.setItem('colorScheme', formData.colorScheme);
       localStorage.setItem('store_name', result.data.store_name);
-      localStorage.setItem('store_id', result.data.store_id);
-      localStorage.setItem('store_url', result.data.store_url);
-      localStorage.setItem('qrCode', result.data.qrCode);
-      localStorage.setItem('user_id', result.data.user_id);
-      localStorage.setItem('user_email', result.data.user_email);
+      if (result.data.store_id) {
+        localStorage.setItem('store_id', result.data.store_id);
+      }
+      if (result.data.store_url) {
+        localStorage.setItem('store_url', result.data.store_url);
+      }
+      if (result.data.qrCode) {
+        localStorage.setItem('qrCode', result.data.qrCode);
+      }
+      if (result.data.user_id) {
+        localStorage.setItem('user_id', result.data.user_id);
+      }
+      if (result.data.user_email) {
+        localStorage.setItem('user_email', result.data.user_email);
+      }
   
       // Save store name to cookie for sidebar access (backup to cookie set by API)
       document.cookie = `store_name=${encodeURIComponent(result.data.store_name)}; path=/; max-age=2592000; SameSite=Lax`;
   
-      console.log('✅ Registration data saved:', {
-        storeName: result.data.store_name,
-        storeId: result.data.store_id,
-        storeUrl: result.data.store_url,
-        qrCode: result.data.qrCode,
+      console.log('Registration data saved', {
+        hasStoreName: Boolean(result.data.store_name),
+        hasStoreId: Boolean(result.data.store_id),
+        hasStoreUrl: Boolean(result.data.store_url),
+        hasQrCode: Boolean(result.data.qrCode),
       });
   
       setSuccessData(result);
-      toast.success('Account created successfully!');
+      toast.success('Storefront created successfully!');
       setIsSuccess(true);
     } catch (error) {
       console.error('Registration error:', error);
@@ -534,7 +677,7 @@ export default function MultiStepSignupPage() {
 
       <Button
         type="button"
-        onClick={handleNext}
+        onClick={handleStartEmailVerification}
         variant={
           formData.user_details.firstName &&
           formData.user_details.lastName &&
@@ -557,7 +700,72 @@ export default function MultiStepSignupPage() {
           isLoading
         }
       >
-        Next <FaArrowRightLong />
+        {isLoading ? 'Sending Code...' : 'Verify Email'} <FaArrowRightLong />
+      </Button>
+    </div>
+  );
+
+  const renderEmailVerification = () => (
+    <div className="space-y-6">
+      <div className="flex justify-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-tertiary text-primary">
+          <Mail className="h-6 w-6" />
+        </div>
+      </div>
+
+      <div className="flex flex-col items-center text-center">
+        <h1 className="text-2xl font-semibold text-primary">Verify Your Email</h1>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Enter the code sent to <span className="font-medium text-foreground">{formData.user_details.email}</span>
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="otp" className="text-sm font-medium">
+          Verification Code <span className="text-destructive">*</span>
+        </Label>
+        <Input
+          id="otp"
+          type="text"
+          inputMode="numeric"
+          value={otp}
+          placeholder="Enter verification code"
+          onChange={(e) => setOtp(e.target.value.replace(/\s/g, ''))}
+          className="w-full h-11 bg-muted border-0 rounded-lg text-center tracking-[0.35em] focus:ring-2 transition-all duration-200"
+          disabled={isLoading}
+        />
+      </div>
+
+      <div className="flex items-center justify-between gap-3">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setAccountPhase('details')}
+          className="w-[34%] py-2 rounded-lg transition-colors duration-200"
+          disabled={isLoading || isResendingOtp}
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Edit
+        </Button>
+        <Button
+          type="button"
+          onClick={handleVerifyEmail}
+          disabled={isLoading || !otp.trim()}
+          className="w-[63%] py-2 rounded-lg transition-colors duration-200"
+        >
+          {isLoading ? 'Verifying...' : 'Continue'}
+        </Button>
+      </div>
+
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={handleResendOtp}
+        disabled={isResendingOtp || isLoading}
+        className="w-full text-primary"
+      >
+        <RefreshCw className={`w-4 h-4 mr-2 ${isResendingOtp ? 'animate-spin' : ''}`} />
+        {isResendingOtp ? 'Resending code...' : 'Resend verification code'}
       </Button>
     </div>
   );
@@ -724,15 +932,21 @@ export default function MultiStepSignupPage() {
               className="object-contain p-2"
               sizes="128px"
               onError={(e) => {
-                console.error('QR Code failed to load:', successData.data.qrCode);
+                console.error('QR Code failed to load');
                 e.currentTarget.style.display = 'none';
               }}
             />
           </div>
         )}
+        {!successData?.data.qrCode && (
+          <div className="w-32 h-32 bg-muted rounded-lg flex items-center justify-center text-center px-3">
+            <p className="text-xs text-muted-foreground">QR code will be available from your dashboard.</p>
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
+            disabled={!successData?.data.qrCode}
             onClick={async () => {
               if (successData?.data.qrCode) {
                 try {
@@ -768,6 +982,7 @@ export default function MultiStepSignupPage() {
           </Button>
           <Button
             variant="outline"
+            disabled={!successData?.data.store_url}
             onClick={() => {
               if (successData?.data.store_url) {
                 navigator.clipboard.writeText(successData.data.store_url);
@@ -808,6 +1023,9 @@ export default function MultiStepSignupPage() {
 
     switch (currentStep) {
       case 1:
+        if (accountPhase === 'verify') {
+          return renderEmailVerification();
+        }
         return renderStep1();
       case 2:
         return renderStep2();

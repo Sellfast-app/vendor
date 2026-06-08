@@ -46,7 +46,7 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({ active, payload, label })
         <p className="text-gray-500 text-xs mb-2">{label}</p>
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-[#4FCA6A] rounded-full flex-shrink-0"></div>
+            <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0"></div>
             <span className="text-xs font-medium truncate">120 • ₦2,010,090.00 • Inflow</span>
           </div>
           <div className="flex items-center gap-2">
@@ -168,10 +168,10 @@ export default function TransactionInflowChart() {
                 yAxisId="left"
                 type="monotone"
                 dataKey="inflowCount"
-                stroke="#4FCA6A"
+                stroke="var(--primary)"
                 strokeWidth={2}
-                dot={{ fill: '#4FCA6A', strokeWidth: 0, r: 4 }}
-                activeDot={{ r: 5, fill: '#4FCA6A', strokeWidth: 0 }}
+                dot={{ fill: 'var(--primary)', strokeWidth: 0, r: 4 }}
+                activeDot={{ r: 5, fill: 'var(--primary)', strokeWidth: 0 }}
               />
               <Line
                 yAxisId="left"
@@ -189,7 +189,7 @@ export default function TransactionInflowChart() {
         {/* Legend */}
         <div className="flex items-center justify-center gap-8 mt-4 text-xs text-gray-400">
           <div className="flex items-center gap-2">
-            <span className="w-3 h-3 bg-[#4FCA6A] rounded-xs" />
+            <span className="w-3 h-3 bg-primary rounded-xs" />
             <span>Inflow</span>
           </div>
           <div className="flex items-center gap-2">

@@ -37,6 +37,7 @@ interface GeocodeResult {
 }
 
 function AccountInformation() {
+  const [storeId, setStoreId] = useState("");
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isEditingBusiness, setIsEditingBusiness] = useState(false);
   const [showDeleteSection, setShowDeleteSection] = useState(false);
@@ -139,6 +140,7 @@ function AccountInformation() {
         if (result.status === 'success' && result.data?.storeDetails) {
           const storeDetails = result.data.storeDetails;
           const metadata = storeDetails.metadata || {};
+          setStoreId(storeDetails.id || "");
 
           console.log('🎯 Profile - Extracted store details:', {
             owner_name: metadata.owner_name,
@@ -306,8 +308,13 @@ function AccountInformation() {
   };
 
   const handleSaveBusiness = async () => {
-    if (!formData.cacNumber || !formData.documentType) {
-      toast.error('Please fill in CAC Number and Document Type fields');
+    if (!formData.cacNumber.trim()) {
+      toast.error('Please enter a CAC registration number');
+      return;
+    }
+
+    if (!storeId) {
+      toast.error('Store ID not found. Please refresh and try again');
       return;
     }
   
@@ -315,33 +322,26 @@ function AccountInformation() {
     const saveToast = toast.loading('Updating business information...');
   
     try {
-      // Prepare the update data
-      const updateData = {
-        cac: formData.cacNumber.trim(),
-        doctype: formData.documentType.trim(),
-      };
+      const businessFormData = new FormData();
+      businessFormData.append('cac', formData.cacNumber.trim());
+      businessFormData.append('doc_type', 'cac');
   
-      console.log('🔍 Updating business info:', updateData);
-  
-      const response = await fetch('/api/store', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updateData),
+      const response = await fetch(`/api/stores/${encodeURIComponent(storeId)}/validate-cac`, {
+        method: 'POST',
+        body: businessFormData,
       });
   
       const result = await response.json();
   
       if (!response.ok) {
-        throw new Error(result.message || 'Failed to update business information');
+        throw new Error(
+          result.message || result.error || 'Failed to update business information'
+        );
       }
   
-      console.log('✅ Business info updated successfully:', result);
-  
       toast.dismiss(saveToast);
-      toast.success('Business information updated successfully!');
-      setIsEditingBusiness(false); // This exits edit mode
+      toast.success(result.message || 'CAC registration number updated successfully!');
+      setIsEditingBusiness(false);
   
       // Clear file state when successfully saved
       setCacFile(null);
@@ -359,29 +359,6 @@ function AccountInformation() {
       setIsLoading(false);
     }
   };
-
-const handleUploadAll = async () => {
-  // First validate business info
-  if (!formData.cacNumber || !formData.documentType) {
-    toast.error('Please fill in CAC Number and Document Type fields');
-    return;
-  }
-
-  try {
-    // If there's a file selected, upload it first
-    if (cacFile) {
-      await handleUploadCac();
-    }
-
-    // Then save the business information
-    await handleSaveBusiness();
-    
-  } catch (error) {
-    console.error('❌ Error in upload process:', error);
-    // Error already handled in individual functions
-  }
-};
-
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -463,6 +440,11 @@ const handleUploadAll = async () => {
       toast.error('Please select a file to upload');
       return;
     }
+
+    if (!storeId) {
+      toast.error('Store ID not found. Please refresh and try again');
+      return;
+    }
   
     if (!formData.cacNumber || !formData.documentType) {
       toast.error('Please fill in CAC Number and Document Type before uploading');
@@ -503,7 +485,7 @@ const handleUploadAll = async () => {
         }
       }, 200);
   
-      const response = await fetch('/api/store/cac', {
+      const response = await fetch(`/api/stores/${encodeURIComponent(storeId)}/validate-cac`, {
         method: 'POST',
         body: uploadFormData,
       });
@@ -827,14 +809,14 @@ const handleUploadAll = async () => {
                     Cancel
                   </Button>
                   <Button
-                    onClick={handleUploadAll} // Changed to handleUploadAll
+                    onClick={handleSaveBusiness}
                     variant="default"
                     size="sm"
                     disabled={isLoading || isUploadingCac}
                   >
-                    <Upload className="w-4 h-4 mr-2" />
+                    <SaveIcon />
                     <span className="hidden sm:inline ml-2">
-                      {isUploadingCac ? "Uploading..." : (isLoading ? "Saving..." : "Upload")}
+                      {isLoading ? "Saving..." : "Save Changes"}
                     </span>
                   </Button>
                 </div>
@@ -860,7 +842,7 @@ const handleUploadAll = async () => {
               {/* Tax ID */}
               <div className="space-y-2">
                 <Label htmlFor="taxId" className="text-xs">
-                  Tax Identification Number
+                  National Identification Number (NIN)
                 </Label>
                 <Input
                   id="taxId"
@@ -878,126 +860,11 @@ const handleUploadAll = async () => {
                 </Label>
                 <Input
                   id="documentType"
-                  value={formData.documentType}
-                  onChange={(e) => handleInputChange("documentType", e.target.value)}
-                  disabled={!isEditingBusiness}
-                  className="w-full dark:bg-background"
-                  placeholder="cac"
+                  value="cac"
+                  disabled
+                  className="w-full cursor-not-allowed bg-muted/40 dark:bg-background"
                 />
               </div>
-            </div>
-
-            {/* Document Upload - Using your preferred UI */}
-            <div className="space-y-4">
-              <Label className="text-xs">CAC Document *</Label>
-
-              {/* Clickable Upload Area - Using your preferred style */}
-              <div
-                className={`border-1 border-dashed border-primary rounded-2xl p-8 text-center cursor-pointer hover:bg-muted/30 transition-colors ${!isEditingBusiness ? 'opacity-50 cursor-not-allowed' : cacFile ? 'bg-white dark:bg-gray-800 border-gray-300' : ' border-[#4FCA6A] '
-                  }`}
-                onClick={() => {
-                  if (isEditingBusiness && !isUploadingCac && !cacFile) {
-                    document.getElementById('cac-upload')?.click();
-                  }
-                }}
-              >
-                {/* Hidden file input */}
-                <Input
-                  id="cac-upload"
-                  type="file"
-                  accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
-                  onChange={handleCacFileChange}
-                  disabled={!isEditingBusiness || isUploadingCac}
-                  className="hidden"
-                />
-
-                {/* No File Selected State */}
-                {!cacFile && (
-                  <div className="flex flex-col items-center justify-center gap-3 py-3">
-                    <span className="text-gray-500">
-                      <Imag />
-                    </span>
-                    <p className="text-sm">
-                      <span className="text-[#4FCA6A]">Click to upload</span> or drag and drop
-                    </p>
-                    <p className="text-xs text-gray-400">Max File Size: 10MB</p>
-                  </div>
-                )}
-
-                {/* File Selected State - Using your preferred preview UI */}
-                {cacFile && (
-                  <div className="flex items-center justify-between gap-4">
-                    {/* File Preview */}
-                    <div className="flex items-center space-x-4">
-                      {cacFilePreview ? (
-                        <img
-                          src={cacFilePreview}
-                          alt="CAC Preview"
-                          className="w-16 h-16 rounded object-cover"
-                        />
-                      ) : cacFile.type === 'application/pdf' ? (
-                        <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded flex items-center justify-center">
-                          <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                        </div>
-                      ) : null}
-                    </div>
-
-                    {/* File Info */}
-                    <div className="flex-1">
-                      <p className="text-sm pb-3 font-medium truncate">{cacFile.name}</p>
-
-                      {/* File Metadata */}
-                      <div className="flex items-center space-x-3 text-xs text-gray-500 pb-1">
-                        <span className="flex items-center gap-1">
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
-                          </svg>
-                          {formatFileSize(cacFile.size)}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          {uploadTime} sec
-                        </span>
-                        {isUploadingCac && (
-                          <span className="text-black dark:text-white font-medium">
-                            {uploadProgress}%
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Progress Bar - Show during upload */}
-                      {isUploadingCac && (
-                        <div className="w-full rounded-full bg-gray-200 dark:bg-gray-700 h-1">
-                          <div
-                            className="h-1 rounded-full bg-[#4FCA6A]"
-                            style={{ width: `${uploadProgress}%` }}
-                          ></div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Remove Button */}
-                    <div className="flex items-center">
-                      <button
-                        onClick={handleRemoveLogo}
-                        disabled={isUploadingCac}
-                        className={`rounded-xl p-2 transition-colors ${isUploadingCac
-                            ? 'bg-gray-300 cursor-not-allowed'
-                            : 'bg-[#979C9E] hover:bg-gray-500'
-                          }`}
-                      >
-                        <X className="h-4 w-4 text-white" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Upload Button - REMOVED as requested */}
             </div>
           </div>
         </CardContent>

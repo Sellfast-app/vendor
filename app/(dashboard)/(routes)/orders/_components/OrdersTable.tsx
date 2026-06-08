@@ -355,11 +355,11 @@ useEffect(() => {
           </Button>
           <Button
             variant="outline"
-            className="border-[#4FCA6A] text-[#4FCA6A] dark:bg-background"
+            className="border-primary text-primary dark:bg-background"
             onClick={() => setIsCreateOrderModalOpen(true)}
             disabled
           >
-            <PlusIcon className="text-[#4FCA6A]" />
+            <PlusIcon className="text-primary" />
             <span className="hidden sm:inline ml-2">Add Order</span>
           </Button>
         </div>
@@ -488,7 +488,7 @@ useEffect(() => {
             key={tab.key}
             variant="ghost"
             className={`px-4 rounded-none text-[#A0A0A0] whitespace-nowrap ${activeTab === tab.key
-                ? "border-b-2 border-[#4FCA6A] text-black dark:text-white"
+                ? "border-b-2 border-primary text-black dark:text-white"
                 : ""
               }`}
             onClick={() => {
@@ -545,7 +545,7 @@ useEffect(() => {
               <TableRow>
                 <TableCell colSpan={9} className="text-center py-8">
                   <div className="flex justify-center items-center">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#4FCA6A]"></div>
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
                     <span className="ml-2">Loading orders...</span>
                   </div>
                 </TableCell>
@@ -565,7 +565,7 @@ useEffect(() => {
                     />
                   </TableCell>
                   <TableCell
-                    className="text-[#4FCA6A] underline cursor-pointer"
+                    className="text-primary underline cursor-pointer"
                     onClick={() => {
                       localStorage.setItem(
                         "selectedOrder",

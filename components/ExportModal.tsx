@@ -131,7 +131,7 @@ export function ExportModal({ isOpen, onClose, endpointPrefix, fieldOptions, dat
           <div>
             <div className="flex justify-between items-center">
               <p className="text-xs font-light mb-2 text-gray-500">Date Range</p>
-              <Button variant="ghost" onClick={handleResetDates} className="text-xs text-[#4FCA6A]">
+              <Button variant="ghost" onClick={handleResetDates} className="text-xs text-primary">
                 Reset
               </Button>
             </div>
@@ -145,7 +145,7 @@ export function ExportModal({ isOpen, onClose, endpointPrefix, fieldOptions, dat
           <div>
             <div className="flex justify-between items-center">
               <p className="text-2xs text-xs font-light mb-2 text-gray-500">Fields to Export</p>
-              <Button variant="ghost" onClick={handleToggleSelections} className="text-xs sm:text-xs text-[#4FCA6A]">
+              <Button variant="ghost" onClick={handleToggleSelections} className="text-xs sm:text-xs text-primary">
                 {allSelected ? "Clear Selections" : "Select All"}
               </Button>
             </div>

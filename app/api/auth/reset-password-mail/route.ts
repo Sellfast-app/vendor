@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   try {
     const { email } = await request.json();
 
-    console.log("Request reset password for email:", email);
+    console.log("Reset password link request received");
 
     // Basic validation
     if (!email) {

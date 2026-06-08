@@ -570,7 +570,7 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                                         Add different sizes, colors and quantities for your product
                                     </p>
                                     {variants.map((variant) => (
-                                        <div key={variant.id} className="mt-4 border border-dashed border-[#4FCA6A] rounded-lg p-4">
+                                        <div key={variant.id} className="mt-4 border border-dashed border-primary rounded-lg p-4">
                                             <div className="grid grid-cols-1 gap-4">
                                                 {/* Size */}
                                                 <div>
@@ -686,7 +686,7 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                         <div className='w-full md:w-[50%]'>
                             <h2 className="text-sm font-semibold">Product Image</h2>
                             <p className="text-xs text-muted-foreground">Upload product images (max 5)</p>
-                            <div className='border border-dashed border-[#4FCA6A] rounded-lg w-full h-75 mt-4 flex flex-col items-center justify-center gap-3 py-3'>
+                            <div className='border border-dashed border-primary rounded-lg w-full h-75 mt-4 flex flex-col items-center justify-center gap-3 py-3'>
                                 <ImageIcon />
                                 <Label
                                     htmlFor="picture"
