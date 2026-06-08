@@ -639,7 +639,7 @@ function StorefrontComponent() {
 
     // ── Validation differs by business type ────────────────────────────────
     if (isFoodVendor) {
-      if (!deliveryMethods.pickup && !deliveryMethods.relay) {
+      if (!deliveryMethods.pickup && !deliveryMethods.relay && !deliveryMethods.vendor) {
         toast.error('Please select at least one delivery method');
         return;
       }
@@ -969,15 +969,25 @@ function StorefrontComponent() {
                 </div>
               </div>
 
-              {/* ── Food vendor: show Relay by Chowdeck only ───────────────── */}
+              {/* ── Food vendor: show Relay and Vendor Delivery ───────────── */}
               {isFoodVendor && (
-                <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                  <input type="checkbox" id="relay" checked={deliveryMethods.relay} onChange={() => handleDeliveryMethodChange('relay')} disabled={!isEditingDeliveryMethod} className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50" />
-                  <div className="flex-1">
-                    <label htmlFor="relay" className={`text-sm font-medium ${!isEditingDeliveryMethod ? 'cursor-default' : 'cursor-pointer'}`}>Relay by Chowdeck</label>
-                    <p className="text-xs text-muted-foreground mt-1">Food delivery handled by Relay (Chowdeck)</p>
+                <>
+                  <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                    <input type="checkbox" id="relay" checked={deliveryMethods.relay} onChange={() => handleDeliveryMethodChange('relay')} disabled={!isEditingDeliveryMethod} className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50" />
+                    <div className="flex-1">
+                      <label htmlFor="relay" className={`text-sm font-medium ${!isEditingDeliveryMethod ? 'cursor-default' : 'cursor-pointer'}`}>Relay by Chowdeck</label>
+                      <p className="text-xs text-muted-foreground mt-1">Food delivery handled by Relay (Chowdeck)</p>
+                    </div>
                   </div>
-                </div>
+
+                  <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                    <input type="checkbox" id="vendor" checked={deliveryMethods.vendor} onChange={() => handleDeliveryMethodChange('vendor')} disabled={!isEditingDeliveryMethod} className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50" />
+                    <div className="flex-1">
+                      <label htmlFor="vendor" className={`text-sm font-medium ${!isEditingDeliveryMethod ? 'cursor-default' : 'cursor-pointer'}`}>Vendor Delivery</label>
+                      <p className="text-xs text-muted-foreground mt-1">You handle delivery logistics yourself</p>
+                    </div>
+                  </div>
+                </>
               )}
 
               {/* ── Non-food vendors: show SendBox, Vendor, GIG ───────────── */}
