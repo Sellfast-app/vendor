@@ -16,6 +16,7 @@ import PendingDispatch from "@/components/svgIcons/PendingDispatch";
 import ProductsTable from "./_components/ProductsTable";
 import FoodTable from "./_components/FoodTable";
 import { ExportModal } from "@/components/ExportModal";
+import { isFoodBusinessType } from "@/lib/store";
 
 interface OverviewMetric {
   id: string;
@@ -31,21 +32,26 @@ function ProductsPage() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [businessType, setBusinessType] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
+  const [storeTypeError, setStoreTypeError] = useState(false);
 
   useEffect(() => {
     const fetchStoreData = async () => {
       try {
-        const response = await fetch('/api/store');
+        setStoreTypeError(false);
+        const response = await fetch('/api/store', { cache: 'no-store' });
         if (!response.ok) throw new Error('Failed to fetch store data');
         
         const result = await response.json();
-        if (result.status === 'success' && result.data?.storeDetails) {
-          setBusinessType(result.data.storeDetails.business_type || "");
+        const storeDetails = result.data?.storeDetails;
+        if (result.status !== 'success' || !storeDetails) {
+          throw new Error(result.message || 'Store details were not returned');
         }
+
+        setBusinessType(storeDetails.business_type || "");
       } catch (error) {
         console.error('Error fetching store data:', error);
-        // Default to empty string if fetch fails
         setBusinessType("");
+        setStoreTypeError(true);
       } finally {
         setIsLoading(false);
       }
@@ -54,7 +60,7 @@ function ProductsPage() {
     fetchStoreData();
   }, []);
 
-  const isRestaurant = businessType === "Restaurant/Food Service";
+  const isRestaurant = isFoodBusinessType(businessType);
 
   const overviewMetrics: OverviewMetric[] = [
     {
@@ -113,6 +119,19 @@ function ProductsPage() {
       <div className="min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex items-center justify-center h-64">
           <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (storeTypeError) {
+    return (
+      <div className="min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="flex h-64 flex-col items-center justify-center gap-3 text-center">
+          <p className="text-sm font-medium">Unable to load your store type.</p>
+          <p className="text-sm text-muted-foreground">
+            Refresh the page to try again. Product tools are unavailable until the store type is confirmed.
+          </p>
         </div>
       </div>
     );

@@ -3,8 +3,6 @@ import { cookies } from 'next/headers';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-const CACHE_DURATION = 600; // 10 minutes cache for store details
-const cache = new Map();
 const INTERNAL_SECRET = process.env.INTERNAL_SECRET;
 
 export async function PATCH(request: NextRequest) {
@@ -128,7 +126,7 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const cookieStore = await cookies();
     
@@ -154,16 +152,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Create cache key
-    const cacheKey = `store-${storeId}`;
-
-    // Check cache
-    const cachedData = cache.get(cacheKey);
-    if (cachedData && Date.now() - cachedData.timestamp < CACHE_DURATION * 1000) {
-      console.log('✅ Returning cached store details');
-      return NextResponse.json(cachedData.data);
-    }
-
     console.log(`🏪 Fetching store details for: ${storeId}`);
 
     // No authentication required for this endpoint
@@ -174,6 +162,7 @@ export async function GET(request: NextRequest) {
         headers: {
           "Content-Type": "application/json",
         },
+        cache: "no-store",
       }
     );
 
@@ -206,16 +195,11 @@ export async function GET(request: NextRequest) {
       description: result.data?.storeDetails?.store_description
     });
 
-    // Cache the successful response
-    if (result.status === 'success') {
-      cache.set(cacheKey, {
-        data: result,
-        timestamp: Date.now()
-      });
-      console.log('✅ Cached store details for key:', cacheKey);
-    }
-
-    return NextResponse.json(result);
+    return NextResponse.json(result, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+      },
+    });
 
   }    // eslint-disable-next-line @typescript-eslint/no-explicit-any
    catch (error: any) {
@@ -372,21 +356,14 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Clear cache when needed
 export async function DELETE() {
-  try {
-    cache.clear();
-    console.log('✅ Store cache cleared');
-    return NextResponse.json(
-      { status: "success", message: "Store cache cleared" },
-      { status: 200 }
-    );
-  }    // eslint-disable-next-line @typescript-eslint/no-explicit-any 
-  catch (error: any) {
-    console.error("❌ Error clearing store cache:", error);
-    return NextResponse.json(
-      { status: "error", message: "Internal server error" },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json(
+    { status: "success", message: "Store details are not cached" },
+    {
+      status: 200,
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+      },
+    }
+  );
 }
