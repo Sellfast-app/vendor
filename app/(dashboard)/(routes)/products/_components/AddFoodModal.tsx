@@ -91,6 +91,19 @@ interface ApiAddOnOption {
     price?: number | string;
 }
 
+interface ApiAddOnGroup {
+    uid?: string;
+    id?: string;
+    name?: string;
+    groupName?: string;
+    selection?: string;
+    maxSelection?: number;
+    maxSelections?: number;
+    isRequired?: boolean;
+    options?: ApiAddOnOption[];
+    addOnOptions?: ApiAddOnOption[];
+}
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface AddFoodModalProps {
@@ -1010,15 +1023,16 @@ function mapApiPortionToForm(portion: any): PortionSize {
     };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapApiAddOnGroupToForm(group: any): SavedGroup {
+function mapApiAddOnGroupToForm(group: ApiAddOnGroup): SavedGroup {
+    const options = group.addOnOptions || group.options || [];
+
     return {
         id: group.uid || group.id || Math.random().toString(36).substr(2, 9),
         groupName: group.name || group.groupName || '',
         selection: group.selection === 'multiple' ? 'multiple' : 'single',
         maxSelections: group.maxSelection || group.maxSelections || 1,
         isRequired: !!group.isRequired,
-        options: (group.options || []).map((option: ApiAddOnOption) => ({
+        options: options.map((option) => ({
             id: option.uid || option.id || Math.random().toString(36).substr(2, 9),
             name: option.name || '',
             price: String(option.price ?? ''),
@@ -1026,8 +1040,7 @@ function mapApiAddOnGroupToForm(group: any): SavedGroup {
     };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapApiBundleAddOnGroupToForm(group: any): BundleAddOnGroup {
+function mapApiBundleAddOnGroupToForm(group: ApiAddOnGroup): BundleAddOnGroup {
     return {
         ...mapApiAddOnGroupToForm(group),
         draftOptionName: '',

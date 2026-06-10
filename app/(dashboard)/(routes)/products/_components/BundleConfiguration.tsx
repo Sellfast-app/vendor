@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChevronDown, ChevronUp, CirclePlus, Pencil, Trash2, X } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BundleSlot } from './AddFoodModal';
 
 interface BundleAddOnOption {
@@ -123,6 +123,12 @@ export default function BundleConfiguration({ slots, onSlotsChange ,  addOnGroup
     const [isSlotRequired, setIsSlotRequired] = useState(false);
     const [bundleOpen, setBundleOpen] = useState(true);
     const [customizationEnabled, setCustomizationEnabled] = useState(false);
+
+    useEffect(() => {
+        if (addOnGroups.length > 0) {
+            setCustomizationEnabled(true);
+        }
+    }, [addOnGroups.length]);
 
     const handleAddSlot = () => {
         if (!bundleName.trim() || !bundleCategory) return;
