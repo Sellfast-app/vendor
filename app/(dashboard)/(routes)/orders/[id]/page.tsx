@@ -22,12 +22,39 @@ interface OrderItem {
   price: number;
   discount: number;
   quantity: number;
+  item_total?: number;
   product_id: string;
   store_id?: string;
   name?: string;
+  image?: string;
   product_name?: string;
   product_image?: string;
   product_images?: string[];
+  food_type?: string;
+  servingType?: string;
+  portion?: Array<{
+    uid?: string;
+    name?: string;
+    price?: number;
+    quantity?: number;
+    servingType?: string;
+  }>;
+  addOnGroup?: Array<{
+    uid?: string;
+    name?: string;
+    addOnGroupOption?: Array<{
+      uid?: string;
+      name?: string;
+      price?: number;
+      quantity?: number;
+    }>;
+  }>;
+  bundleConfig?: {
+    uid?: string;
+    name?: string;
+    price?: number;
+    quantity?: number;
+  };
   variant?: {
     size?: string;
     color?: string;
@@ -197,6 +224,7 @@ export default function OrderDetailPage() {
 
   const calculateItemTotal = (item: OrderItem) => {
     if (!item) return 0;
+    if (typeof item.item_total === "number") return item.item_total;
     const price = item.price || 0;
     const discount = item.discount || 0;
     const quantity = item.quantity || 0;
@@ -364,11 +392,10 @@ export default function OrderDetailPage() {
     {(order.order_items || []).map((item, index) => (
       <div key={item.product_id || index} className='flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-center'>
         <div className='w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded flex-shrink-0 overflow-hidden flex items-center justify-center'>
-          {/* Use the enriched product_image */}
-          {item.product_image ? (
+          {item.product_image || item.image ? (
             <Image 
-              src={item.product_image} 
-              alt={item.product_name ||  'Product'} 
+              src={item.product_image || item.image || ""}
+              alt={item.product_name || item.name || 'Product'}
               width={80}
               height={80}
               className='w-full h-full object-cover'
@@ -386,6 +413,52 @@ export default function OrderDetailPage() {
   <p className='font-semibold text-sm sm:text-base mt-1'>₦{(item.price || 0).toLocaleString()}</p>
   {(item.discount || 0) > 0 && (
     <p className='text-xs text-green-600 mt-1'>Discount: ₦{(item.discount || 0).toLocaleString()}</p>
+  )}
+
+  {(item.food_type ||
+    item.servingType ||
+    item.portion ||
+    item.addOnGroup ||
+    item.bundleConfig) && (
+    <div className='mt-2 space-y-2'>
+      <div className='flex flex-wrap gap-1.5'>
+        <span className='text-xs px-2 py-0.5 bg-[#4FCA6A]/10 text-[#329948] rounded-full'>
+          {item.food_type || 'Food'}
+        </span>
+        {item.servingType && (
+          <span className='text-xs px-2 py-0.5 bg-[#F5F5F5] dark:bg-[#1F1F1F] rounded-full text-muted-foreground'>
+            Serving: {item.servingType}
+          </span>
+        )}
+        {item.bundleConfig?.name && (
+          <span className='text-xs px-2 py-0.5 bg-purple-50 text-purple-600 rounded-full'>
+            {item.bundleConfig.name} x{item.bundleConfig.quantity || 1}
+          </span>
+        )}
+      </div>
+
+      {(item.portion || []).map((portion, portionIndex) => (
+        <p key={portion.uid || portionIndex} className='text-xs text-muted-foreground'>
+          Portion: {portion.name || 'Selected portion'} x{portion.quantity || 1}
+          {portion.price ? ` · ₦${portion.price.toLocaleString()}` : ''}
+        </p>
+      ))}
+
+      {(item.addOnGroup || []).map((group, groupIndex) => (
+        <div key={group.uid || groupIndex} className='text-xs text-muted-foreground'>
+          <span className='font-medium text-foreground'>{group.name || 'Add-ons'}:</span>{' '}
+          {(group.addOnGroupOption || []).length > 0
+            ? (group.addOnGroupOption || [])
+                .map((option) =>
+                  `${option.name || 'Add-on'} x${option.quantity || 1}${
+                    option.price ? ` (₦${option.price.toLocaleString()})` : ''
+                  }`
+                )
+                .join(', ')
+            : 'None'}
+        </div>
+      ))}
+    </div>
   )}
 
   {/* Variant details */}
