@@ -58,6 +58,9 @@ interface ApiServingTypePrice {
 }
 
 interface AvailabilityPeriod {
+    id?: number;
+    uid?: string;
+    foodProductId?: string;
     startTime?: string;
     endTime?: string;
 }
@@ -466,10 +469,16 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
         setError(null);
     };
 
-    const buildAvailabilityPeriod = () => ({
-        startTime: buildFixedAvailabilityIso('2026-06-15', availabilityStartTime),
-        endTime: buildFixedAvailabilityIso('2026-06-20', availabilityEndTime),
-    });
+    const buildAvailabilityPeriod = () => {
+        const existingPeriod = editFoodItem?.availabilityPeriod;
+
+        return {
+            ...(existingPeriod?.uid && { uid: existingPeriod.uid }),
+            ...(isEditMode && editFoodItem?.uid && { foodProductId: editFoodItem.uid }),
+            startTime: buildDailyAvailabilityIso(availabilityStartTime),
+            endTime: buildDailyAvailabilityIso(availabilityEndTime),
+        };
+    };
 
     const buildUpdatePayload = () => ({
         uid: editFoodItem?.uid,
@@ -977,8 +986,8 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
     );
 }
 
-function buildFixedAvailabilityIso(date: string, time: string) {
-    return new Date(`${date}T${time}:00.000Z`).toISOString();
+function buildDailyAvailabilityIso(time: string) {
+    return new Date(`1970-01-01T${time}:00.000Z`).toISOString();
 }
 
 function formatTimeValue(value?: string) {

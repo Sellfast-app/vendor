@@ -142,7 +142,9 @@ export default function FoodTable() {
     try {
       setIsLoading(true);
 
-      const response = await fetch(`/api/products/food`);
+      const response = await fetch(`/api/products/food?_t=${Date.now()}`, {
+        cache: "no-store",
+      });
 
       if (!response.ok) {
         throw new Error('Failed to fetch food items');
