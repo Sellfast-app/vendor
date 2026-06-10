@@ -5,6 +5,12 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 const CACHE_DURATION = 300; // 5 minutes
 
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+  Pragma: "no-cache",
+  Expires: "0",
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const cache = new Map<string, { data: any; timestamp: number }>();
 
@@ -86,6 +92,7 @@ export async function GET(request: NextRequest) {
           "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json",
         },
+        cache: "no-store",
       }
     );
 
@@ -104,7 +111,7 @@ export async function GET(request: NextRequest) {
       console.log('💾 Cached food items for key:', cacheKey);
     }
 
-    return NextResponse.json(result);
+    return NextResponse.json(result, { headers: NO_STORE_HEADERS });
 
   } // eslint-disable-next-line @typescript-eslint/no-explicit-any
   catch (error: any) {
