@@ -20,6 +20,11 @@ const withPWA = require('next-pwa')({
       handler: 'NetworkOnly',
     },
     {
+      // Authenticated dashboard pages must always use the current deployment.
+      urlPattern: /^https?.*\/(?:dashboard|products|orders|analytics|payouts|settings)(?:\/.*)?(?:\?.*)?$/,
+      handler: 'NetworkOnly',
+    },
+    {
       // Cache static assets aggressively
       urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico|css|js|woff|woff2)$/,
       handler: 'CacheFirst',

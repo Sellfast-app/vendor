@@ -1,17 +1,8 @@
 // app/api/auth/logout/route.ts
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
-
-interface LogoutResponse {
-  status: string;
-  message: string;
-}
-
-interface ApiError {
-  status: string;
-  message: string;
-}
 
 const noCacheHeaders = {
   'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
@@ -20,9 +11,27 @@ const noCacheHeaders = {
   'Surrogate-Control': 'no-store'
 };
 
+function createLogoutResponse(message: string) {
+  const response = NextResponse.json(
+    { status: "success", message },
+    {
+      status: 200,
+      headers: noCacheHeaders,
+    }
+  );
+
+  response.cookies.delete("accessToken");
+  response.cookies.delete("store_name");
+
+  return response;
+}
+
 export async function POST(request: Request) {
   try {
-    const accessToken = request.headers.get("authorization")?.replace("Bearer ", "");
+    const cookieStore = await cookies();
+    const accessToken =
+      request.headers.get("authorization")?.replace("Bearer ", "") ||
+      cookieStore.get("accessToken")?.value;
 
     // Call external API to invalidate session
     const response = await fetch(`${API_BASE_URL}/auth/logout`, {
@@ -42,71 +51,28 @@ export async function POST(request: Request) {
 
     if (!isJson) {
       console.log("External API returned non-JSON response, likely HTML error page");
-      // If it's not JSON, we'll still clear cookies and consider logout successful
-      const nextResponse = NextResponse.json(
-        { status: "success", message: "Logged out successfully (session cleared locally)" },
-        { 
-          status: 200,
-          headers: noCacheHeaders
-        }
+      return createLogoutResponse(
+        "Logged out successfully (session cleared locally)"
       );
-      
-      nextResponse.cookies.delete("accessToken");
-      nextResponse.cookies.delete("store_name");
-      
-      return nextResponse;
     }
 
-    let result: LogoutResponse | ApiError;
     try {
-      result = await response.json();
+      await response.json();
     } catch (jsonError) {
       console.log("Failed to parse JSON response:", jsonError);
-      // If JSON parsing fails, still clear cookies locally
-      const nextResponse = NextResponse.json(
-        { status: "success", message: "Logged out successfully (session cleared locally)" },
-        { 
-          status: 200,
-          headers: noCacheHeaders
-        }
+      return createLogoutResponse(
+        "Logged out successfully (session cleared locally)"
       );
-      
-      nextResponse.cookies.delete("accessToken");
-      nextResponse.cookies.delete("store_name");
-      
-      return nextResponse;
     }
 
     if (!response.ok) {
       console.log("External API logout failed with status:", response.status);
-      // Even if the API call fails, we should clear local cookies
-      const nextResponse = NextResponse.json(
-        { status: "success", message: "Logged out successfully (session cleared locally)" },
-        { 
-          status: 200,
-          headers: noCacheHeaders
-        }
+      return createLogoutResponse(
+        "Logged out successfully (session cleared locally)"
       );
-      
-      nextResponse.cookies.delete("accessToken");
-      nextResponse.cookies.delete("store_name");
-      
-      return nextResponse;
     }
 
-    // Clear both accessToken and store_name cookies
-    const nextResponse = NextResponse.json(
-      { status: "success", message: "Logged out successfully" },
-      { 
-        status: 200,
-        headers: noCacheHeaders
-      }
-    );
-    
-    nextResponse.cookies.delete("accessToken");
-    nextResponse.cookies.delete("store_name");
-
-    return nextResponse;
+    return createLogoutResponse("Logged out successfully");
   } catch (error) {
     // Proper error handling with type checking
     let errorMessage = "Internal server error";
@@ -120,12 +86,8 @@ export async function POST(request: Request) {
     }
     
     console.error("Logout API error:", errorMessage);
-    return NextResponse.json(
-      { status: "error", message: errorMessage }, 
-      { 
-        status: 500,
-        headers: noCacheHeaders
-      }
+    return createLogoutResponse(
+      `Logged out locally because the authentication service failed: ${errorMessage}`
     );
   }
 }

@@ -28,6 +28,7 @@ import AddProductModal from "../products/_components/AddProductModal";
 import AddFoodModal from "../products/_components/AddFoodModal";
 import { Card, CardContent } from "@/components/ui/card";
 import RecentOrdersTable from "./_components/RecentOrdersTable";
+import { isFoodBusinessType } from "@/lib/store";
 
 interface OverviewMetric {
   id: string;
@@ -56,28 +57,55 @@ function DashboardPage() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [isFoodModalOpen, setIsFoodModalOpen] = useState(false);
-  const [businessType, setBusinessType] = useState<string>("");
+  const [businessType, setBusinessType] = useState<string | null>(null);
+  const [storeTypeStatus, setStoreTypeStatus] = useState<"loading" | "ready" | "error">("loading");
 
   useEffect(() => {
+    const controller = new AbortController();
+
     const fetchStoreData = async () => {
       try {
-        const response = await fetch("/api/store");
+        setStoreTypeStatus("loading");
+        const response = await fetch("/api/store", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
         if (!response.ok) throw new Error("Failed to fetch store data");
 
         const result = await response.json();
-        if (result.status === "success" && result.data?.storeDetails) {
-          setBusinessType(result.data.storeDetails.business_type || "");
+        const storeDetails = result.data?.storeDetails;
+        if (result.status !== "success" || !storeDetails) {
+          throw new Error(result.message || "Store details were not returned");
         }
+
+        setBusinessType(storeDetails.business_type || "");
+        setStoreTypeStatus("ready");
       } catch (error) {
+        if (controller.signal.aborted) return;
         console.error("Error fetching store data:", error);
-        setBusinessType("");
+        setBusinessType(null);
+        setStoreTypeStatus("error");
       }
     };
 
     fetchStoreData();
+
+    return () => controller.abort();
   }, []);
 
-  const isRestaurant = businessType === "Restaurant/Food Service";
+  const isRestaurant = isFoodBusinessType(businessType);
+
+  useEffect(() => {
+    if (storeTypeStatus !== "ready") return;
+
+    if (isRestaurant && isProductModalOpen) {
+      setIsProductModalOpen(false);
+      setIsFoodModalOpen(true);
+    } else if (!isRestaurant && isFoodModalOpen) {
+      setIsFoodModalOpen(false);
+      setIsProductModalOpen(true);
+    }
+  }, [isFoodModalOpen, isProductModalOpen, isRestaurant, storeTypeStatus]);
 
   const overviewMetrics: OverviewMetric[] = [
     {
@@ -176,6 +204,8 @@ function DashboardPage() {
   };
 
   const handleOpenAddModal = () => {
+    if (storeTypeStatus !== "ready") return;
+
     if (isRestaurant) {
       setIsFoodModalOpen(true);
       return;
@@ -199,9 +229,19 @@ function DashboardPage() {
             <RiShare2Fill />
             <span className="hidden sm:inline ml-2">Export</span>
           </Button>
-          <Button onClick={handleOpenAddModal}>
+          <Button
+            onClick={handleOpenAddModal}
+            disabled={storeTypeStatus !== "ready"}
+            title={storeTypeStatus === "error" ? "Store type could not be loaded. Refresh and try again." : undefined}
+          >
             <PlusIcon />
-            <span className="hidden sm:inline ml-2">Add Product</span>
+            <span className="hidden sm:inline ml-2">
+              {storeTypeStatus === "loading"
+                ? "Loading..."
+                : isRestaurant
+                  ? "Add Food"
+                  : "Add Product"}
+            </span>
           </Button>
         </div>
       </div>
