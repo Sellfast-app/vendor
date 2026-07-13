@@ -76,7 +76,7 @@ export default function AddStoreModal({
         name: editStore.name,
         whatsappNumber: number,
         countryCode: code || "+234",
-        type: editStore.type.split('•')[0].trim(), // Extract type from "Bakery • Lagos • Active"
+        type: editStore.type.split('•')[0].trim(), // Extract type from the display label
         bio: editStore.bio,
         image: null,
       });

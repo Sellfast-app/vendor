@@ -31,21 +31,7 @@ function SecurityComponent() {
     confirmPassword: "",
   });
 
-  // Expanded mock data with more entries
   const allAccessLogs: AccessLog[] = [
-    { id: "1", action: "Login", date: "18/02/2025", device: "Iphone 15 Pro Max", ipAddress: "192.168.72.101" },
-    { id: "2", action: "Product Listing", date: "19/02/2025", device: "Iphone 15 Pro Max", ipAddress: "192.168.72.101" },
-    { id: "3", action: "Order Status Update", date: "20/02/2025", device: "Iphone 15 Pro Max", ipAddress: "192.168.72.101" },
-    { id: "4", action: "Product Listing", date: "21/02/2025", device: "Iphone 15 Pro Max", ipAddress: "192.168.72.101" },
-    { id: "5", action: "Withdrawal", date: "22/02/2025", device: "Macbook Pro 2020", ipAddress: "172.168.88.202" },
-    { id: "6", action: "Logout", date: "23/02/2025", device: "Iphone 15 Pro Max", ipAddress: "192.168.72.101" },
-    { id: "7", action: "Login", date: "24/02/2025", device: "Samsung Galaxy S24", ipAddress: "192.168.72.103" },
-    { id: "8", action: "Price Update", date: "25/02/2025", device: "Macbook Pro 2020", ipAddress: "172.168.88.202" },
-    { id: "9", action: "Inventory Check", date: "26/02/2025", device: "Iphone 15 Pro Max", ipAddress: "192.168.72.101" },
-    { id: "10", action: "Customer Support", date: "27/02/2025", device: "Windows Desktop", ipAddress: "192.168.72.104" },
-    { id: "11", action: "Login", date: "28/02/2025", device: "Iphone 15 Pro Max", ipAddress: "192.168.72.101" },
-    { id: "12", action: "Order Processing", date: "01/03/2025", device: "Macbook Pro 2020", ipAddress: "172.168.88.202" },
-    { id: "13", action: "Product Upload", date: "02/03/2025", device: "Iphone 15 Pro Max", ipAddress: "192.168.72.101" },
   ];
 
   // Pagination configuration

@@ -9,10 +9,18 @@ import { BsThreeDots } from "react-icons/bs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import EyeIcon from "@/components/svgIcons/EyeIcon";
-import { mockEscrowData } from "@/lib/mockdata";
 import { Popover, PopoverContent, PopoverTrigger } from "@radix-ui/react-popover";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon } from "lucide-react";
+
+interface EscrowTransaction {
+  id: string;
+  amount: number;
+  status: string;
+  timestamp: string;
+  orderInfoUrl?: string;
+  trackingUrl?: string;
+}
 
 function DatePicker({
   id,
@@ -77,11 +85,11 @@ export default function EscrowTable() {
     minAmount: "",
     maxAmount: "",
   });
-  const [escrows, setEscrows] = useState(mockEscrowData);
+  const [escrows, setEscrows] = useState<EscrowTransaction[]>([]);
   const [selectedEscrows, setSelectedEscrows] = useState<string[]>([]);
 
   useEffect(() => {
-    let filteredEscrows = [...mockEscrowData];
+    let filteredEscrows: EscrowTransaction[] = [];
 
     // Search filter
     if (searchTerm) {
@@ -146,6 +154,8 @@ export default function EscrowTable() {
 
   const totalPages = Math.ceil(escrows.length / pageSize);
   const displayedEscrows = escrows.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
+  const rangeStart = escrows.length > 0 ? currentPage * pageSize + 1 : 0;
+  const rangeEnd = Math.min((currentPage + 1) * pageSize, escrows.length);
 
   const getPageNumbers = () => {
     const pages = [];
@@ -386,7 +396,7 @@ export default function EscrowTable() {
 
       <div className="flex justify-center mt-4 space-x-2">
         <span className="text-sm">
-          {`${(currentPage * pageSize) + 1}-${Math.min((currentPage + 1) * pageSize, escrows.length)} of ${escrows.length}`}
+          {`${rangeStart}-${rangeEnd} of ${escrows.length}`}
         </span>
         <Button
           variant="outline"

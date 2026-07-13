@@ -9,10 +9,19 @@ import { BsThreeDots } from "react-icons/bs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import EyeIcon from "@/components/svgIcons/EyeIcon";
-import { mockSubscriptionBillingData } from "@/lib/mockdata";
 import { Popover, PopoverContent, PopoverTrigger } from "@radix-ui/react-popover";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon } from "lucide-react";
+
+interface SubscriptionBilling {
+  id: string;
+  card: string;
+  plan: string;
+  amount: number;
+  status: string;
+  timestamp: string;
+  receiptUrl?: string;
+}
 
 function DatePicker({
   id,
@@ -76,11 +85,11 @@ export default function SubscriptionBillingTable() {
     startDate: "",
     endDate: "",
   });
-  const [billings, setBillings] = useState(mockSubscriptionBillingData);
+  const [billings, setBillings] = useState<SubscriptionBilling[]>([]);
   const [selectedBillings, setSelectedBillings] = useState<string[]>([]);
 
   useEffect(() => {
-    let filteredBillings = [...mockSubscriptionBillingData];
+    let filteredBillings: SubscriptionBilling[] = [];
 
     // Search filter
     if (searchTerm) {
@@ -136,6 +145,8 @@ export default function SubscriptionBillingTable() {
 
   const totalPages = Math.ceil(billings.length / pageSize);
   const displayedBillings = billings.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
+  const rangeStart = billings.length > 0 ? currentPage * pageSize + 1 : 0;
+  const rangeEnd = Math.min((currentPage + 1) * pageSize, billings.length);
 
   const getPageNumbers = () => {
     const pages = [];
@@ -194,7 +205,7 @@ export default function SubscriptionBillingTable() {
     }
   };
 
-  const handleDownloadReceipt = (receiptUrl: string | null) => {
+  const handleDownloadReceipt = (receiptUrl?: string | null) => {
     if (receiptUrl) {
       const a = document.createElement("a");
       a.href = receiptUrl;
@@ -378,7 +389,7 @@ export default function SubscriptionBillingTable() {
 
       <div className="flex justify-center mt-4 space-x-2">
         <span className="text-sm">
-          {`${(currentPage * pageSize) + 1}-${Math.min((currentPage + 1) * pageSize, billings.length)} of ${billings.length}`}
+          {`${rangeStart}-${rangeEnd} of ${billings.length}`}
         </span>
         <Button
           variant="outline"

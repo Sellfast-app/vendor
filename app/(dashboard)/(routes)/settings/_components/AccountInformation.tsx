@@ -78,32 +78,7 @@ function AccountInformation() {
     documentType: "cac", // Default to 'cac' as per API docs
   });
 
-  const [stores, setStores] = useState<Store[]>([
-    {
-      id: "1",
-      name: "Cassie's Kitchen",
-      type: "Bakery • Lagos • Active",
-      whatsappNumber: "+234 809 123 4567",
-      bio: "A cozy bakery serving fresh pastries.",
-      image: "/placeholder-store1.jpg",
-    },
-    {
-      id: "2",
-      name: "Burger Shack",
-      type: "Restaurant • Lagos • Inactive",
-      whatsappNumber: "+234 809 234 5678",
-      bio: "Serving delicious burgers and fries.",
-      image: "/placeholder-store2.jpg",
-    },
-    {
-      id: "3",
-      name: "Pizza Cafe",
-      type: "Bakery • Lagos • Inactive",
-      whatsappNumber: "+234 809 345 6789",
-      bio: "Your go-to spot for authentic pizza.",
-      image: "/placeholder-store3.jpg",
-    },
-  ]);
+  const [stores, setStores] = useState<Store[]>([]);
 
   const [isAddStoreModalOpen, setIsAddStoreModalOpen] = useState(false);
   const [editingStore, setEditingStore] = useState<Store | null>(null);
