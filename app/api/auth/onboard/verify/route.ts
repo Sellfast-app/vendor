@@ -11,6 +11,15 @@ function getApiMessage(result: Record<string, unknown>, fallback: string) {
   return message;
 }
 
+function getOnboardingToken(result: Record<string, unknown>) {
+  const data = result.data as Record<string, unknown> | undefined;
+  return (
+    (typeof data?.token === "string" && data.token) ||
+    (typeof result.token === "string" && result.token) ||
+    null
+  );
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { otp } = await request.json();
@@ -66,7 +75,7 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      return NextResponse.json(
+      const nextResponse = NextResponse.json(
         {
           status: response.ok ? "success" : "error",
           message: getApiMessage(
@@ -86,6 +95,23 @@ export async function POST(request: NextRequest) {
         },
         { status: response.status }
       );
+
+      const replacementToken = getOnboardingToken(result);
+      if (response.ok && replacementToken) {
+        nextResponse.cookies.set("onboard_token", replacementToken, {
+          path: "/",
+          httpOnly: true,
+          sameSite: "lax",
+          maxAge: 86400,
+          secure: process.env.NODE_ENV === "production",
+        });
+      } else if (response.ok) {
+        console.warn("[VERIFY_OTP] Upstream verify response did not include a replacement token", {
+          status: response.status,
+        });
+      }
+
+      return nextResponse;
     } catch (fetchError) {
       clearTimeout(timeoutId);
 
