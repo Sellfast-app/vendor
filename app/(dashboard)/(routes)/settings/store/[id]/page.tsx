@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Camera, ArrowLeft, Trash2, Copy, Clock, PlusIcon } from "lucide-react";
 import {
     Select,
@@ -34,47 +34,9 @@ interface BankAccount {
   icon: React.ReactNode;
 }
 
-const mockStores = [
-    {
-        id: "1",
-        name: "Cassie's Kitchen",
-        type: "Bakery",
-        location: "Lagos",
-        status: "Active",
-        whatsappNumber: "+234 809 123 4567",
-        bio: "A cozy bakery serving fresh pastries.",
-        image: "/placeholder-store1.jpg",
-        customUrl: "www.swiftree.com/cassies/kitchen",
-    },
-    {
-        id: "2",
-        name: "Burger Shack",
-        type: "Restaurant",
-        location: "Lagos",
-        status: "Inactive",
-        whatsappNumber: "+234 809 234 5678",
-        bio: "Serving delicious burgers and fries.",
-        image: "/placeholder-store2.jpg",
-        customUrl: "www.swiftree.com/burger/shack",
-    },
-    {
-        id: "3",
-        name: "Pizza Cafe",
-        type: "Bakery",
-        location: "Lagos",
-        status: "Inactive",
-        whatsappNumber: "+234 809 345 6789",
-        bio: "Your go-to spot for authentic pizza.",
-        image: "/placeholder-store3.jpg",
-        customUrl: "www.swiftree.com/pizza/cafe",
-    },
-];
-
 const businessTypes = [
     "Restaurant/Food Service",
-    "Food & Restaurant",
     "Retail Store",
-    "Bakery",
     "E-commerce",
     "Professional Services",
     "Health & Beauty",
@@ -102,11 +64,7 @@ const themes = [
 ];
 
 export default function StoreDetailsPage() {
-    const params = useParams();
     const router = useRouter();
-    const storeId = params.id as string;
-
-    const store = mockStores.find((s) => s.id === storeId);
 
     const [isEditingStorefront, setIsEditingStorefront] = useState(false);
     const [isEditingAvailability, setIsEditingAvailability] = useState(false);
@@ -115,12 +73,12 @@ export default function StoreDetailsPage() {
     const [isAddBankModalOpen, setIsAddBankModalOpen] = useState(false);
 
     const [formData, setFormData] = useState({
-        name: store?.name || "",
-        type: store?.type || "",
-        whatsappNumber: store?.whatsappNumber || "",
+        name: "",
+        type: "",
+        whatsappNumber: "",
         countryCode: "+234",
-        bio: store?.bio || "",
-        customUrl: store?.customUrl || "",
+        bio: "",
+        customUrl: "",
     });
 
     const [availability, setAvailability] = useState(
@@ -133,46 +91,9 @@ export default function StoreDetailsPage() {
     );
 
     const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([
-        {
-          id: "1",
-          accountNumber: "0102798098",
-          bankName: "Access Bank",
-          accountHolder: "Olasandra Kayla .A.",
-          icon: <Accessbank />,
-        },
-        {
-          id: "2",
-          accountNumber: "9027895098",
-          bankName: "Unity",
-          accountHolder: "Olasandra Kayla .A.",
-          icon: <Accessbank />,
-        },
-        {
-          id: "3",
-          accountNumber: "2025092169",
-          bankName: "Kuda Bank",
-          accountHolder: "Olasandra Kayla .A.",
-          icon: <Accessbank />,
-        },
     ]);
 
     const [selectedTheme, setSelectedTheme] = useState("beige-green");
-
-    if (!store) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="text-center">
-                    <h2 className="text-xl font-bold mb-2">Store Not Found</h2>
-                    <p className="text-muted-foreground mb-4">
-                        The store you&apos;re looking for doesn&apos;t exist.
-                    </p>
-                    <Button onClick={() => router.push("/settings")}>
-                        Back to Settings
-                    </Button>
-                </div>
-            </div>
-        );
-    }
 
     const handleInputChange = (field: string, value: string) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
@@ -186,12 +107,12 @@ export default function StoreDetailsPage() {
     const handleCancelStorefront = () => {
         setIsEditingStorefront(false);
         setFormData({
-            name: store?.name || "",
-            type: store?.type || "",
-            whatsappNumber: store?.whatsappNumber || "",
+            name: "",
+            type: "",
+            whatsappNumber: "",
             countryCode: "+234",
-            bio: store?.bio || "",
-            customUrl: store?.customUrl || "",
+            bio: "",
+            customUrl: "",
         });
     };
 
@@ -282,13 +203,12 @@ export default function StoreDetailsPage() {
                     </Button>
                     <div className="flex items-center gap-3">
                         <Avatar className="w-10 h-10 rounded-md">
-                            <AvatarImage src={store.image} alt={store.name} />
-                            <AvatarFallback>{store.name[0]}</AvatarFallback>
+                            <AvatarFallback>{formData.name ? formData.name[0] : "S"}</AvatarFallback>
                         </Avatar>
                         <div>
-                            <h3 className="text-sm font-bold">{store.name}</h3>
+                            <h3 className="text-sm font-bold">{formData.name || "Store details"}</h3>
                             <p className="text-xs text-muted-foreground">
-                                Store Setup • {store.type} • {store.location}
+                                Store Setup
                             </p>
                         </div>
                     </div>
@@ -347,8 +267,7 @@ export default function StoreDetailsPage() {
                             <div className="flex flex-col items-center gap-2">
                                 <div className="relative">
                                     <Avatar className="w-24 h-24 rounded-md">
-                                        <AvatarImage src={store.image} alt={store.name} />
-                                        <AvatarFallback>{store.name[0]}</AvatarFallback>
+                                        <AvatarFallback>{formData.name ? formData.name[0] : "S"}</AvatarFallback>
                                     </Avatar>
                                     {isEditingStorefront && (
                                         <button className="absolute bottom-0 right-0 w-7 h-7 bg-primary rounded-full flex items-center justify-center text-white">

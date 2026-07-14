@@ -4,18 +4,27 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight} from "lucide-react";
 import { useState, useEffect } from "react";
-import { salesMockData } from "@/lib/mockdata";
 import { Checkbox } from "@/components/ui/checkbox";
+
+interface SalesRow {
+  id: string;
+  productName: string;
+  revenue: number;
+  sales: number;
+  reviews: number;
+  views: number;
+  category: string;
+}
 
 export default function SalesBreakdown() {
   const [currentPage, setCurrentPage] = useState(0);
   const pageSize = 6;
   const [searchTerm, ] = useState("");
-  const [salesData, setSalesData] = useState(salesMockData);
+  const [salesData, setSalesData] = useState<SalesRow[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
 
   useEffect(() => {
-    let filteredData = [...salesMockData];
+    let filteredData: SalesRow[] = [];
     if (searchTerm) {
       filteredData = filteredData.filter(
         (product) =>
@@ -30,6 +39,8 @@ export default function SalesBreakdown() {
 
   const totalPages = Math.ceil(salesData.length / pageSize);
   const displayedProducts = salesData.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
+  const rangeStart = salesData.length > 0 ? currentPage * pageSize + 1 : 0;
+  const rangeEnd = Math.min((currentPage + 1) * pageSize, salesData.length);
 
   const getPageNumbers = () => {
     const pages = [];
@@ -116,7 +127,7 @@ export default function SalesBreakdown() {
 
       <div className="flex justify-center mt-4 space-x-2">
         <span className="text-sm">
-          {`${(currentPage * pageSize) + 1}-${Math.min((currentPage + 1) * pageSize, salesData.length)} of ${salesData.length}`}
+          {`${rangeStart}-${rangeEnd} of ${salesData.length}`}
         </span>
         <Button
           variant="outline"

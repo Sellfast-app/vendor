@@ -414,16 +414,6 @@ function StorefrontComponent() {
       } catch (error) {
         console.error('❌ Error fetching store data:', error);
         toast.error(error instanceof Error ? error.message : 'Failed to load store data');
-
-        setStorefrontData(prev => ({
-          ...prev,
-          storeName: "Pizza Cafe",
-          storeType: "Food & Restaurant",
-          bio: "Welcome to Pizza Cafe...",
-          whatsappNumber: "809 789 7891",
-          countryCode: "+234",
-          location: "Lagos"
-        }));
       } finally {
         setIsLoading(false);
       }
@@ -853,8 +843,7 @@ function StorefrontComponent() {
                 <Select value={storefrontData.storeType} onValueChange={(value) => handleInputChange("storeType", value)} disabled={!isEditingStorefront}>
                   <SelectTrigger className="w-full dark:bg-background"><SelectValue placeholder="Select store type" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Food & Restaurant">Food & Restaurant</SelectItem>
-                    <SelectItem value="Bakery">Bakery</SelectItem>
+                    <SelectItem value="Restaurant/Food Service">Restaurant/Food Service</SelectItem>
                     <SelectItem value="Cafe">Cafe</SelectItem>
                     <SelectItem value="Fashion">Fashion</SelectItem>
                     <SelectItem value="Electronics">Electronics</SelectItem>

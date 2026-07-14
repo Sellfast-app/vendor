@@ -54,41 +54,9 @@ function Finance() {
 
   ]);
 
-  const [creditCards, setCreditCards] = useState<CreditCard[]>([
-    // {
-    //   id: "card-1",
-    //   image: CC1,
-    //   cardNumber: "4664 4664 4664 1678",
-    //   cardHolder: "John Doe",
-    //   expiryDate: "10/27",
-    //   cardType: "Credit",
-    //   icon: <MastersCardIcon />
-    // },
-    // {
-    //   id: "card-2",
-    //   image: CC2,
-    //   cardNumber: "5234 5234 5234 9876",
-    //   cardHolder: "John Doe",
-    //   expiryDate: "08/29",
-    //   cardType: "Debit",
-    //   icon: <MastersCardIcon />
-    // }
-  ]);
+  const [creditCards, setCreditCards] = useState<CreditCard[]>([]);
 
-  // Billing History Mock Data - 12 samples
   const allBillingHistory: BillingHistory[] = [
-    // { id: "1", invoice: "Invoice #0001", date: "12 Apr 2025", plan: "Basic Plan", amount: "₦10,000" },
-    // { id: "2", invoice: "Invoice #0002", date: "28 Mar 2025", plan: "Basic Plan", amount: "₦10,000" },
-    // { id: "3", invoice: "Invoice #0003", date: "15 Mar 2025", plan: "Standard Plan", amount: "₦25,000" },
-    // { id: "4", invoice: "Invoice #0004", date: "01 Mar 2025", plan: "Standard Plan", amount: "₦25,000" },
-    // { id: "5", invoice: "Invoice #0005", date: "14 Feb 2025", plan: "Basic Plan", amount: "₦10,000" },
-    // { id: "6", invoice: "Invoice #0006", date: "31 Jan 2025", plan: "Premium Plan", amount: "₦65,000" },
-    // { id: "7", invoice: "Invoice #0007", date: "17 Jan 2025", plan: "Premium Plan", amount: "₦65,000" },
-    // { id: "8", invoice: "Invoice #0008", date: "03 Jan 2025", plan: "Standard Plan", amount: "₦25,000" },
-    // { id: "9", invoice: "Invoice #0009", date: "20 Dec 2024", plan: "Basic Plan", amount: "₦10,000" },
-    // { id: "10", invoice: "Invoice #0010", date: "07 Dec 2024", plan: "Basic Plan", amount: "₦10,000" },
-    // { id: "11", invoice: "Invoice #0011", date: "24 Nov 2024", plan: "Standard Plan", amount: "₦25,000" },
-    // { id: "12", invoice: "Invoice #0012", date: "11 Nov 2024", plan: "Premium Plan", amount: "₦65,000" },
   ];
 
   // Pagination configuration

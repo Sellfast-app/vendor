@@ -8,6 +8,7 @@ export function middleware(request: NextRequest) {
   const publicRoutes = [
     "/login", 
     "/signup", 
+    "/terms",
     "/reset", 
     "/forgot",
     "/manifest.json",   
