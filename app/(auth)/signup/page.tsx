@@ -668,7 +668,10 @@ export default function MultiStepSignupPage() {
                 disabled={isLoading}
               />
               <Label htmlFor="terms" className="text-sm font-normal">
-                I agree to all <span className="text-primary">Terms & Conditions</span>
+                I agree to all{" "}
+                <Link href="/terms" className="text-primary hover:underline">
+                  Terms & Conditions
+                </Link>
               </Label>
             </div>
           </div>
