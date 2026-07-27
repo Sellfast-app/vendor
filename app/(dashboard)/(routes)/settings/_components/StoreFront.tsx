@@ -109,6 +109,21 @@ const minutes = Array.from({ length: 60 }, (_, index) =>
   String(index).padStart(2, "0")
 );
 
+const parseApiResponse = async (response: Response) => {
+  const responseText = await response.text();
+
+  if (!responseText) return {};
+
+  try {
+    return JSON.parse(responseText);
+  } catch {
+    return {
+      error: responseText,
+      message: responseText,
+    };
+  }
+};
+
 const fromTwentyFourHourTime = (time: string) => {
   const [hourValue = "00", minuteValue = "00"] = time.split(":");
   const numericHour = Number(hourValue);
@@ -272,7 +287,7 @@ function StorefrontComponent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ availableDateTimes }),
       });
-      const result = await response.json();
+      const result = await parseApiResponse(response);
 
       if (!response.ok) {
         throw new Error(
@@ -313,11 +328,11 @@ function StorefrontComponent() {
         const response = await fetch('/api/store');
 
         if (!response.ok) {
-          const errorData = await response.json();
+          const errorData = await parseApiResponse(response);
           throw new Error(errorData.message || 'Failed to fetch store data');
         }
 
-        const result = await response.json();
+        const result = await parseApiResponse(response);
 
         console.log('📦 Full API response:', result);
         console.log('📦 Store details data:', result.data?.storeDetails);
@@ -456,9 +471,10 @@ function StorefrontComponent() {
       const formData = new FormData();
       formData.append('logo', file);
       const response = await fetch('/api/store', { method: 'POST', body: formData });
-      const result = await response.json();
+      const result = await parseApiResponse(response);
       if (!response.ok) throw new Error(result.error || 'Failed to upload logo');
-      if (result.data?.logo) setStorefrontData(prev => ({ ...prev, logo: result.data.logo }));
+      const newLogo = result.data?.logo || result.data?.logo_url || result.data?.store?.logo || result.data?.store?.logo_url;
+      if (newLogo) setStorefrontData(prev => ({ ...prev, logo: newLogo }));
       toast.success('Logo uploaded successfully!');
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (error) {
@@ -482,7 +498,7 @@ function StorefrontComponent() {
       const formData = new FormData();
       formData.append('banner', file);
       const response = await fetch('/api/store/banner', { method: 'POST', body: formData });
-      const result = await response.json();
+      const result = await parseApiResponse(response);
       if (!response.ok) throw new Error(result.error || 'Failed to upload banner');
       const newBanner = result.data?.banner || result.data?.store?.banner;
       if (newBanner) setStorefrontData(prev => ({ ...prev, banner: newBanner }));
@@ -531,7 +547,7 @@ function StorefrontComponent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
       });
-      const result = await response.json();
+      const result = await parseApiResponse(response);
       if (!response.ok) throw new Error(result.error || 'Failed to save changes');
       setIsEditingStorefront(false);
       toast.dismiss();
@@ -572,7 +588,7 @@ function StorefrontComponent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
       });
-      const result = await response.json();
+      const result = await parseApiResponse(response);
       if (!response.ok) throw new Error(result.error || 'Failed to update theme');
 
       const themeMap: Record<string, string> = {
@@ -655,7 +671,7 @@ function StorefrontComponent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ enabled_fulfillment_modes: enabledModes }),
       });
-      const result = await response.json();
+      const result = await parseApiResponse(response);
       if (!response.ok) throw new Error(result.error || 'Failed to update delivery methods');
 
       setIsEditingDeliveryMethod(false);
