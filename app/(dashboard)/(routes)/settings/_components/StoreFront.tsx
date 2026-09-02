@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Camera, Copy, ExternalLink, PlusIcon, Loader2, ImageIcon } from "lucide-react";
+import { Camera, Copy, ExternalLink, PlusIcon, Loader2, ImageIcon, CreditCard } from "lucide-react";
 import EditIcon from "@/components/svgIcons/Edit";
 import SaveIcon from "@/components/svgIcons/SaveIcon";
 import { Card, CardContent } from "@/components/ui/card";
@@ -62,6 +62,18 @@ interface StoreDetails {
   metadata?: StoreMetadata;
   enabled_fulfillment_modes?: string[];
 }
+
+interface StorePaymentMethod {
+  provider: string;
+  subAccountIdentifier?: string | null;
+}
+
+type PaymentMethodKey = "paystack" | "klump" | "crypto";
+
+const isCryptoProvider = (provider: string) => {
+  const normalizedProvider = provider.toLowerCase();
+  return normalizedProvider === "crypto" || normalizedProvider === "kuvarpay";
+};
 
 type Meridiem = "AM" | "PM";
 
@@ -124,6 +136,31 @@ const parseApiResponse = async (response: Response) => {
   }
 };
 
+const getCookieValue = (name: string) => {
+  if (typeof document === "undefined") return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(";").shift() || null;
+  return null;
+};
+
+const getNestedList = (value: unknown): string[] => {
+  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === "string");
+  if (!value || typeof value !== "object") return [];
+
+  const data = (value as { data?: unknown }).data;
+  if (Array.isArray(data)) return data.filter((item): item is string => typeof item === "string");
+
+  if (data && typeof data === "object") {
+    const nestedData = (data as { data?: unknown }).data;
+    if (Array.isArray(nestedData)) {
+      return nestedData.filter((item): item is string => typeof item === "string");
+    }
+  }
+
+  return [];
+};
+
 const fromTwentyFourHourTime = (time: string) => {
   const [hourValue = "00", minuteValue = "00"] = time.split(":");
   const numericHour = Number(hourValue);
@@ -181,6 +218,9 @@ function StorefrontComponent() {
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
   const [isSavingTheme, setIsSavingTheme] = useState(false);
   const [isSavingDeliveryMethod, setIsSavingDeliveryMethod] = useState(false);
+  const [isEditingPaymentMethod, setIsEditingPaymentMethod] = useState(false);
+  const [isSavingPaymentMethod, setIsSavingPaymentMethod] = useState(false);
+  const [isLoadingPaymentMethods, setIsLoadingPaymentMethods] = useState(false);
   const [isSavingAvailability, setIsSavingAvailability] = useState(false);
   const [isFoodVendor, setIsFoodVendor] = useState(false); // ← NEW
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -204,6 +244,16 @@ function StorefrontComponent() {
   const [availabilityEnabled, setAvailabilityEnabled] = useState(true);
   const [availability, setAvailability] =
     useState<AvailabilityDay[]>(defaultAvailability);
+  const [paymentMethods, setPaymentMethods] = useState<Record<PaymentMethodKey, boolean>>({
+    paystack: true,
+    klump: false,
+    crypto: false,
+  });
+  const [savedPaymentMethods, setSavedPaymentMethods] = useState<StorePaymentMethod[]>([]);
+  const [cryptoChains, setCryptoChains] = useState<string[]>([]);
+  const [cryptoCurrencies, setCryptoCurrencies] = useState<string[]>([]);
+  const [selectedCryptoChain, setSelectedCryptoChain] = useState("");
+  const [selectedCryptoCurrency, setSelectedCryptoCurrency] = useState("");
 
   // ── Delivery methods state — now includes relay ───────────────────────────
   const [deliveryMethods, setDeliveryMethods] = useState({
@@ -436,6 +486,95 @@ function StorefrontComponent() {
 
     fetchStoreData();
   }, []);
+
+  const loadPaymentMethods = async (storeId: string) => {
+    setIsLoadingPaymentMethods(true);
+    try {
+      const response = await fetch(`/api/payments/store/${storeId}/methods`);
+      const result = await parseApiResponse(response);
+
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to load payment methods");
+      }
+
+      const methods: StorePaymentMethod[] = Array.isArray(result.data) ? result.data : [];
+      setSavedPaymentMethods(methods);
+      setPaymentMethods({
+        paystack: true,
+        klump: methods.some((method) => method.provider === "klump"),
+        crypto: methods.some((method) => isCryptoProvider(method.provider)),
+      });
+    } catch (error) {
+      console.error("Error loading payment methods:", error);
+      setSavedPaymentMethods([]);
+      setPaymentMethods((current) => ({ ...current, paystack: true }));
+    } finally {
+      setIsLoadingPaymentMethods(false);
+    }
+  };
+
+  useEffect(() => {
+    const storeId = getCookieValue("store_id");
+    if (!storeId) return;
+
+    loadPaymentMethods(storeId);
+  }, []);
+
+  useEffect(() => {
+    const fetchCryptoChains = async () => {
+      if (!isEditingPaymentMethod || !paymentMethods.crypto || cryptoChains.length > 0) return;
+
+      try {
+        const response = await fetch("/api/payments/crypto/chains");
+        const result = await parseApiResponse(response);
+
+        if (!response.ok) {
+          throw new Error(result.message || "Failed to load crypto networks");
+        }
+
+        setCryptoChains(getNestedList(result));
+      } catch (error) {
+        console.error("Error loading crypto networks:", error);
+        toast.error(error instanceof Error ? error.message : "Failed to load crypto networks");
+      }
+    };
+
+    fetchCryptoChains();
+  }, [cryptoChains.length, isEditingPaymentMethod, paymentMethods.crypto]);
+
+  useEffect(() => {
+    const fetchCryptoCurrencies = async () => {
+      if (!selectedCryptoChain) {
+        setCryptoCurrencies([]);
+        setSelectedCryptoCurrency("");
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `/api/payments/crypto/currencies?network=${encodeURIComponent(selectedCryptoChain)}`
+        );
+        const result = await parseApiResponse(response);
+
+        if (!response.ok) {
+          throw new Error(result.message || "Failed to load crypto currencies");
+        }
+
+        const currencies = getNestedList(result);
+        setCryptoCurrencies(currencies);
+        setSelectedCryptoCurrency((current) =>
+          current && currencies.includes(current) ? current : ""
+        );
+      } catch (error) {
+        console.error("Error loading crypto currencies:", error);
+        toast.error(error instanceof Error ? error.message : "Failed to load crypto currencies");
+      }
+    };
+
+    if (isEditingPaymentMethod && paymentMethods.crypto) {
+      fetchCryptoCurrencies();
+    }
+  }, [isEditingPaymentMethod, paymentMethods.crypto, selectedCryptoChain]);
 
   useEffect(() => {
     console.log('🔄 storefrontData updated:', storefrontData);
@@ -685,6 +824,86 @@ function StorefrontComponent() {
       toast.error(error instanceof Error ? error.message : 'Failed to update delivery methods');
     } finally {
       setIsSavingDeliveryMethod(false);
+    }
+  };
+
+  const handleEditPaymentMethod = () => setIsEditingPaymentMethod(true);
+
+  const handleCancelPaymentMethod = () => {
+    setIsEditingPaymentMethod(false);
+    setPaymentMethods({
+      paystack: true,
+      klump: savedPaymentMethods.some((method) => method.provider === "klump"),
+      crypto: savedPaymentMethods.some((method) => isCryptoProvider(method.provider)),
+    });
+  };
+
+  const handlePaymentMethodChange = (method: PaymentMethodKey) => {
+    if (method === "paystack") return;
+    setPaymentMethods((current) => ({ ...current, [method]: !current[method] }));
+  };
+
+  const handleSavePaymentMethod = async () => {
+    if (isSavingPaymentMethod) return;
+
+    const storeId = getCookieValue("store_id");
+    if (!storeId) {
+      toast.error("Store ID not found. Please login again.");
+      return;
+    }
+
+    if (paymentMethods.crypto && (!selectedCryptoChain || !selectedCryptoCurrency)) {
+      toast.error("Select a crypto network and currency before saving crypto.");
+      return;
+    }
+
+    setIsSavingPaymentMethod(true);
+    try {
+      const currentProviders = new Set(savedPaymentMethods.map((method) => method.provider));
+      const providersToAdd: Array<{ provider: string; network?: string; currency?: string }> = [];
+
+      if (paymentMethods.klump && !currentProviders.has("klump")) {
+        providersToAdd.push({ provider: "klump" });
+      }
+
+      if (
+        paymentMethods.crypto &&
+        !savedPaymentMethods.some((method) => isCryptoProvider(method.provider))
+      ) {
+        providersToAdd.push({
+          provider: "crypto",
+          network: selectedCryptoChain,
+          currency: selectedCryptoCurrency,
+        });
+      }
+
+      if (providersToAdd.length === 0) {
+        setIsEditingPaymentMethod(false);
+        toast.success("Payment methods updated successfully!");
+        return;
+      }
+
+      for (const method of providersToAdd) {
+        const response = await fetch(`/api/payments/store/${storeId}/add-method`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(method),
+        });
+        const result = await parseApiResponse(response);
+
+        if (!response.ok) {
+          throw new Error(result.message || `Failed to add ${method.provider}`);
+        }
+      }
+
+      await loadPaymentMethods(storeId);
+      setIsEditingPaymentMethod(false);
+      toast.success("Payment methods updated successfully!");
+    } catch (error) {
+      console.error("Error saving payment methods:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to update payment methods");
+    } finally {
+      setIsSavingPaymentMethod(false);
     }
   };
 
@@ -1042,6 +1261,112 @@ function StorefrontComponent() {
                 </p>
               </div>
             )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Payment Method Card ─────────────────────────────────────────────── */}
+      <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
+        <CardContent>
+          <div className="space-y-6 pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-primary" />
+                  <h2 className="text-sm font-medium">Payment Methods</h2>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Choose how customers can pay at checkout</p>
+              </div>
+              {!isEditingPaymentMethod ? (
+                <Button onClick={handleEditPaymentMethod} variant="outline" size="sm" className="dark:bg-background">
+                  <span className="hidden sm:inline mr-2">Edit</span><EditIcon />
+                </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button onClick={handleCancelPaymentMethod} variant="outline" size="sm">Cancel</Button>
+                  <Button onClick={handleSavePaymentMethod} variant="default" size="sm" disabled={isSavingPaymentMethod}>
+                    {isSavingPaymentMethod ? <Loader2 className="w-4 h-4 animate-spin" /> : <><SaveIcon /><span className="hidden sm:inline ml-2">Save Changes</span></>}
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {isLoadingPaymentMethods ? (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading payment methods...
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                  <input type="checkbox" id="payment-paystack" checked={paymentMethods.paystack} disabled className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:cursor-not-allowed" />
+                  <div className="flex-1">
+                    <label htmlFor="payment-paystack" className="text-sm font-medium">Paystack</label>
+                    <p className="text-xs text-muted-foreground mt-1">Card, bank transfer, and local payment options.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                  <input type="checkbox" id="payment-klump" checked={paymentMethods.klump} onChange={() => handlePaymentMethodChange("klump")} disabled={!isEditingPaymentMethod} className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50" />
+                  <div className="flex-1">
+                    <label htmlFor="payment-klump" className={`text-sm font-medium ${!isEditingPaymentMethod ? "cursor-default" : "cursor-pointer"}`}>Klump</label>
+                    <p className="text-xs text-muted-foreground mt-1">Buy now, pay later for eligible storefront orders.</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                  <div className="flex items-start space-x-3">
+                    <input type="checkbox" id="payment-crypto" checked={paymentMethods.crypto} onChange={() => handlePaymentMethodChange("crypto")} disabled={!isEditingPaymentMethod} className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50" />
+                    <div className="flex-1">
+                      <label htmlFor="payment-crypto" className={`text-sm font-medium ${!isEditingPaymentMethod ? "cursor-default" : "cursor-pointer"}`}>Crypto</label>
+                      <p className="text-xs text-muted-foreground mt-1">Accept supported crypto payments when checkout support is enabled.</p>
+                    </div>
+                  </div>
+
+                  {isEditingPaymentMethod && paymentMethods.crypto && (
+                    <div className="grid grid-cols-1 gap-3 pl-7 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label className="text-xs">Network</Label>
+                        <Select value={selectedCryptoChain} onValueChange={setSelectedCryptoChain}>
+                          <SelectTrigger className="w-full dark:bg-background">
+                            <SelectValue placeholder="Select network" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {cryptoChains.map((chain) => (
+                              <SelectItem key={chain} value={chain}>{chain.toUpperCase()}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Currency</Label>
+                        <Select value={selectedCryptoCurrency} onValueChange={setSelectedCryptoCurrency} disabled={!selectedCryptoChain}>
+                          <SelectTrigger className="w-full dark:bg-background">
+                            <SelectValue placeholder="Select currency" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {cryptoCurrencies.map((currency) => (
+                              <SelectItem key={currency} value={currency}>{currency.toUpperCase()}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <p className="text-xs text-blue-700 dark:text-blue-300">
+                <strong>Currently enabled:</strong>{" "}
+                {[
+                  paymentMethods.paystack && "Paystack",
+                  paymentMethods.klump && "Klump",
+                  paymentMethods.crypto && "Crypto",
+                ].filter(Boolean).join(", ") || "Paystack"}
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>

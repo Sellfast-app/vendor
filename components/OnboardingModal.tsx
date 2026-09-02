@@ -58,6 +58,7 @@ const Confetti = () => {
 async function checkTasksCompletion() {
   const tasks = {
     bankAccount: false,
+    paymentMethods: false,
     pickupAddress: false,
     logoAndBanner: false,
     products: false,
@@ -71,9 +72,22 @@ async function checkTasksCompletion() {
     const storeResult = await storeResponse.json();
     if (storeResult.status === 'success' && storeResult.data?.storeDetails) {
       const store = storeResult.data.storeDetails;
+      const storeId = store.id || store.uid || store.store_id;
       const businessType = store.business_type || '';
       isFoodStore = businessType === 'Restaurant/Food Service';
       console.log('🍽️ Store type:', businessType, '| Is food store:', isFoodStore);
+
+      if (storeId) {
+        try {
+          const paymentResponse = await fetch(`/api/payments/store/${storeId}/methods`);
+          const paymentResult = await paymentResponse.json();
+          const methods = Array.isArray(paymentResult.data) ? paymentResult.data : [];
+          tasks.paymentMethods = methods.length > 0 || tasks.bankAccount;
+          console.log('✅ Payment methods check:', methods.length);
+        } catch (error) {
+          console.log('ℹ️ Error checking payment methods:', error);
+        }
+      }
 
       // Check pickup address
       const metadata = store.metadata;
@@ -106,6 +120,7 @@ async function checkTasksCompletion() {
     const bankResult = await bankResponse.json();
     if (bankResult.status === 'success' && bankResult.data) {
       tasks.bankAccount = true;
+      tasks.paymentMethods = true;
       console.log('✅ Bank account detected');
     }
   } catch (error) {
@@ -192,6 +207,7 @@ async function checkTasksCompletion() {
 export const OnboardingProgress = () => {
   const [tasks, setTasks] = useState({
     bankAccount: false,
+    paymentMethods: false,
     pickupAddress: false,
     logoAndBanner: false,
     products: false,
@@ -213,7 +229,7 @@ export const OnboardingProgress = () => {
 
   const calculateProgress = (taskData: typeof tasks) => {
     const completed = Object.values(taskData).filter(Boolean).length;
-    setProgress((completed / 5) * 100); // ← 5 tasks now
+    setProgress((completed / 6) * 100);
   };
 
   if (progress === 100) return null;
@@ -237,6 +253,7 @@ export const OnboardingModal = () => {
   const [showConfetti, setShowConfetti] = useState(false);
   const [tasks, setTasks] = useState({
     bankAccount: false,
+    paymentMethods: false,
     pickupAddress: false,
     logoAndBanner: false,
     products: false,
@@ -316,6 +333,16 @@ export const OnboardingModal = () => {
       iconColor: 'text-green-500',
       bgColor: 'bg-green-100 dark:bg-green-950',
       important: true,
+    },
+    {
+      key: 'paymentMethods' as const,
+      icon: CreditCard,
+      title: 'Choose payment methods',
+      description: 'Select how customers can pay from your storefront.',
+      route: '/settings',
+      iconColor: 'text-emerald-500',
+      bgColor: 'bg-emerald-100 dark:bg-emerald-950',
+      important: false,
     },
     {
       key: 'pickupAddress' as const,
@@ -446,7 +473,7 @@ export const OnboardingModal = () => {
             })}
           </div>
 
-          {completedTasks === 5 && ( // ← 5 tasks now
+          {completedTasks === 6 && (
             <div className="mt-6 p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg text-center">
               <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-2" />
               <h3 className="font-semibold text-green-700 dark:text-green-400">
