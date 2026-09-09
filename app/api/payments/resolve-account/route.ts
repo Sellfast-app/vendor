@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const account_number = searchParams.get('account_number')
     const bank_code = searchParams.get('bank_code')
+    const provider = searchParams.get('provider') || 'paystack'
 
     if (!account_number || !bank_code) {
       return NextResponse.json(
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
     }
 
     const response = await fetch(
-      `${API_BASE_URL}/api/payments/resolve-account?account_number=${account_number}&bank_code=${bank_code}`,
+      `${API_BASE_URL}/api/payments/resolve-account?account_number=${encodeURIComponent(account_number)}&bank_code=${encodeURIComponent(bank_code)}&provider=${encodeURIComponent(provider)}`,
       {
         method: 'GET',
         headers: {

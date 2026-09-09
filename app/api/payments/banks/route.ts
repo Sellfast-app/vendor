@@ -1,11 +1,14 @@
 // app/api/payments/banks/route.ts
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/payments/banks`, {
+    const { searchParams } = new URL(request.url)
+    const provider = searchParams.get('provider') || 'paystack'
+
+    const response = await fetch(`${API_BASE_URL}/api/payments/banks?provider=${encodeURIComponent(provider)}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

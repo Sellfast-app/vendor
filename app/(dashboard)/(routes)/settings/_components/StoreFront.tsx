@@ -144,23 +144,6 @@ const getCookieValue = (name: string) => {
   return null;
 };
 
-const getNestedList = (value: unknown): string[] => {
-  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === "string");
-  if (!value || typeof value !== "object") return [];
-
-  const data = (value as { data?: unknown }).data;
-  if (Array.isArray(data)) return data.filter((item): item is string => typeof item === "string");
-
-  if (data && typeof data === "object") {
-    const nestedData = (data as { data?: unknown }).data;
-    if (Array.isArray(nestedData)) {
-      return nestedData.filter((item): item is string => typeof item === "string");
-    }
-  }
-
-  return [];
-};
-
 const fromTwentyFourHourTime = (time: string) => {
   const [hourValue = "00", minuteValue = "00"] = time.split(":");
   const numericHour = Number(hourValue);
@@ -250,10 +233,9 @@ function StorefrontComponent() {
     crypto: false,
   });
   const [savedPaymentMethods, setSavedPaymentMethods] = useState<StorePaymentMethod[]>([]);
-  const [cryptoChains, setCryptoChains] = useState<string[]>([]);
-  const [cryptoCurrencies, setCryptoCurrencies] = useState<string[]>([]);
-  const [selectedCryptoChain, setSelectedCryptoChain] = useState("");
-  const [selectedCryptoCurrency, setSelectedCryptoCurrency] = useState("");
+  const [kuvarpayBanks, setKuvarpayBanks] = useState<{ code: string; name: string }[]>([]);
+  const [selectedKuvarpayBankCode, setSelectedKuvarpayBankCode] = useState("");
+  const [kuvarpayAccountNumber, setKuvarpayAccountNumber] = useState("");
 
   // ── Delivery methods state — now includes relay ───────────────────────────
   const [deliveryMethods, setDeliveryMethods] = useState({
@@ -521,60 +503,26 @@ function StorefrontComponent() {
   }, []);
 
   useEffect(() => {
-    const fetchCryptoChains = async () => {
-      if (!isEditingPaymentMethod || !paymentMethods.crypto || cryptoChains.length > 0) return;
+    const fetchKuvarpayBanks = async () => {
+      if (!isEditingPaymentMethod || !paymentMethods.crypto || kuvarpayBanks.length > 0) return;
 
       try {
-        const response = await fetch("/api/payments/crypto/chains");
+        const response = await fetch("/api/payments/banks?provider=kuvarpay");
         const result = await parseApiResponse(response);
 
         if (!response.ok) {
-          throw new Error(result.message || "Failed to load crypto networks");
+          throw new Error(result.message || "Failed to load banks");
         }
 
-        setCryptoChains(getNestedList(result));
+        setKuvarpayBanks(Array.isArray(result.data) ? result.data : []);
       } catch (error) {
-        console.error("Error loading crypto networks:", error);
-        toast.error(error instanceof Error ? error.message : "Failed to load crypto networks");
+        console.error("Error loading kuvarpay banks:", error);
+        toast.error(error instanceof Error ? error.message : "Failed to load banks");
       }
     };
 
-    fetchCryptoChains();
-  }, [cryptoChains.length, isEditingPaymentMethod, paymentMethods.crypto]);
-
-  useEffect(() => {
-    const fetchCryptoCurrencies = async () => {
-      if (!selectedCryptoChain) {
-        setCryptoCurrencies([]);
-        setSelectedCryptoCurrency("");
-        return;
-      }
-
-      try {
-        const response = await fetch(
-          `/api/payments/crypto/currencies?network=${encodeURIComponent(selectedCryptoChain)}`
-        );
-        const result = await parseApiResponse(response);
-
-        if (!response.ok) {
-          throw new Error(result.message || "Failed to load crypto currencies");
-        }
-
-        const currencies = getNestedList(result);
-        setCryptoCurrencies(currencies);
-        setSelectedCryptoCurrency((current) =>
-          current && currencies.includes(current) ? current : ""
-        );
-      } catch (error) {
-        console.error("Error loading crypto currencies:", error);
-        toast.error(error instanceof Error ? error.message : "Failed to load crypto currencies");
-      }
-    };
-
-    if (isEditingPaymentMethod && paymentMethods.crypto) {
-      fetchCryptoCurrencies();
-    }
-  }, [isEditingPaymentMethod, paymentMethods.crypto, selectedCryptoChain]);
+    fetchKuvarpayBanks();
+  }, [isEditingPaymentMethod, kuvarpayBanks.length, paymentMethods.crypto]);
 
   useEffect(() => {
     console.log('🔄 storefrontData updated:', storefrontData);
@@ -836,6 +784,8 @@ function StorefrontComponent() {
       klump: savedPaymentMethods.some((method) => method.provider === "klump"),
       crypto: savedPaymentMethods.some((method) => isCryptoProvider(method.provider)),
     });
+    setSelectedKuvarpayBankCode("");
+    setKuvarpayAccountNumber("");
   };
 
   const handlePaymentMethodChange = (method: PaymentMethodKey) => {
@@ -852,15 +802,15 @@ function StorefrontComponent() {
       return;
     }
 
-    if (paymentMethods.crypto && (!selectedCryptoChain || !selectedCryptoCurrency)) {
-      toast.error("Select a crypto network and currency before saving crypto.");
+    if (paymentMethods.crypto && (!selectedKuvarpayBankCode || !kuvarpayAccountNumber)) {
+      toast.error("Select a bank and enter an account number before saving crypto.");
       return;
     }
 
     setIsSavingPaymentMethod(true);
     try {
       const currentProviders = new Set(savedPaymentMethods.map((method) => method.provider));
-      const providersToAdd: Array<{ provider: string; network?: string; currency?: string }> = [];
+      const providersToAdd: Array<{ provider: string; bank_code?: string; account_number?: string }> = [];
 
       if (paymentMethods.klump && !currentProviders.has("klump")) {
         providersToAdd.push({ provider: "klump" });
@@ -871,9 +821,9 @@ function StorefrontComponent() {
         !savedPaymentMethods.some((method) => isCryptoProvider(method.provider))
       ) {
         providersToAdd.push({
-          provider: "crypto",
-          network: selectedCryptoChain,
-          currency: selectedCryptoCurrency,
+          provider: "kuvarpay",
+          bank_code: selectedKuvarpayBankCode,
+          account_number: kuvarpayAccountNumber,
         });
       }
 
@@ -1326,30 +1276,26 @@ function StorefrontComponent() {
                   {isEditingPaymentMethod && paymentMethods.crypto && (
                     <div className="grid grid-cols-1 gap-3 pl-7 md:grid-cols-2">
                       <div className="space-y-2">
-                        <Label className="text-xs">Network</Label>
-                        <Select value={selectedCryptoChain} onValueChange={setSelectedCryptoChain}>
+                        <Label className="text-xs">Settlement Bank</Label>
+                        <Select value={selectedKuvarpayBankCode} onValueChange={setSelectedKuvarpayBankCode}>
                           <SelectTrigger className="w-full dark:bg-background">
-                            <SelectValue placeholder="Select network" />
+                            <SelectValue placeholder="Select bank" />
                           </SelectTrigger>
                           <SelectContent>
-                            {cryptoChains.map((chain) => (
-                              <SelectItem key={chain} value={chain}>{chain.toUpperCase()}</SelectItem>
+                            {kuvarpayBanks.map((bank) => (
+                              <SelectItem key={bank.code} value={bank.code}>{bank.name}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-xs">Currency</Label>
-                        <Select value={selectedCryptoCurrency} onValueChange={setSelectedCryptoCurrency} disabled={!selectedCryptoChain}>
-                          <SelectTrigger className="w-full dark:bg-background">
-                            <SelectValue placeholder="Select currency" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {cryptoCurrencies.map((currency) => (
-                              <SelectItem key={currency} value={currency}>{currency.toUpperCase()}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Label className="text-xs">Account Number</Label>
+                        <Input
+                          value={kuvarpayAccountNumber}
+                          onChange={(event) => setKuvarpayAccountNumber(event.target.value.replace(/\D/g, ""))}
+                          placeholder="Enter account number"
+                          className="dark:bg-background"
+                        />
                       </div>
                     </div>
                   )}
