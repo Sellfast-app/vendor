@@ -20,6 +20,19 @@ import { PiPlugs } from 'react-icons/pi';
 import StoreFrontIcon from '@/components/svgIcons/StoreFrontIcon';
 import { ThemeName, themes } from '@/lib/themes';
 import Image from 'next/image';
+import {
+  V2BusinessType,
+  V2Country,
+  V2BillingInterval,
+  V2PlanModel,
+  V2PlanTier,
+  V2_BUSINESS_TYPE_INFO,
+  v2SelectionToMetadata,
+} from '@/lib/v2';
+import V2BusinessTypeStep, {
+  isV2BusinessTypeStepValid,
+} from './_components/V2BusinessTypeStep';
+import V2PlanStep, { isV2PlanStepValid } from './_components/V2PlanStep';
 
 // Updated TypeScript interfaces to match API documentation
 interface UserDetails {
@@ -39,6 +52,14 @@ interface BrandColor {
 interface BusinessMetadata {
   brand_color: BrandColor;
   whatsapp_phone_number?: string;
+  /** V2 onboarding selection (vertical, country, plan model). */
+  v2?: {
+    business_type: string;
+    country: string;
+    plan_model: string;
+    billing_interval?: string;
+    plan_tier?: string;
+  };
 }
 
 interface BusinessDetails {
@@ -93,8 +114,10 @@ async function readApiResponse(response: Response) {
 const StepIndicator = ({ currentStep }: { currentStep: number }) => {
   const steps = [
     { number: 1, title: 'Account', icon: <AccountIcon /> },
-    { number: 2, title: 'Business Info', icon: <LuBriefcaseBusiness /> },
-    { number: 3, title: 'WhatsApp Setup', icon: <PiPlugs /> },
+    { number: 2, title: 'Your Business', icon: <LuBriefcaseBusiness /> },
+    { number: 3, title: 'Plan', icon: <PiPlugs /> },
+    { number: 4, title: 'Business Info', icon: <LuBriefcaseBusiness /> },
+    { number: 5, title: 'WhatsApp Setup', icon: <PiPlugs /> },
   ];
 
   return (
@@ -204,6 +227,13 @@ export default function MultiStepSignupPage() {
   const [otp, setOtp] = useState('');
   const router = useRouter();
 
+  // V2 onboarding selection
+  const [v2BusinessType, setV2BusinessType] = useState<V2BusinessType | null>(null);
+  const [v2Country, setV2Country] = useState<V2Country | null>(null);
+  const [v2PlanModel, setV2PlanModel] = useState<V2PlanModel | null>(null);
+  const [v2BillingInterval, setV2BillingInterval] = useState<V2BillingInterval>('quarterly');
+  const [v2PlanTier, setV2PlanTier] = useState<V2PlanTier['id'] | null>(null);
+
   // Updated form data state with metadata wrapper
   const [formData, setFormData] = useState<{ user_details: UserDetails; business_details: BusinessDetails; agreeToTerms: boolean; countryCode: string; colorScheme: ThemeName }>({
     user_details: {
@@ -271,12 +301,28 @@ export default function MultiStepSignupPage() {
         }
         return true;
       case 2:
-        if (!formData.business_details.store_name.trim()) {
-          toast.error('Business name is required');
+        if (!isV2BusinessTypeStepValid(v2BusinessType, v2Country)) {
+          if (!v2BusinessType) {
+            toast.error('Please select your business type');
+          } else {
+            toast.error('Please select the country your business operates in');
+          }
           return false;
         }
-        if (!formData.business_details.type) {
-          toast.error('Please select a business type');
+        return true;
+      case 3:
+        if (!isV2PlanStepValid(v2BusinessType ?? 'retail', v2PlanModel, v2PlanTier)) {
+          if (!v2PlanModel) {
+            toast.error('Please choose how you want to pay for Swiftree');
+          } else {
+            toast.error('Please select a subscription plan');
+          }
+          return false;
+        }
+        return true;
+      case 4:
+        if (!formData.business_details.store_name.trim()) {
+          toast.error('Business name is required');
           return false;
         }
         if (!formData.business_details.description?.trim()) {
@@ -284,7 +330,7 @@ export default function MultiStepSignupPage() {
           return false;
         }
         return true;
-      case 3:
+      case 5:
         if (!formData.user_details.phone_number.trim()) {
           toast.error('WhatsApp business number is required');
           return false;
@@ -461,7 +507,7 @@ export default function MultiStepSignupPage() {
   };
 
   const handleSubmit = async () => {
-    if (!validateStep(3)) return;
+    if (!validateStep(5)) return;
   
     setIsLoading(true);
   
@@ -470,9 +516,19 @@ export default function MultiStepSignupPage() {
       const payload: OnboardCreateRequest = {
         business_details: {
           ...formData.business_details,
+          type: v2BusinessType ?? formData.business_details.type,
           metadata: {
             ...formData.business_details.metadata,
             whatsapp_phone_number: phone_number,
+            ...(v2BusinessType && v2Country
+              ? v2SelectionToMetadata({
+                  businessType: v2BusinessType,
+                  country: v2Country,
+                  planModel: v2PlanModel ?? (v2BusinessType === 'ticketing' ? 'markup' : 'subscription'),
+                  ...(v2PlanModel === 'subscription' ? { billingInterval: v2BillingInterval } : {}),
+                  ...(v2PlanModel === 'subscription' && v2PlanTier ? { planTier: v2PlanTier } : {}),
+                })
+              : {}),
           },
         },
       };
@@ -536,20 +592,6 @@ export default function MultiStepSignupPage() {
   const togglePasswordVisibility = () => {
     setShowPassword((prev) => !prev);
   };
-
-  const businessTypes = [
-    'Fashion',
-    'Restaurant/Food Service',
-    'Retail Store',
-    'E-commerce',
-    'Professional Services',
-    'Health & Beauty',
-    'Technology',
-    'Education',
-    'Real Estate',
-    'Electronics',
-    'Other',
-  ];
 
   // Step 1 - Account Creation
   const renderStep1 = () => (
@@ -797,23 +839,20 @@ export default function MultiStepSignupPage() {
         </div>
         <div className="space-y-2">
           <Label htmlFor="businessType" className="text-sm font-medium">
-            Business Type <span className="text-destructive">*</span>
+            Business Type
           </Label>
-          <Select
-            value={formData.business_details.type}
-            onValueChange={(value) => handleInputChange('business_details', value, 'type')}
-          >
-            <SelectTrigger className="w-full h-11 bg-muted border-0 rounded-lg">
-              <SelectValue placeholder="Select your business type" />
-            </SelectTrigger>
-            <SelectContent>
-              {businessTypes.map((type) => (
-                <SelectItem key={type} value={type}>
-                  {type}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Input
+            id="businessType"
+            type="text"
+            readOnly
+            value={
+              v2BusinessType ? V2_BUSINESS_TYPE_INFO[v2BusinessType].label : ''
+            }
+            className="w-full h-11 bg-muted border-0 rounded-lg"
+          />
+          <p className="text-xs text-muted-foreground">
+            Chosen in the previous step — it shapes your dashboard and storefront.
+          </p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="businessDescription" className="text-sm font-medium">
@@ -1031,8 +1070,29 @@ export default function MultiStepSignupPage() {
         }
         return renderStep1();
       case 2:
-        return renderStep2();
+        return (
+          <V2BusinessTypeStep
+            businessType={v2BusinessType}
+            country={v2Country}
+            onBusinessTypeChange={setV2BusinessType}
+            onCountryChange={setV2Country}
+          />
+        );
       case 3:
+        return (
+          <V2PlanStep
+            businessType={v2BusinessType ?? 'retail'}
+            planModel={v2PlanModel}
+            billingInterval={v2BillingInterval}
+            planTier={v2PlanTier}
+            onPlanModelChange={setV2PlanModel}
+            onBillingIntervalChange={setV2BillingInterval}
+            onPlanTierChange={setV2PlanTier}
+          />
+        );
+      case 4:
+        return renderStep2();
+      case 5:
         return renderStep3();
       default:
         return renderStep1();
