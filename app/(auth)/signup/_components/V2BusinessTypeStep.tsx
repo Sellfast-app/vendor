@@ -13,7 +13,7 @@
  * Daash "What brings you to Daash" (refs #29-31).
  */
 
-import { Check } from 'lucide-react';
+import { Check, Globe2, LayoutDashboard, WalletCards } from 'lucide-react';
 import { Store, Ticket, UtensilsCrossed } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -30,6 +30,12 @@ const VERTICAL_ICONS: Record<V2BusinessType, React.ReactNode> = {
   retail: <Store className="w-5 h-5" />,
   ticketing: <Ticket className="w-5 h-5" />,
   food: <UtensilsCrossed className="w-5 h-5" />,
+};
+
+const VERTICAL_REFERENCE_COPY: Record<V2BusinessType, string> = {
+  retail: 'Retail dashboard and storefront inspired by Bumpa-style catalog selling.',
+  ticketing: 'Event dashboard and ticket checkout inspired by Tix Africa-style flows.',
+  food: 'Menu storefront and food ordering inspired by Daash-style restaurant flows.',
 };
 
 interface V2BusinessTypeStepProps {
@@ -50,8 +56,23 @@ export default function V2BusinessTypeStep({
       <div className="flex flex-col">
         <h1 className="text-2xl font-semibold text-primary">Tell us about your business</h1>
         <p className="text-xs text-muted-foreground">
-          We&apos;ll shape your dashboard and storefront around what you pick
+          Choose one V2 vertical. This controls your dashboard, storefront and checkout setup.
         </p>
+      </div>
+
+      <div className="grid gap-3 rounded-lg border border-primary/20 bg-primary/5 p-4 text-xs md:grid-cols-3">
+        <div className="flex items-start gap-2">
+          <LayoutDashboard className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <span>Only Retail & Wholesale, Ticketing, and Food & Restaurant are available in V2.</span>
+        </div>
+        <div className="flex items-start gap-2">
+          <Globe2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <span>Supported countries are Nigeria, United Kingdom, Kenya, and Ghana.</span>
+        </div>
+        <div className="flex items-start gap-2">
+          <WalletCards className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <span>Your selection determines currency and eligible revenue models.</span>
+        </div>
       </div>
 
       <div className="space-y-3">
@@ -87,6 +108,7 @@ export default function V2BusinessTypeStep({
                 <div className="flex-1 space-y-1">
                   <p className="text-sm font-semibold text-foreground">{info.label}</p>
                   <p className="text-xs text-muted-foreground">{info.description}</p>
+                  <p className="text-[11px] text-primary">{VERTICAL_REFERENCE_COPY[type]}</p>
                 </div>
                 {selected && <Check className="h-5 w-5 shrink-0 text-primary" />}
               </Label>
@@ -124,14 +146,16 @@ export default function V2BusinessTypeStep({
                   </span>
                   <span className="text-sm font-medium text-foreground">{info.name}</span>
                 </span>
+                <span className="hidden text-xs text-muted-foreground sm:inline">
+                  {info.currency}
+                </span>
                 {selected && <Check className="h-4 w-4 text-primary" />}
               </Label>
             );
           })}
         </RadioGroup>
         <p className="text-xs text-muted-foreground">
-          This determines the currency your storefront displays. You can switch website currency
-          later.
+          This sets your default storefront currency and phone-code options during onboarding.
         </p>
       </div>
     </div>

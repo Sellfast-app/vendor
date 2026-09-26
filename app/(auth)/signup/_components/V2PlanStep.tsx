@@ -17,7 +17,7 @@
  * Daash plan screen (ref #32).
  */
 
-import { BadgeCheck, Check, Sparkles, Tag } from 'lucide-react';
+import { BadgeCheck, Calculator, Check, LockKeyhole, Sparkles, Tag, WalletCards } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -44,6 +44,12 @@ const INTERVAL_SUFFIX: Record<V2BillingInterval, string> = {
   quarterly: 'Billed quarterly (every 3 months)',
   biannually: 'Billed bi-annually (every 6 months)',
   yearly: 'Billed yearly (every 12 months)',
+};
+
+const BUSINESS_MODEL_COPY: Record<V2BusinessType, string> = {
+  retail: 'Retail & Wholesale can use Subscription or Markup.',
+  food: 'Food & Restaurant can use Subscription or Markup.',
+  ticketing: 'Ticketing uses Markup only.',
 };
 
 interface V2PlanStepProps {
@@ -74,15 +80,30 @@ export default function V2PlanStep({
       <div className="flex flex-col">
         <h1 className="text-2xl font-semibold text-primary">Choose your Swiftree plan</h1>
         <p className="text-xs text-muted-foreground">
-          Two ways to run your business on Swiftree — pick what suits you
+          {BUSINESS_MODEL_COPY[businessType]} Monthly billing is not available in V2.
         </p>
+      </div>
+
+      <div className="grid gap-3 rounded-lg border border-primary/20 bg-primary/5 p-4 text-xs md:grid-cols-3">
+        <div className="flex items-start gap-2">
+          <WalletCards className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <span>Subscription: pay in advance quarterly, bi-annually or yearly.</span>
+        </div>
+        <div className="flex items-start gap-2">
+          <Tag className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <span>Markup: ₦0 upfront with ₦500 added to each product or ticket.</span>
+        </div>
+        <div className="flex items-start gap-2">
+          <Calculator className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <span>Transaction fee: {txnFee}% for this business type.</span>
+        </div>
       </div>
 
       {isTicketing ? (
         <Card className="border-2 border-primary bg-primary/5">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-              <Tag className="h-5 w-5 text-primary" />
+              <LockKeyhole className="h-5 w-5 text-primary" />
               Markup Model — automatic for ticketing
             </CardTitle>
           </CardHeader>
@@ -134,6 +155,11 @@ export default function V2PlanStep({
                       <span className="text-sm font-semibold text-foreground">
                         {model === 'subscription' ? 'Subscription' : 'Markup'}
                       </span>
+                      {model === 'subscription' && (
+                        <Badge variant="outline" className="border-primary/20 text-primary">
+                          No monthly
+                        </Badge>
+                      )}
                       <RadioGroupItem value={model} id={`v2-model-${model}`} />
                     </span>
                     <span className="text-xs text-muted-foreground">
@@ -150,6 +176,10 @@ export default function V2PlanStep({
           {/* Subscription tiers */}
           {effectiveModel === 'subscription' && (
             <div className="space-y-4">
+              <div className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">
+                Subscription vendors pay upfront for access. Swiftree does not add markup to the
+                vendor&apos;s listed product price under this model.
+              </div>
               <Tabs
                 value={billingInterval}
                 onValueChange={(value) => onBillingIntervalChange(value as V2BillingInterval)}
@@ -236,25 +266,42 @@ export default function V2PlanStep({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <ul className="space-y-1.5 text-xs">
-                  <li className="flex items-center gap-2">
-                    <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> ₦0 upfront
-                    subscription — start selling immediately
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> ₦
-                    {V2_MARKUP_LISTING_PAD.toLocaleString()} auto-added to each product listing
-                    price (you keep your base price)
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> {txnFee}%
-                    transaction fee per sale, split automatically at checkout
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> Buyer payments
-                    settle instantly to your Swiftree wallet
-                  </li>
-                </ul>
+                <div className="space-y-4">
+                  <ul className="space-y-1.5 text-xs">
+                    <li className="flex items-center gap-2">
+                      <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> ₦0 upfront
+                      subscription — start selling immediately
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> ₦
+                      {V2_MARKUP_LISTING_PAD.toLocaleString()} auto-added to each product listing
+                      price or ticket price
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> {txnFee}%
+                      transaction fee per sale, split automatically at checkout
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> Buyer payments
+                      settle instantly to your Swiftree wallet
+                    </li>
+                  </ul>
+
+                  <div className="rounded-lg border bg-background p-3 text-xs">
+                    <p className="mb-2 font-medium">Example split</p>
+                    {[
+                      ['Vendor base price', '₦10,000'],
+                      ['Buyer pays', `₦${(10000 + V2_MARKUP_LISTING_PAD).toLocaleString()}`],
+                      ['Swiftree receives', `₦${(V2_MARKUP_LISTING_PAD + 10000 * (txnFee / 100)).toLocaleString()}`],
+                      ['Vendor settlement before logistics', `₦${(10000 - 10000 * (txnFee / 100)).toLocaleString()}`],
+                    ].map(([label, value]) => (
+                      <div key={label} className="flex items-center justify-between py-1">
+                        <span className="text-muted-foreground">{label}</span>
+                        <span className="font-medium">{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </CardContent>
             </Card>
           )}

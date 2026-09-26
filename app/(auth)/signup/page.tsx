@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Eye, EyeOff, ChevronDown, ArrowLeft, Download, Copy, Mail, RefreshCw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Label } from '@radix-ui/react-label';
@@ -27,6 +27,8 @@ import {
   V2PlanModel,
   V2PlanTier,
   V2_BUSINESS_TYPE_INFO,
+  V2_COUNTRIES,
+  V2_COUNTRY_INFO,
   v2SelectionToMetadata,
 } from '@/lib/v2';
 import V2BusinessTypeStep, {
@@ -161,11 +163,7 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => {
 
 // Country code selector component
 const CountryCodeSelect = ({ value, onValueChange }: { value: string; onValueChange: (value: string) => void }) => {
-  const countryCodes = [
-    { code: '+234', country: 'NG', flag: '🇳🇬' },
-    { code: '+1', country: 'US', flag: '🇺🇸' },
-    { code: '+44', country: 'GB', flag: '🇬🇧' }, 
-  ];
+  const countryCodes = V2_COUNTRIES.map((country) => V2_COUNTRY_INFO[country]);
 
   return (
     <Select value={value} onValueChange={onValueChange}>
@@ -174,9 +172,9 @@ const CountryCodeSelect = ({ value, onValueChange }: { value: string; onValueCha
       </SelectTrigger>
       <SelectContent>
         {countryCodes.map((country) => (
-          <SelectItem key={country.code} value={country.code}>
+          <SelectItem key={country.code} value={country.dialCode}>
             <span className="flex items-center gap-2">{country.flag}</span>
-            <span className="flex items-center gap-2">{country.code}</span>
+            <span className="flex items-center gap-2">{country.dialCode}</span>
           </SelectItem>
         ))}
       </SelectContent>
@@ -260,6 +258,14 @@ export default function MultiStepSignupPage() {
     colorScheme: 'surge-green',
   });
 
+  useEffect(() => {
+    if (!v2Country) return;
+    setFormData((prev) => ({
+      ...prev,
+      countryCode: V2_COUNTRY_INFO[v2Country].dialCode,
+    }));
+  }, [v2Country]);
+
   // UI state
   const [showPassword, setShowPassword] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
@@ -270,6 +276,36 @@ export default function MultiStepSignupPage() {
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
+  };
+
+  const handleV2BusinessTypeChange = (value: V2BusinessType) => {
+    setV2BusinessType(value);
+    setFormData((prev) => ({
+      ...prev,
+      business_details: {
+        ...prev.business_details,
+        type: value,
+      },
+    }));
+
+    if (value === 'ticketing') {
+      setV2PlanModel('markup');
+      setV2PlanTier(null);
+      return;
+    }
+
+    if (v2PlanModel === 'subscription' && !v2PlanTier) {
+      setV2PlanTier('growth');
+    }
+  };
+
+  const handleV2PlanModelChange = (value: V2PlanModel) => {
+    setV2PlanModel(value);
+    if (value === 'subscription') {
+      setV2PlanTier((current) => current ?? 'growth');
+      return;
+    }
+    setV2PlanTier(null);
   };
 
   const validateStep = (step: number) => {
@@ -1074,7 +1110,7 @@ export default function MultiStepSignupPage() {
           <V2BusinessTypeStep
             businessType={v2BusinessType}
             country={v2Country}
-            onBusinessTypeChange={setV2BusinessType}
+            onBusinessTypeChange={handleV2BusinessTypeChange}
             onCountryChange={setV2Country}
           />
         );
@@ -1085,7 +1121,7 @@ export default function MultiStepSignupPage() {
             planModel={v2PlanModel}
             billingInterval={v2BillingInterval}
             planTier={v2PlanTier}
-            onPlanModelChange={setV2PlanModel}
+            onPlanModelChange={handleV2PlanModelChange}
             onBillingIntervalChange={setV2BillingInterval}
             onPlanTierChange={setV2PlanTier}
           />
