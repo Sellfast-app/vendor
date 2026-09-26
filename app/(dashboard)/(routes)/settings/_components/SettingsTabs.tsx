@@ -4,8 +4,8 @@ import AccountInformation from './AccountInformation'
 import StoreFront from './StoreFront'
 import Finance from './Finance'
 import Notification from './Notification'
-import Security from './Security'
 import Support from './Support'
+import PaymentMethods from './PaymentMethods'
 
 function SettingsTabs() {
     return (
@@ -14,6 +14,7 @@ function SettingsTabs() {
             <TabsList className="w-full overflow-x-auto flex-nowrap justify-start scrollbar-hide">
                     <TabsTrigger value="account">Account</TabsTrigger>
                     <TabsTrigger value="store">StoreFront Settings</TabsTrigger>
+                    <TabsTrigger value="payments">Payment Methods</TabsTrigger>
                     <TabsTrigger value="finance">Finance & Billings</TabsTrigger>
                     <TabsTrigger value="notification">Notifications</TabsTrigger>
                     {/* <TabsTrigger value="security">Security & Access</TabsTrigger> */}
@@ -24,6 +25,9 @@ function SettingsTabs() {
                 </TabsContent>
                 <TabsContent value="store" className='mt-4'>
                     <StoreFront/>
+                </TabsContent>
+                <TabsContent value="payments" className='mt-4'>
+                    <PaymentMethods/>
                 </TabsContent>
                 <TabsContent value="finance" className='mt-4'>
                     <Finance/>

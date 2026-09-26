@@ -2,7 +2,7 @@
 
 import { AvatarImage } from "@/components/ui/avatar";
 import { Avatar, AvatarFallback } from "@radix-ui/react-avatar";
-import { LayoutDashboardIcon } from "lucide-react";
+import { LayoutDashboardIcon, ShieldCheck, Wallet } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { SVGProps, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -12,6 +12,7 @@ import Orders from "./svgIcons/Orders";
 import Analytics from "./svgIcons/Analytics";
 import Payouts from "./svgIcons/Payouts";
 import Settings from "./svgIcons/Settings";
+import Events from "./svgIcons/Events";
 import Logout from "./svgIcons/Logout";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { OnboardingProgress } from "./OnboardingModal";
@@ -34,7 +35,10 @@ const adminRoutes: Route[] = [
   { icon: Products, label: "Products", href: "/products" },
   { icon: Orders, label: "Orders", href: "/orders" },
   { icon: Analytics, label: "Analytics", href: "/analytics" },
+  { icon: Wallet, label: "Wallet", href: "/wallet" },
   { icon: Payouts, label: "Payouts", href: "/payouts" },
+  { icon: Events, label: "Events", href: "/events" },
+  { icon: ShieldCheck, label: "Staff", href: "/staff" },
 ];
 
 const actionRoutes: Route[] = [
