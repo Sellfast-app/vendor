@@ -117,17 +117,18 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => {
   const steps = [
     { number: 1, title: 'Account', icon: <AccountIcon /> },
     { number: 2, title: 'Your Business', icon: <LuBriefcaseBusiness /> },
-    { number: 3, title: 'Plan', icon: <PiPlugs /> },
-    { number: 4, title: 'Business Info', icon: <LuBriefcaseBusiness /> },
+    { number: 3, title: 'Business Info', icon: <LuBriefcaseBusiness /> },
+    { number: 4, title: 'Plan', icon: <PiPlugs /> },
     { number: 5, title: 'WhatsApp Setup', icon: <PiPlugs /> },
   ];
 
   return (
-    <div className="flex items-center justify-center mb-8 space-x-4">
+    <div className="mb-6 w-full overflow-x-auto pb-2">
+      <div className="flex min-w-max items-center justify-start gap-2 sm:justify-center lg:min-w-0 lg:gap-3">
       {steps.map((step, index) => (
-        <div key={step.number} className="flex items-center px-5 md:px-0">
+        <div key={step.number} className="flex shrink-0 items-center">
           <div
-            className={`flex items-center justify-center w-12 h-12 mr-6 md:mr-0 rounded-full transition-all duration-200 ${
+            className={`flex h-9 w-9 items-center justify-center rounded-full transition-all duration-200 sm:h-10 sm:w-10 xl:h-12 xl:w-12 ${
               step.number === currentStep
                 ? 'bg-primary border-primary text-primary-foreground'
                 : step.number < currentStep
@@ -143,7 +144,7 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => {
               {step.icon}
             </span>
           </div>
-          <div className="hidden sm:inline ml-3 text-left">
+          <div className="ml-2 hidden text-left xl:block">
             <p
               className={`text-sm font-medium ${
                 step.number <= currentStep ? 'text-foreground' : 'text-gray-400'
@@ -153,10 +154,11 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => {
             </p>
           </div>
           {index < steps.length - 1 && (
-            <ChevronDown className="w-4 h-4 mx-1 sm:mx-4 transform rotate-[-90deg]" />
+            <ChevronDown className="mx-2 h-4 w-4 shrink-0 rotate-[-90deg] text-muted-foreground xl:mx-4" />
           )}
         </div>
       ))}
+      </div>
     </div>
   );
 };
@@ -347,22 +349,22 @@ export default function MultiStepSignupPage() {
         }
         return true;
       case 3:
-        if (!isV2PlanStepValid(v2BusinessType ?? 'retail', v2PlanModel, v2PlanTier)) {
-          if (!v2PlanModel) {
-            toast.error('Please choose how you want to pay for Swiftree');
-          } else {
-            toast.error('Please select a subscription plan');
-          }
-          return false;
-        }
-        return true;
-      case 4:
         if (!formData.business_details.store_name.trim()) {
           toast.error('Business name is required');
           return false;
         }
         if (!formData.business_details.description?.trim()) {
           toast.error('Business description is required');
+          return false;
+        }
+        return true;
+      case 4:
+        if (!isV2PlanStepValid(v2BusinessType ?? 'retail', v2PlanModel, v2PlanTier)) {
+          if (!v2PlanModel) {
+            toast.error('Please choose how you want to pay for Swiftree');
+          } else {
+            toast.error('Please select a subscription plan');
+          }
           return false;
         }
         return true;
@@ -1115,6 +1117,8 @@ export default function MultiStepSignupPage() {
           />
         );
       case 3:
+        return renderStep2();
+      case 4:
         return (
           <V2PlanStep
             businessType={v2BusinessType ?? 'retail'}
@@ -1126,8 +1130,6 @@ export default function MultiStepSignupPage() {
             onPlanTierChange={setV2PlanTier}
           />
         );
-      case 4:
-        return renderStep2();
       case 5:
         return renderStep3();
       default:
@@ -1136,12 +1138,8 @@ export default function MultiStepSignupPage() {
   };
 
   return (
-    <div className="w-full max-w-lg space-y-6">
-      {!isSuccess && (
-        <div className="absolute top-6">
-          <StepIndicator currentStep={currentStep} />
-        </div>
-      )}
+    <div className="w-full max-w-xl space-y-5">
+      {!isSuccess && <StepIndicator currentStep={currentStep} />}
       {!isSuccess && <Logo />}
       {renderCurrentStep()}
       {!isSuccess && (

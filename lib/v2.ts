@@ -1,7 +1,7 @@
 /**
  * Swiftree V2.0 — core business domain types.
  *
- * V2 restricts onboarding to three business verticals and four countries,
+ * V2 restricts onboarding to three business verticals and five countries,
  * and introduces the subscription-vs-markup monetization model.
  *
  * IMPORTANT — legacy compatibility:
@@ -15,7 +15,7 @@
 export const V2_BUSINESS_TYPES = ['retail', 'ticketing', 'food'] as const;
 export type V2BusinessType = (typeof V2_BUSINESS_TYPES)[number];
 
-export const V2_COUNTRIES = ['NG', 'UK', 'KE', 'GH'] as const;
+export const V2_COUNTRIES = ['NG', 'UK', 'KE', 'GH', 'RW'] as const;
 export type V2Country = (typeof V2_COUNTRIES)[number];
 
 export type V2PlanModel = 'subscription' | 'markup';
@@ -47,6 +47,7 @@ export const V2_COUNTRY_INFO: Record<V2Country, V2CountryInfo> = {
   UK: { code: 'UK', name: 'United Kingdom', flag: '🇬🇧', currency: 'GBP', currencySymbol: '£', dialCode: '+44' },
   KE: { code: 'KE', name: 'Kenya', flag: '🇰🇪', currency: 'KES', currencySymbol: 'KSh', dialCode: '+254' },
   GH: { code: 'GH', name: 'Ghana', flag: '🇬🇭', currency: 'GHS', currencySymbol: '₵', dialCode: '+233' },
+  RW: { code: 'RW', name: 'Rwanda', flag: '🇷🇼', currency: 'RWF', currencySymbol: 'RF', dialCode: '+250' },
 };
 
 export interface V2BusinessTypeInfo {

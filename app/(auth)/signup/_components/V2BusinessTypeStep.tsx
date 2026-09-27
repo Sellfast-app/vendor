@@ -67,7 +67,7 @@ export default function V2BusinessTypeStep({
         </div>
         <div className="flex items-start gap-2">
           <Globe2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-          <span>Supported countries are Nigeria, United Kingdom, Kenya, and Ghana.</span>
+          <span>Supported countries are Nigeria, United Kingdom, Kenya, Ghana, and Rwanda.</span>
         </div>
         <div className="flex items-start gap-2">
           <WalletCards className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
