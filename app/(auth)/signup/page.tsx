@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Eye, EyeOff, ChevronDown, ArrowLeft, Download, Copy, Mail, RefreshCw } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, Download, Copy, Mail, RefreshCw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Label } from '@radix-ui/react-label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -121,48 +121,111 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => {
     { number: 4, title: 'Plan', icon: <PiPlugs /> },
     { number: 5, title: 'WhatsApp Setup', icon: <PiPlugs /> },
   ];
+  const currentStepInfo = steps.find((step) => step.number === currentStep) ?? steps[0];
+  const nextStepInfo = steps.find((step) => step.number === currentStep + 1);
 
   return (
-    <div className="mb-6 w-full overflow-x-auto pb-2">
-      <div className="flex min-w-max items-center justify-start gap-2 sm:justify-center lg:min-w-0 lg:gap-3">
-      {steps.map((step, index) => (
-        <div key={step.number} className="flex shrink-0 items-center">
+    <div className="mb-5 w-full">
+      <div className="md:hidden">
+        <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
+          <span>
+            Step {currentStep} of {steps.length}
+          </span>
+          <span className="font-medium text-foreground">{currentStepInfo.title}</span>
+        </div>
+
+        <div className="grid grid-cols-[minmax(0,1fr)_32px_minmax(0,1fr)] items-start">
           <div
-            className={`flex h-9 w-9 items-center justify-center rounded-full transition-all duration-200 sm:h-10 sm:w-10 xl:h-12 xl:w-12 ${
-              step.number === currentStep
-                ? 'bg-primary border-primary text-primary-foreground'
-                : step.number < currentStep
-                ? 'bg-primary border-primary text-primary-foreground'
-                : 'bg-primary-tertiary text-gray-400'
-            }`}
+            key={`mobile-current-${currentStepInfo.number}`}
+            className="flex min-w-0 translate-x-0 flex-col items-start opacity-100 transition-all duration-300 ease-out"
           >
-            <span
-              className={`text-sm font-medium ${
-                step.number <= currentStep ? 'text-primary-foreground' : 'text-foreground'
-              }`}
-            >
-              {step.icon}
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+              <span className="text-sm font-medium text-primary-foreground">
+                {currentStepInfo.icon}
+              </span>
+            </div>
+            <span className="mt-2 max-w-full truncate text-xs font-medium text-foreground">
+              {currentStepInfo.title}
             </span>
           </div>
-          <div className="ml-2 hidden text-left xl:block">
-            <p
-              className={`text-sm font-medium ${
-                step.number <= currentStep ? 'text-foreground' : 'text-gray-400'
+
+          <div className="pt-4">
+            <div className="h-0.5 w-full rounded-full bg-primary" />
+          </div>
+
+          <div
+            key={`mobile-next-${nextStepInfo?.number ?? 'complete'}`}
+            className="flex min-w-0 translate-x-0 flex-col items-end opacity-100 transition-all duration-300 ease-out"
+          >
+            <div
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                nextStepInfo ? 'bg-primary-tertiary text-gray-400' : 'bg-primary/10 text-primary'
               }`}
             >
-              <span className=" ml-2">{step.title}</span> 
-            </p>
+              <span className="text-sm font-medium">
+                {nextStepInfo ? nextStepInfo.icon : '✓'}
+              </span>
+            </div>
+            <span
+              className={`mt-2 max-w-full truncate text-right text-xs font-medium ${
+                nextStepInfo ? 'text-gray-400' : 'text-primary'
+              }`}
+            >
+              {nextStepInfo ? nextStepInfo.title : 'Complete'}
+            </span>
           </div>
-          {index < steps.length - 1 && (
-            <ChevronDown className="mx-2 h-4 w-4 shrink-0 rotate-[-90deg] text-muted-foreground xl:mx-4" />
-          )}
         </div>
-      ))}
+      </div>
+
+      <div className="hidden w-full items-start md:flex">
+        {steps.map((step, index) => {
+          const isDone = step.number < currentStep;
+          const isActive = step.number === currentStep;
+          const isReached = step.number <= currentStep;
+
+          return (
+            <div key={step.number} className="flex min-w-0 flex-1 items-start last:flex-none">
+              <div className="flex min-w-0 flex-col items-center">
+                <div
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all duration-200 sm:h-9 sm:w-9 xl:h-11 xl:w-11 ${
+                    isReached
+                      ? 'bg-primary border-primary text-primary-foreground'
+                      : 'bg-primary-tertiary text-gray-400'
+                  }`}
+                >
+                  <span
+                    className={`text-xs font-medium sm:text-sm ${
+                      isReached ? 'text-primary-foreground' : 'text-foreground'
+                    }`}
+                  >
+                    {step.icon}
+                  </span>
+                </div>
+                <span
+                  className={`mt-2 hidden max-w-[82px] text-center text-xs font-medium leading-tight xl:block ${
+                    isReached ? 'text-foreground' : 'text-gray-400'
+                  }`}
+                >
+                  {step.title}
+                </span>
+              </div>
+
+              {index < steps.length - 1 && (
+                <div className="flex min-w-0 flex-1 items-center px-1 pt-4 sm:px-2 xl:pt-5">
+                  <div
+                    className={`h-0.5 w-full rounded-full ${
+                      isDone || isActive ? 'bg-primary' : 'bg-primary-tertiary'
+                    }`}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 };
-
 // Country code selector component
 const CountryCodeSelect = ({ value, onValueChange }: { value: string; onValueChange: (value: string) => void }) => {
   const countryCodes = V2_COUNTRIES.map((country) => V2_COUNTRY_INFO[country]);

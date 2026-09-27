@@ -6,9 +6,9 @@ import Image from "next/image";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen overflow-x-hidden">
       {/* Left Side: Image (Hidden on screens smaller than lg) */}
-      <div className="flex w-full items-start justify-center overflow-y-auto px-4 py-6 sm:px-6 md:px-8 lg:w-1/2 lg:items-center lg:py-8">
+      <div className="flex min-w-0 w-full items-start justify-center overflow-y-auto px-4 py-6 sm:px-6 md:px-8 lg:w-1/2 lg:items-center lg:py-8">
         {children}
       </div>
 
