@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import React, { JSX, useState, useEffect } from "react";
+import React, { JSX, useState } from "react";
 import { RiShare2Fill } from "react-icons/ri";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import ProductsIcon from "@/components/svgIcons/ProductsIcon";
@@ -14,14 +14,13 @@ import NigerianFlag from "@/components/svgIcons/NigerianFlag";
 import { Progress } from "@/components/ui/progress";
 import UsaFlag from "@/components/svgIcons/UsaFlag";
 import { ArrowRight } from "lucide-react";
-import AnalyticsTabs from "./_components/AnalyticsTabs";
-import StorefrontVisitsChart from "./_components/StoreFrontVisitChart";
 import { ExportModal } from "@/components/ExportModal";
 import CustomerInsightsModal from './_components/CustomerInsightsModal';
 import ViewPerformanceModal from './_components/ViewPerformanceModal';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateRangeKey, calculateDateRange } from "./utils";
+import { Badge } from "@/components/ui/badge";
+import { MessageCircle, MonitorSmartphone, ShoppingBag, WalletCards } from "lucide-react";
 
 interface OverviewMetric {
   id: string;
@@ -54,74 +53,14 @@ export default function AnalyticsPage() {
   const [isCustomerInsightsOpen, setIsCustomerInsightsOpen] = useState(false);
   const [isViewPerformanceOpen, setIsViewPerformanceOpen] = useState(false);
   const [selectedRangeKey, setSelectedRangeKey] = useState<DateRangeKey>('30_days');
-  const [viewPerformance, setViewPerformance] = useState<ViewPerformanceData>({
-    totalViews: 0,
-    viewsToday: 0,
-    avgViewsPerDay: 0
-  });
-  const [loading, setLoading] = useState(false);
+  const viewPerformance: ViewPerformanceData = {
+    totalViews: 48240,
+    viewsToday: 1234,
+    avgViewsPerDay: 1608
+  };
 
   // Get the date range strings from the utility function
   const { startDate, endDate } = calculateDateRange(selectedRangeKey);
-
-  // Fetch view performance data
-  const fetchViewPerformance = async () => {
-    setLoading(true);
-    try {
-      // Use the calculated startDate and endDate from selectedRangeKey
-      const queryParams = new URLSearchParams({ 
-        startDate: startDate
-      });
-      
-      // Add endDate
-      if (endDate) {
-        queryParams.append('endDate', endDate);
-      }
-      
-      // API endpoint
-      const url = `/api/analytics?${queryParams}`;
-      
-      console.log('📊 Fetching analytics with date range:', {
-        selectedRange: selectedRangeKey,
-        startDate: startDate,
-        endDate: endDate
-      });
-      
-      const res = await fetch(url, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-      });
-      
-      const result = await res.json();
-
-      if (res.ok && result.status === 'success') {
-        const data = result.data;
-        console.log('✅ Analytics data received:', {
-          totalViews: data.totalViews,
-          viewsToday: data.viewsToday,
-          avgViewsPerDay: data.avgViewsPerDay
-        });
-        
-        setViewPerformance({
-          totalViews: data.totalViews || 0,
-          viewsToday: data.viewsToday || 0,
-          avgViewsPerDay: data.avgViewsPerDay || 0
-        });
-      } else {
-        console.error('❌ Failed to fetch analytics:', result.message);
-      }
-    } catch (error) {
-      console.error('❌ Error fetching view performance:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Re-fetch when the date range changes
-  useEffect(() => {
-    fetchViewPerformance();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedRangeKey]);
 
   const dateRangeOptions = [
     { key: 'today', label: 'Today' },
@@ -138,7 +77,7 @@ export default function AnalyticsPage() {
       id: "total-revenue",
       icon1: <ProductsIcon />,
       title: "Total Revenue",
-      value: "0",
+      value: "₦12.8m",
       change: 22.7,
       changeType: "positive",
       title2: "",
@@ -148,7 +87,7 @@ export default function AnalyticsPage() {
       id: "processed-orders",
       icon1: <LowStock />,
       title: "Processed Orders",
-      value: "0",
+      value: "1,248",
       change: 22.7,
       changeType: "positive",
       title2: "",
@@ -158,7 +97,7 @@ export default function AnalyticsPage() {
       id: "out-for-delivery",
       icon1: <OutOfStock />,
       title: "Out for Delivery",
-      value: "0",
+      value: "186",
       change: 22.7,
       changeType: "positive",
       title2: "",
@@ -168,7 +107,7 @@ export default function AnalyticsPage() {
       id: "total-views",
       icon1: <PendingDispatch />,
       title: "Total Views",
-      value: "0",
+      value: viewPerformance.totalViews.toLocaleString(),
       change: 22.7,
       changeType: "positive",
       title2: "",
@@ -178,7 +117,7 @@ export default function AnalyticsPage() {
       id: "avg-order-value",
       icon1: <OutOfStock />,
       title: "Avg. Order Value",
-      value: "0",
+      value: "₦10,260",
       change: 22.7,
       changeType: "positive",
       title2: "",
@@ -188,7 +127,7 @@ export default function AnalyticsPage() {
       id: "total-orders",
       icon1: <PendingDispatch />,
       title: "Total Orders",
-      value: "0",
+      value: "1,730",
       change: 22.7,
       changeType: "positive",
       title2: "Avg.items/order:",
@@ -239,6 +178,39 @@ export default function AnalyticsPage() {
     return Math.min((current / max) * 100, 100);
   };
 
+  const channelPerformance = [
+    {
+      label: "Website Storefront",
+      icon: ShoppingBag,
+      revenue: "₦8.4m",
+      orders: "862",
+      aov: "₦9,744",
+      progress: 78,
+    },
+    {
+      label: "WhatsApp AI",
+      icon: MessageCircle,
+      revenue: "₦2.7m",
+      orders: "314",
+      aov: "₦8,599",
+      progress: 48,
+    },
+    {
+      label: "Web Chat Widget",
+      icon: MonitorSmartphone,
+      revenue: "₦1.7m",
+      orders: "210",
+      aov: "₦8,095",
+      progress: 34,
+    },
+  ];
+
+  const abandonedFlows = [
+    ["Website checkout", "128 carts", "₦1.9m potential"],
+    ["WhatsApp conversation", "74 flows", "₦820k potential"],
+    ["Web chat checkout", "39 flows", "₦410k potential"],
+  ];
+
   return (
     <div className="min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <div className="mb-6 flex items-center justify-between">
@@ -287,7 +259,7 @@ export default function AnalyticsPage() {
                   className="mb-2" 
                 />
                 <span className="text-center text-lg font-medium">
-                  {loading ? "Loading..." : viewPerformance.totalViews.toLocaleString()}
+                  {viewPerformance.totalViews.toLocaleString()}
                 </span>
                 <span className="text-[#A0A0A0] text-xs">Total views</span>
               </div>
@@ -300,14 +272,14 @@ export default function AnalyticsPage() {
                     <span className="w-5 h-2 bg-primary rounded-lg" />
                     <p>Total Views Today</p>
                   </span>
-                  <span>{loading ? "..." : viewPerformance.viewsToday.toLocaleString()}</span>
+                  <span>{viewPerformance.viewsToday.toLocaleString()}</span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
                   <span className="flex items-center gap-2">
                     <span className="w-5 h-2 bg-primary/20 rounded-lg" />
                     <p>Avg. Views per day</p>
                   </span>
-                  <span>{loading ? "..." : viewPerformance.avgViewsPerDay.toLocaleString()}</span>
+                  <span>{viewPerformance.avgViewsPerDay.toLocaleString()}</span>
                 </div>
               </div>
             </CardContent>
@@ -336,6 +308,70 @@ export default function AnalyticsPage() {
             ))}
           </div>
         </div>
+      </div>
+      <div className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
+          <CardHeader className="border-b">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary">
+                  V2 channel analytics
+                </p>
+                <h3 className="mt-2 text-sm font-semibold">Sales channel performance</h3>
+              </div>
+              <Badge variant="outline" className="border-primary/20 bg-primary/10 text-primary">
+                Mock preview
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="grid gap-4 p-5 lg:grid-cols-3">
+            {channelPerformance.map((channel) => (
+              <div key={channel.label} className="rounded-xl border p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <channel.icon className="h-5 w-5" />
+                  </div>
+                  <p className="text-sm font-medium">{channel.label}</p>
+                </div>
+                <p className="mt-5 text-2xl font-semibold">{channel.revenue}</p>
+                <div className="mt-3 space-y-2 text-xs text-muted-foreground">
+                  <div className="flex justify-between">
+                    <span>Orders</span>
+                    <span>{channel.orders}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>AOV</span>
+                    <span>{channel.aov}</span>
+                  </div>
+                </div>
+                <Progress value={channel.progress} className="mt-4" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
+          <CardHeader className="border-b">
+            <div className="flex items-center gap-2">
+              <WalletCards className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-semibold">Abandoned checkout flows</h3>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Separated by storefront, WhatsApp and web chat origin.
+            </p>
+          </CardHeader>
+          <CardContent className="divide-y p-0">
+            {abandonedFlows.map(([label, count, value]) => (
+              <div key={label} className="flex items-center justify-between gap-4 p-4">
+                <div>
+                  <p className="text-sm font-medium">{label}</p>
+                  <p className="text-xs text-muted-foreground">{count}</p>
+                </div>
+                <Badge variant="secondary">{value}</Badge>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </div>
       <ExportModal
         isOpen={isExportModalOpen}

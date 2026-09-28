@@ -21,6 +21,7 @@ import {
   Plus,
   Search,
   ShieldCheck,
+  SlidersHorizontal,
   UserRound,
   UsersRound,
 } from "lucide-react";
@@ -99,6 +100,13 @@ const auditLogs = [
     user: "Amara Joseph",
     time: "Yesterday, 12:08",
   },
+];
+
+const inviteSteps = [
+  "Enter staff details",
+  "Assign role profile",
+  "Review permissions",
+  "Send invite email",
 ];
 
 export default function StaffPage() {
@@ -290,6 +298,47 @@ export default function StaffPage() {
                 </div>
                 <p className="text-xs text-muted-foreground">{log.time}</p>
               </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_1fr]">
+        <Card className="shadow-none">
+          <CardHeader className="border-b">
+            <h2 className="text-sm font-semibold">Invite staff flow</h2>
+            <p className="text-xs text-muted-foreground">
+              Mock modal content for adding a team member without backend wiring.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4 p-5">
+            {inviteSteps.map((step, index) => (
+              <div key={step} className="flex items-center gap-3 rounded-lg border p-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                  {index + 1}
+                </div>
+                <span className="text-sm">{step}</span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-none">
+          <CardHeader className="border-b">
+            <div className="flex items-center gap-2">
+              <SlidersHorizontal className="h-4 w-4 text-primary" />
+              <h2 className="text-sm font-semibold">Role edit preview</h2>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Granular permissions for the selected role profile.
+            </p>
+          </CardHeader>
+          <CardContent className="grid gap-3 p-5 sm:grid-cols-2">
+            {permissionGroups.map((permission, index) => (
+              <label key={permission} className="flex items-center justify-between rounded-lg border p-3 text-sm">
+                <span>{permission}</span>
+                <Switch defaultChecked={index !== 5} />
+              </label>
             ))}
           </CardContent>
         </Card>

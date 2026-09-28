@@ -19,6 +19,7 @@ import {
   Download,
   Landmark,
   RefreshCw,
+  ShieldCheck,
   Wallet,
 } from "lucide-react";
 
@@ -53,6 +54,13 @@ const channelStats = [
   { label: "Website", amount: "₦420,500", value: 68 },
   { label: "WhatsApp AI", amount: "₦184,000", value: 42 },
   { label: "Web Chat", amount: "₦96,250", value: 24 },
+];
+
+const settlementDetails = [
+  ["Gross paid by buyer", "₦18,500"],
+  ["Swiftree markup", "₦500"],
+  ["Transaction fee", "₦555"],
+  ["Vendor settlement", "₦17,445"],
 ];
 
 export default function WalletPage() {
@@ -224,6 +232,62 @@ export default function WalletPage() {
                 ))}
               </TableBody>
             </Table>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="mt-6 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <Card className="shadow-none">
+          <CardHeader className="border-b">
+            <h2 className="text-sm font-semibold">Withdrawal request</h2>
+            <p className="text-xs text-muted-foreground">
+              Mock state for the withdrawal drawer before backend wiring.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4 p-5">
+            <div className="rounded-xl border bg-[#F7FFF9] p-4">
+              <p className="text-xs text-muted-foreground">Available to withdraw</p>
+              <p className="mt-2 text-2xl font-semibold">₦701,250.00</p>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Destination</p>
+                <p className="mt-1 text-sm font-medium">Access Bank . 0123456789</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Settlement speed</p>
+                <p className="mt-1 text-sm font-medium">Instant wallet ledger</p>
+              </div>
+            </div>
+            <Button className="w-full">
+              <ArrowUpRight className="h-4 w-4" />
+              <span className="ml-2">Preview withdrawal</span>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-none">
+          <CardHeader className="border-b">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-primary" />
+              <h2 className="text-sm font-semibold">Settlement detail</h2>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Shows how a single V2 split-payment transaction resolves.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3 p-5">
+            {settlementDetails.map(([label, value], index) => (
+              <div
+                key={label}
+                className={`flex items-center justify-between rounded-lg border p-3 text-sm ${
+                  index === settlementDetails.length - 1 ? "bg-primary/5" : ""
+                }`}
+              >
+                <span>{label}</span>
+                <span className="font-medium">{value}</span>
+              </div>
+            ))}
           </CardContent>
         </Card>
       </div>
