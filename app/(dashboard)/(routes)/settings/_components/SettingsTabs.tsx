@@ -6,6 +6,8 @@ import Finance from './Finance'
 import Notification from './Notification'
 import Support from './Support'
 import PaymentMethods from './PaymentMethods'
+import LogisticsSettings from './LogisticsSettings'
+import LocalizationSettings from './LocalizationSettings'
 
 function SettingsTabs() {
     return (
@@ -15,6 +17,8 @@ function SettingsTabs() {
                     <TabsTrigger value="account">Account</TabsTrigger>
                     <TabsTrigger value="store">StoreFront Settings</TabsTrigger>
                     <TabsTrigger value="payments">Payment Methods</TabsTrigger>
+                    <TabsTrigger value="logistics">Logistics</TabsTrigger>
+                    <TabsTrigger value="localization">Localization</TabsTrigger>
                     <TabsTrigger value="finance">Finance & Billings</TabsTrigger>
                     <TabsTrigger value="notification">Notifications</TabsTrigger>
                     {/* <TabsTrigger value="security">Security & Access</TabsTrigger> */}
@@ -28,6 +32,12 @@ function SettingsTabs() {
                 </TabsContent>
                 <TabsContent value="payments" className='mt-4'>
                     <PaymentMethods/>
+                </TabsContent>
+                <TabsContent value="logistics" className='mt-4'>
+                    <LogisticsSettings/>
+                </TabsContent>
+                <TabsContent value="localization" className='mt-4'>
+                    <LocalizationSettings/>
                 </TabsContent>
                 <TabsContent value="finance" className='mt-4'>
                     <Finance/>

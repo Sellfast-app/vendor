@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Bell, Mail, MessageCircle, Smartphone } from "lucide-react";
 
 interface NotificationSetting {
   id: string;
@@ -53,9 +55,20 @@ function PreferencesComponent() {
   return (
     <div className="w-full space-y-6">
       <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
+        <CardHeader className="border-b">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary">
+              Notification routing
+            </p>
+            <h2 className="mt-2 text-lg font-semibold">Channel preferences</h2>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+              Choose how order confirmations, pickup instructions and tracking
+              updates are delivered across storefront channels.
+            </p>
+          </div>
+        </CardHeader>
         <CardContent>
           <div className="space-y-6 pt-6">
-            <h2 className="text-sm font-medium">Preferences</h2>
 
             <div className="space-y-6">
               {notifications.map((notification) => (
@@ -83,6 +96,58 @@ function PreferencesComponent() {
               ))}
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
+        <CardHeader className="border-b">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold">Customer notification matrix</h2>
+              <p className="text-xs text-muted-foreground">
+                Frontend preview of the V2 channel behavior.
+              </p>
+            </div>
+            <Badge variant="outline" className="border-primary/20 bg-primary/10 text-primary">
+              V2 mock
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-4 p-5 lg:grid-cols-3">
+          {[
+            {
+              channel: "Website Storefront",
+              icon: Mail,
+              routes: ["Order confirmation: Email", "Pickup instructions: Email", "Tracking link: Email"],
+            },
+            {
+              channel: "WhatsApp AI",
+              icon: MessageCircle,
+              routes: ["Order confirmation: WhatsApp", "Pickup instructions: WhatsApp", "Tracking link: WhatsApp"],
+            },
+            {
+              channel: "Web Chat Widget",
+              icon: Smartphone,
+              routes: ["Order confirmation: Email + SMS", "Pickup instructions: Email + SMS", "Tracking link: Email + SMS"],
+            },
+          ].map((item) => (
+            <div key={item.channel} className="rounded-xl border p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <item.icon className="h-5 w-5" />
+                </div>
+                <p className="text-sm font-medium">{item.channel}</p>
+              </div>
+              <div className="mt-4 space-y-2">
+                {item.routes.map((route) => (
+                  <div key={route} className="flex items-start gap-2 rounded-lg bg-[#F7FFF9] p-3 text-xs text-muted-foreground">
+                    <Bell className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                    <span>{route}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </CardContent>
       </Card>
     </div>
