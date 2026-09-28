@@ -15,7 +15,6 @@ import Settings from "./svgIcons/Settings";
 import Events from "./svgIcons/Events";
 import Logout from "./svgIcons/Logout";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
-import { OnboardingProgress } from "./OnboardingModal";
 
 interface RouteLink {
   label: string;
@@ -183,7 +182,6 @@ export const SidebarRoutes = () => {
 
   return (
     <div className="flex flex-col w-full">
-        <OnboardingProgress/>
       {adminRoutes.map((route) => (
         <SidebarItem
           key={route.href!}

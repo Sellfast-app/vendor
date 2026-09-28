@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
-  const accessToken = request.cookies.get("accessToken")?.value;
   const pathname = request.nextUrl.pathname;
 
   const publicRoutes = [
@@ -29,13 +28,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Redirect to login if no access token is found
-  if (!accessToken) {
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("from", pathname);
-    return NextResponse.redirect(loginUrl);
-  }
-
+  // V2 preview keeps dashboard UI accessible without backend auth/session state.
   return NextResponse.next();
 }
 
