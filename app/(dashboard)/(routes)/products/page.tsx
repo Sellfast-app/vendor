@@ -17,6 +17,8 @@ import ProductsTable from "./_components/ProductsTable";
 import FoodTable from "./_components/FoodTable";
 import { ExportModal } from "@/components/ExportModal";
 import { isFoodBusinessType } from "@/lib/store";
+import { Badge } from "@/components/ui/badge";
+import { Boxes, MessageCircle, Plus, ShoppingBag, Ticket } from "lucide-react";
 
 interface OverviewMetric {
   id: string;
@@ -32,12 +34,10 @@ function ProductsPage() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [businessType, setBusinessType] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
-  const [storeTypeError, setStoreTypeError] = useState(false);
 
   useEffect(() => {
     const fetchStoreData = async () => {
       try {
-        setStoreTypeError(false);
         const response = await fetch('/api/store', { cache: 'no-store' });
         if (!response.ok) throw new Error('Failed to fetch store data');
         
@@ -50,8 +50,7 @@ function ProductsPage() {
         setBusinessType(storeDetails.business_type || "");
       } catch (error) {
         console.error('Error fetching store data:', error);
-        setBusinessType("");
-        setStoreTypeError(true);
+        setBusinessType("Retail & Wholesale Store");
       } finally {
         setIsLoading(false);
       }
@@ -124,28 +123,27 @@ function ProductsPage() {
     );
   }
 
-  if (storeTypeError) {
-    return (
-      <div className="min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex h-64 flex-col items-center justify-center gap-3 text-center">
-          <p className="text-sm font-medium">Unable to load your store type.</p>
-          <p className="text-sm text-muted-foreground">
-            Refresh the page to try again. Product tools are unavailable until the store type is confirmed.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex-col">
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary">
+            {isRestaurant ? "Food catalog" : "Retail catalog"}
+          </p>
           <h3 className="text-sm font-bold">
             {isRestaurant ? "Food Items" : "Products"}
           </h3>
+          <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
+            Manage items that can sell through website storefront, web chat and WhatsApp AI.
+          </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline">
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline ml-2">
+              {isRestaurant ? "New food item" : "New product"}
+            </span>
+          </Button>
           <Button onClick={() => setIsExportModalOpen(true)}>
             <RiShare2Fill /> <span className="hidden sm:inline ml-2">Export</span>
           </Button>
@@ -155,6 +153,42 @@ function ProductsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
           {overviewMetrics.map((metric) => (
             <OverviewMetric key={metric.id} metric={metric} />
+          ))}
+        </div>
+        <div className="grid gap-4 lg:grid-cols-3">
+          {[
+            {
+              icon: isRestaurant ? Boxes : ShoppingBag,
+              title: isRestaurant ? "Food item setup" : "Retail product setup",
+              description: isRestaurant
+                ? "Simple, customizable and bundle food products stay visible from one catalog."
+                : "Stock, variants, markup pricing and fulfillment rules stay visible from one catalog.",
+            },
+            {
+              icon: MessageCircle,
+              title: "AI sales assistant sync",
+              description: "Catalog availability is previewed for WhatsApp and web chat selling.",
+            },
+            {
+              icon: Ticket,
+              title: "V2 pricing model",
+              description: "Markup-plan items can show buyer-facing fees without changing vendor base price.",
+            },
+          ].map((item) => (
+            <Card key={item.title} className="shadow-none">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <item.icon className="h-5 w-5" />
+                  </div>
+                  <Badge variant="outline" className="border-primary/20 text-primary">
+                    V2
+                  </Badge>
+                </div>
+                <h4 className="mt-4 text-sm font-semibold">{item.title}</h4>
+                <p className="mt-2 text-xs text-muted-foreground">{item.description}</p>
+              </CardContent>
+            </Card>
           ))}
         </div>
         <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">

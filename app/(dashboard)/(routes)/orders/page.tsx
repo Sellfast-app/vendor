@@ -15,6 +15,8 @@ import PendingOrdersIcon from "@/components/svgIcons/PendingOrdersIcon";
 import CancelledOrders from "@/components/svgIcons/CancelledOrders";
 import OrdersTable from "./_components/OrdersTable";
 import { ExportModal } from "@/components/ExportModal";
+import { Badge } from "@/components/ui/badge";
+import { MessageCircle, MonitorSmartphone, PackageCheck, ShoppingBag } from "lucide-react";
 
 interface OverviewMetric {
   id: string;
@@ -81,9 +83,15 @@ function OrdersPage() {
 
   return (
     <div className="min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex-col">
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary">
+            Omnichannel orders
+          </p>
           <h3 className="text-sm font-bold">Orders</h3>
+          <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
+            Track orders coming from website storefront, WhatsApp AI and web chat checkout.
+          </p>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => setIsExportModalOpen(true)}>
@@ -97,6 +105,42 @@ function OrdersPage() {
             <OverviewMetric key={metric.id} metric={metric} />
           ))}
         </div>
+        <div className="grid gap-4 lg:grid-cols-4">
+          {[
+            [ShoppingBag, "Website", "862 orders"],
+            [MessageCircle, "WhatsApp AI", "314 orders"],
+            [MonitorSmartphone, "Web Chat", "210 orders"],
+            [PackageCheck, "Fulfillment", "186 active"],
+          ].map(([Icon, label, value]) => (
+            <Card key={label as string} className="shadow-none">
+              <CardContent className="flex items-center justify-between p-5">
+                <div>
+                  <p className="text-xs text-muted-foreground">{label as string}</p>
+                  <p className="mt-2 text-lg font-semibold">{value as string}</p>
+                </div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <Icon className="h-5 w-5" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Card className="shadow-none border-primary/20 bg-[#F7FFF9]">
+          <CardContent className="flex flex-col gap-3 p-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="border-primary/20 text-primary">V2 preview</Badge>
+                <span className="text-sm font-semibold">Order routing</span>
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Order status, payment provider, delivery method and channel source are grouped for the dashboard redesign.
+              </p>
+            </div>
+            <Button variant="outline" onClick={() => setIsExportModalOpen(true)}>
+              <RiShare2Fill /> <span className="ml-2">Export order report</span>
+            </Button>
+          </CardContent>
+        </Card>
         <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
           <CardContent>
             <OrdersTable />

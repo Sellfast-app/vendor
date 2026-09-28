@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button';
 import { RiShare2Fill } from 'react-icons/ri';
 import EditIcon from '@/components/svgIcons/Edit';
-import { ArrowRight, ArrowLeft } from 'lucide-react';
+import { ArrowRight, ArrowLeft, CreditCard, MapPin, MessageCircle, PackageCheck } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Avatar } from '@/components/ui/avatar';
 import MessageIcon from '@/components/svgIcons/MessageIcon';
@@ -344,6 +344,45 @@ export default function OrderDetailPage() {
             </small>
           </div>
         </div>
+      </div>
+
+      <div className="mt-6 grid gap-4 lg:grid-cols-4">
+        {[
+          {
+            icon: CreditCard,
+            label: "Payment",
+            value: `${order.payment_method || "Provider"} . ${order.payment_status || "pending"}`,
+          },
+          {
+            icon: PackageCheck,
+            label: "Fulfillment",
+            value: order.order_status || "Pending",
+          },
+          {
+            icon: MapPin,
+            label: "Delivery",
+            value: order.delivery_method || "Not selected",
+          },
+          {
+            icon: MessageCircle,
+            label: "Sales channel",
+            value: "Website storefront",
+          },
+        ].map((item) => (
+          <Card key={item.label} className="shadow-none">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <item.icon className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">{item.label}</p>
+                  <p className="truncate text-sm font-medium capitalize">{item.value}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* Main Content */}
