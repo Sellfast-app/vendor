@@ -105,11 +105,11 @@ function PreferencesComponent() {
             <div>
               <h2 className="text-sm font-semibold">Customer notification matrix</h2>
               <p className="text-xs text-muted-foreground">
-                Frontend preview of the V2 channel behavior.
+                Customer routing by sales channel.
               </p>
             </div>
             <Badge variant="outline" className="border-primary/20 bg-primary/10 text-primary">
-              V2 mock
+              Channel routing
             </Badge>
           </div>
         </CardHeader>

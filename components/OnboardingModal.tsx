@@ -329,7 +329,7 @@ export const OnboardingModal = () => {
       icon: Wallet,
       title: 'Setup your bank information',
       description: 'Start receiving payout by connecting your bank details',
-      route: '/payouts',
+      route: '/wallet',
       iconColor: 'text-green-500',
       bgColor: 'bg-green-100 dark:bg-green-950',
       important: true,
@@ -379,7 +379,7 @@ export const OnboardingModal = () => {
       icon: CreditCard, // ← import this from lucide-react
       title: 'Subscribe to activate your store',
       description: 'Get full access to your storefront and start selling today.',
-      route: '/payouts',
+      route: '/wallet',
       iconColor: 'text-yellow-500',
       bgColor: 'bg-yellow-100 dark:bg-yellow-950',
       important: true, // ← subscription is required

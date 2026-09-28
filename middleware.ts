@@ -28,7 +28,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // V2 preview keeps dashboard UI accessible without backend auth/session state.
+  // Dashboard UI remains accessible without backend auth/session state.
   return NextResponse.next();
 }
 

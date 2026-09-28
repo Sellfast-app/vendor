@@ -10,7 +10,6 @@ import { SidebarItem } from "../app/(dashboard)/_components/sidebar-item";
 import Products from "./svgIcons/Products";
 import Orders from "./svgIcons/Orders";
 import Analytics from "./svgIcons/Analytics";
-import Payouts from "./svgIcons/Payouts";
 import Settings from "./svgIcons/Settings";
 import Events from "./svgIcons/Events";
 import Logout from "./svgIcons/Logout";
@@ -35,7 +34,6 @@ const adminRoutes: Route[] = [
   { icon: Orders, label: "Orders", href: "/orders" },
   { icon: Analytics, label: "Analytics", href: "/analytics" },
   { icon: Wallet, label: "Wallet", href: "/wallet" },
-  { icon: Payouts, label: "Payouts", href: "/payouts" },
   { icon: Events, label: "Events", href: "/events" },
   { icon: ShieldCheck, label: "Staff", href: "/staff" },
 ];

@@ -80,7 +80,7 @@ export default function V2PlanStep({
       <div className="flex flex-col">
         <h1 className="text-2xl font-semibold text-primary">Choose your Swiftree plan</h1>
         <p className="text-xs text-muted-foreground">
-          {BUSINESS_MODEL_COPY[businessType]} Monthly billing is not available in V2.
+          {BUSINESS_MODEL_COPY[businessType]} Monthly billing is not available.
         </p>
       </div>
 

@@ -129,7 +129,7 @@ function OrdersPage() {
           <CardContent className="flex flex-col gap-3 p-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="flex items-center gap-2">
-                <Badge variant="outline" className="border-primary/20 text-primary">V2 preview</Badge>
+                <Badge variant="outline" className="border-primary/20 text-primary">Channel view</Badge>
                 <span className="text-sm font-semibold">Order routing</span>
               </div>
               <p className="mt-2 text-xs text-muted-foreground">

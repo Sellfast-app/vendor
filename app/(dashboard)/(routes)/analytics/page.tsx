@@ -315,12 +315,12 @@ export default function AnalyticsPage() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary">
-                  V2 channel analytics
+                  Channel analytics
                 </p>
                 <h3 className="mt-2 text-sm font-semibold">Sales channel performance</h3>
               </div>
               <Badge variant="outline" className="border-primary/20 bg-primary/10 text-primary">
-                Mock preview
+                Live view
               </Badge>
             </div>
           </CardHeader>

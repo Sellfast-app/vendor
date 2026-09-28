@@ -17,10 +17,10 @@ import { Globe2, MapPinned, Navigation, WalletCards } from "lucide-react";
 
 const markets = [
   ["Nigeria", "NGN", "Lagos, Abuja, Port Harcourt", "Active"],
-  ["United Kingdom", "GBP", "London, Manchester", "Preview"],
-  ["Kenya", "KES", "Nairobi, Mombasa", "Preview"],
-  ["Ghana", "GHS", "Accra, Kumasi", "Preview"],
-  ["Rwanda", "RWF", "Kigali", "Preview"],
+  ["United Kingdom", "GBP", "London, Manchester", "Available"],
+  ["Kenya", "KES", "Nairobi, Mombasa", "Available"],
+  ["Ghana", "GHS", "Accra, Kumasi", "Available"],
+  ["Rwanda", "RWF", "Kigali", "Available"],
 ];
 
 const localizedRules = [
@@ -141,7 +141,7 @@ export default function LocalizationSettings() {
 
         <Card className="shadow-none">
           <CardHeader className="border-b">
-            <h3 className="text-sm font-semibold">Customer preview</h3>
+            <h3 className="text-sm font-semibold">Customer view</h3>
           </CardHeader>
           <CardContent className="space-y-3 p-5">
             {customerPreview.map((item) => (

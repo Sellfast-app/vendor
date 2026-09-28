@@ -65,7 +65,7 @@ export default function PaymentMethods() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary">
-                V2 checkout routing
+                Checkout routing
               </p>
               <h2 className="mt-2 text-lg font-semibold">Payment methods</h2>
               <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
@@ -160,9 +160,9 @@ export default function PaymentMethods() {
 
         <Card className="shadow-none">
           <CardHeader className="border-b">
-            <h3 className="text-sm font-semibold">Checkout fee preview</h3>
+            <h3 className="text-sm font-semibold">Checkout fee routing</h3>
             <p className="text-xs text-muted-foreground">
-              Shows how the V2 markup model routes fees before vendor wallet
+              Shows how the markup model routes fees before vendor wallet
               settlement.
             </p>
           </CardHeader>

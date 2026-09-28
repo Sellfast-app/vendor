@@ -35,7 +35,7 @@ const logisticsModes = [
     description: "Instant city dispatch for supported local orders.",
     icon: Bike,
     active: false,
-    status: "Preview",
+    status: "Available",
   },
   {
     title: "Manual shipping",
@@ -115,7 +115,7 @@ export default function LogisticsSettings() {
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <Card className="shadow-none">
           <CardHeader className="border-b">
-            <h3 className="text-sm font-semibold">Manual rate preview</h3>
+            <h3 className="text-sm font-semibold">Manual rate setup</h3>
             <p className="text-xs text-muted-foreground">
               Flat rates shown to buyers when automated logistics are not used.
             </p>

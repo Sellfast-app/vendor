@@ -19,6 +19,7 @@ import { ExportModal } from "@/components/ExportModal";
 import { isFoodBusinessType } from "@/lib/store";
 import { Badge } from "@/components/ui/badge";
 import { Boxes, MessageCircle, Plus, ShoppingBag, Ticket } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface OverviewMetric {
   id: string;
@@ -116,8 +117,32 @@ function ProductsPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Loading...</p>
+        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-28" />
+            <Skeleton className="h-5 w-36" />
+            <Skeleton className="h-4 w-80 max-w-full" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-28" />
+            <Skeleton className="h-10 w-24" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-28 rounded-2xl" />
+          ))}
+        </div>
+        <div className="mt-6 rounded-2xl border bg-card p-4">
+          <div className="mb-4 flex items-center justify-between">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-9 w-28" />
+          </div>
+          <div className="space-y-3">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <Skeleton key={index} className="h-12 w-full" />
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -167,11 +192,11 @@ function ProductsPage() {
             {
               icon: MessageCircle,
               title: "AI sales assistant sync",
-              description: "Catalog availability is previewed for WhatsApp and web chat selling.",
+              description: "Catalog availability is shown for WhatsApp and web chat selling.",
             },
             {
               icon: Ticket,
-              title: "V2 pricing model",
+              title: "Pricing model",
               description: "Markup-plan items can show buyer-facing fees without changing vendor base price.",
             },
           ].map((item) => (
@@ -182,7 +207,7 @@ function ProductsPage() {
                     <item.icon className="h-5 w-5" />
                   </div>
                   <Badge variant="outline" className="border-primary/20 text-primary">
-                    V2
+                    Active
                   </Badge>
                 </div>
                 <h4 className="mt-4 text-sm font-semibold">{item.title}</h4>

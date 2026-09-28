@@ -15,8 +15,8 @@ import { Progress } from '@/components/ui/progress';
 import { useRouter, useParams } from 'next/navigation';
 import { format } from 'date-fns';
 import Image from 'next/image';
-import Loading from "@/components/Loading";
 import { toast } from "sonner";
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface OrderItem {
   price: number;
@@ -82,11 +82,6 @@ interface Order {
   updated_at: string;
 }
 
-interface ApiResponse {
-  status: string;
-  message: string;
-  data: Order;
-}
 const formatOrderDate = (dateString: string | undefined) => {
   if (!dateString) return { date: 'N/A', time: 'N/A' };
   
@@ -100,7 +95,7 @@ const formatOrderDate = (dateString: string | undefined) => {
       date: format(date, 'MMM dd, yyyy'),
       time: format(date, 'hh:mm a')
     };
-  } catch (error) {
+  } catch {
     return { date: 'Date Error', time: 'Time Error' };
   }
 };
@@ -246,9 +241,26 @@ export default function OrderDetailPage() {
 
   if (isLoading) {
     return (
-      <div className='min-h-screen flex items-center justify-center'>
-        <div className='text-center'>
-          <Loading/>
+      <div className='min-h-screen bg-[#FCFCFC] px-4 py-6 sm:px-6 lg:px-8'>
+        <div className='mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
+          <div className='space-y-2'>
+            <Skeleton className='h-4 w-28' />
+            <Skeleton className='h-7 w-48' />
+          </div>
+          <div className='flex gap-2'>
+            <Skeleton className='h-10 w-24' />
+            <Skeleton className='h-10 w-28' />
+          </div>
+        </div>
+        <div className='grid gap-4 lg:grid-cols-[1fr_340px]'>
+          <div className='space-y-4'>
+            <Skeleton className='h-40 rounded-2xl' />
+            <Skeleton className='h-72 rounded-2xl' />
+          </div>
+          <div className='space-y-4'>
+            <Skeleton className='h-44 rounded-2xl' />
+            <Skeleton className='h-48 rounded-2xl' />
+          </div>
         </div>
       </div>
     );

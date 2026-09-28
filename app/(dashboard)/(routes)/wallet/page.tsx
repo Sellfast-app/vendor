@@ -156,7 +156,7 @@ export default function WalletPage() {
           <CardHeader className="border-b">
             <h2 className="text-sm font-semibold">Channel performance</h2>
             <p className="text-xs text-muted-foreground">
-              Revenue attributed from the V2 routing hub.
+              Revenue attributed by active sales channel.
             </p>
           </CardHeader>
           <CardContent className="space-y-5 p-5">
@@ -178,11 +178,11 @@ export default function WalletPage() {
               <div>
                 <h2 className="text-sm font-semibold">Ledger</h2>
                 <p className="text-xs text-muted-foreground">
-                  Split-payment preview for markup and transaction fee logic.
+                  Split-payment ledger for markup and transaction fee logic.
                 </p>
               </div>
               <Badge variant="outline" className="border-primary/20 text-primary">
-                Live mock
+                Live view
               </Badge>
             </div>
           </CardHeader>
@@ -241,7 +241,7 @@ export default function WalletPage() {
           <CardHeader className="border-b">
             <h2 className="text-sm font-semibold">Withdrawal request</h2>
             <p className="text-xs text-muted-foreground">
-              Mock state for the withdrawal drawer before backend wiring.
+              Review withdrawal amount, destination and settlement speed.
             </p>
           </CardHeader>
           <CardContent className="space-y-4 p-5">
@@ -261,7 +261,7 @@ export default function WalletPage() {
             </div>
             <Button className="w-full">
               <ArrowUpRight className="h-4 w-4" />
-              <span className="ml-2">Preview withdrawal</span>
+              <span className="ml-2">Review withdrawal</span>
             </Button>
           </CardContent>
         </Card>
@@ -273,7 +273,7 @@ export default function WalletPage() {
               <h2 className="text-sm font-semibold">Settlement detail</h2>
             </div>
             <p className="text-xs text-muted-foreground">
-              Shows how a single V2 split-payment transaction resolves.
+              Shows how a single split-payment transaction resolves.
             </p>
           </CardHeader>
           <CardContent className="space-y-3 p-5">

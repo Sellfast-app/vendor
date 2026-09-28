@@ -116,7 +116,7 @@ async function readApiResponse(response: Response) {
 const StepIndicator = ({ currentStep }: { currentStep: number }) => {
   const steps = [
     { number: 1, title: 'Account', icon: <AccountIcon /> },
-    { number: 2, title: 'Your Business', icon: <LuBriefcaseBusiness /> },
+    { number: 2, title: 'Business Type', icon: <LuBriefcaseBusiness /> },
     { number: 3, title: 'Business Info', icon: <LuBriefcaseBusiness /> },
     { number: 4, title: 'Plan', icon: <PiPlugs /> },
     { number: 5, title: 'WhatsApp Setup', icon: <PiPlugs /> },
@@ -1055,6 +1055,27 @@ export default function MultiStepSignupPage() {
     </div>
   );
 
+  const renderWizardActions = () => (
+    <div className="flex space-x-4 pt-2">
+      <Button
+        type="button"
+        variant="outline"
+        onClick={handleBack}
+        className="w-[30%] py-2 rounded-lg transition-colors duration-200"
+      >
+        <ArrowLeft className="w-4 h-4 mr-2" />
+        Back
+      </Button>
+      <Button
+        type="button"
+        onClick={handleNext}
+        className="w-[67%] py-2 rounded-lg transition-colors duration-200"
+      >
+        Next <FaArrowRightLong />
+      </Button>
+    </div>
+  );
+
   // Success Screen
   const renderSuccessScreen = () => (
     <div className="space-y-6">
@@ -1172,26 +1193,32 @@ export default function MultiStepSignupPage() {
         return renderStep1();
       case 2:
         return (
-          <V2BusinessTypeStep
-            businessType={v2BusinessType}
-            country={v2Country}
-            onBusinessTypeChange={handleV2BusinessTypeChange}
-            onCountryChange={setV2Country}
-          />
+          <div className="space-y-6">
+            <V2BusinessTypeStep
+              businessType={v2BusinessType}
+              country={v2Country}
+              onBusinessTypeChange={handleV2BusinessTypeChange}
+              onCountryChange={setV2Country}
+            />
+            {renderWizardActions()}
+          </div>
         );
       case 3:
         return renderStep2();
       case 4:
         return (
-          <V2PlanStep
-            businessType={v2BusinessType ?? 'retail'}
-            planModel={v2PlanModel}
-            billingInterval={v2BillingInterval}
-            planTier={v2PlanTier}
-            onPlanModelChange={handleV2PlanModelChange}
-            onBillingIntervalChange={setV2BillingInterval}
-            onPlanTierChange={setV2PlanTier}
-          />
+          <div className="space-y-6">
+            <V2PlanStep
+              businessType={v2BusinessType ?? 'retail'}
+              planModel={v2PlanModel}
+              billingInterval={v2BillingInterval}
+              planTier={v2PlanTier}
+              onPlanModelChange={handleV2PlanModelChange}
+              onBillingIntervalChange={setV2BillingInterval}
+              onPlanTierChange={setV2PlanTier}
+            />
+            {renderWizardActions()}
+          </div>
         );
       case 5:
         return renderStep3();
@@ -1201,7 +1228,7 @@ export default function MultiStepSignupPage() {
   };
 
   return (
-    <div className="w-full max-w-xl space-y-5">
+    <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-xl flex-col space-y-5 overflow-y-auto px-1 py-2 sm:max-h-[calc(100vh-3rem)]">
       {!isSuccess && <StepIndicator currentStep={currentStep} />}
       {!isSuccess && <Logo />}
       {renderCurrentStep()}

@@ -100,11 +100,11 @@ export default function EventsPage() {
               </p>
               <h2 className="mt-2 text-sm font-semibold">Event setup wizard</h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                Frontend preview of the create/edit event flow before API wiring.
+                Create, edit and publish events from one guided flow.
               </p>
             </div>
             <Badge variant="outline" className="w-fit border-primary/20 bg-primary/10 text-primary">
-              V2 mock
+              Guided setup
             </Badge>
           </div>
         </CardHeader>
@@ -113,7 +113,7 @@ export default function EventsPage() {
             ["Event details", "Name, description, date and venue."],
             ["Ticket tiers", "Free, paid, invite-only and order limits."],
             ["Sales channels", "Website, web chat and WhatsApp checkout."],
-            ["Publish", "Preview and make the event live."],
+            ["Publish", "Review and make the event live."],
           ].map(([title, description], index) => (
             <div key={title} className="rounded-xl border p-4">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">

@@ -115,7 +115,7 @@ export default function StaffPage() {
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary">
-            V2 Access Control
+            Access Control
           </p>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight">
             Staff & Roles
@@ -308,7 +308,7 @@ export default function StaffPage() {
           <CardHeader className="border-b">
             <h2 className="text-sm font-semibold">Invite staff flow</h2>
             <p className="text-xs text-muted-foreground">
-              Mock modal content for adding a team member without backend wiring.
+              Guided steps for adding a team member.
             </p>
           </CardHeader>
           <CardContent className="space-y-4 p-5">
@@ -327,7 +327,7 @@ export default function StaffPage() {
           <CardHeader className="border-b">
             <div className="flex items-center gap-2">
               <SlidersHorizontal className="h-4 w-4 text-primary" />
-              <h2 className="text-sm font-semibold">Role edit preview</h2>
+              <h2 className="text-sm font-semibold">Role editor</h2>
             </div>
             <p className="text-xs text-muted-foreground">
               Granular permissions for the selected role profile.

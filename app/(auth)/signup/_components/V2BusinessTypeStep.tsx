@@ -56,14 +56,14 @@ export default function V2BusinessTypeStep({
       <div className="flex flex-col">
         <h1 className="text-2xl font-semibold text-primary">Tell us about your business</h1>
         <p className="text-xs text-muted-foreground">
-          Choose one V2 vertical. This controls your dashboard, storefront and checkout setup.
+          Choose one business vertical. This controls your dashboard, storefront and checkout setup.
         </p>
       </div>
 
       <div className="grid gap-3 rounded-lg border border-primary/20 bg-primary/5 p-4 text-xs md:grid-cols-3">
         <div className="flex items-start gap-2">
           <LayoutDashboard className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-          <span>Only Retail & Wholesale, Ticketing, and Food & Restaurant are available in V2.</span>
+          <span>Only Retail & Wholesale, Ticketing, and Food & Restaurant are available.</span>
         </div>
         <div className="flex items-start gap-2">
           <Globe2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
