@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -22,6 +23,16 @@ import {
   ShieldCheck,
   Wallet,
 } from "lucide-react";
+import { toast } from "sonner";
+import AddBankModal from "../payouts/_components/AddBankModal";
+import { WithdrawModal } from "./_components/WithdrawModal";
+
+interface BankData {
+  bankName: string;
+  accountNumber: string;
+  accountHolder: string;
+  bankCode: string;
+}
 
 const ledgerRows = [
   {
@@ -64,6 +75,14 @@ const settlementDetails = [
 ];
 
 export default function WalletPage() {
+  const [addBankOpen, setAddBankOpen] = useState(false);
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
+
+  const handleAddBank = (bankData: BankData) => {
+    toast.success("Bank added successfully");
+    setAddBankOpen(false);
+  };
+
   return (
     <div className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -138,14 +157,26 @@ export default function WalletPage() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Button variant="outline">
-                <Banknote className="h-4 w-4" />
-                <span className="ml-2">Add bank</span>
-              </Button>
-              <Button variant="outline">
-                <Download className="h-4 w-4" />
-                <span className="ml-2">Export</span>
-              </Button>
+              <>
+                <Button variant="outline" onClick={() => setAddBankOpen(true)}>
+                  <Banknote className="h-4 w-4" />
+                  <span className="ml-2">Add bank</span>
+                </Button>
+                <AddBankModal
+                  isOpen={addBankOpen}
+                  onClose={() => setAddBankOpen(false)}
+                  onAddBank={handleAddBank}
+                />
+                <Button onClick={() => setWithdrawOpen(true)}>
+                  <ArrowUpRight className="h-4 w-4" />
+                  <span className="ml-2">Withdraw</span>
+                </Button>
+                <WithdrawModal
+                  open={withdrawOpen}
+                  onOpenChange={(open) => setWithdrawOpen(open)}
+                  availableBalance="₦701,250.00"
+                />
+              </>
             </div>
           </CardContent>
         </Card>
