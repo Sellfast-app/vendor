@@ -7,16 +7,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Eye, EyeOff, ArrowLeft, Download, Copy, Mail, RefreshCw } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, Download, Copy, Mail, RefreshCw, UserCircle, Briefcase, CreditCard, MessageSquare, CheckCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Label } from '@radix-ui/react-label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import Logo from '@/components/svgIcons/Logo';
 import { FaArrowRightLong } from 'react-icons/fa6';
-import AccountIcon from '@/components/svgIcons/AccountIcon';
-import { LuBriefcaseBusiness } from 'react-icons/lu';
-import { PiPlugs } from 'react-icons/pi';
 import StoreFrontIcon from '@/components/svgIcons/StoreFrontIcon';
 import { ThemeName, themes } from '@/lib/themes';
 import Image from 'next/image';
@@ -115,108 +112,69 @@ async function readApiResponse(response: Response) {
 // Step indicator component
 const StepIndicator = ({ currentStep }: { currentStep: number }) => {
   const steps = [
-    { number: 1, title: 'Account', icon: <AccountIcon /> },
-    { number: 2, title: 'Business Type', icon: <LuBriefcaseBusiness /> },
-    { number: 3, title: 'Business Info', icon: <LuBriefcaseBusiness /> },
-    { number: 4, title: 'Plan', icon: <PiPlugs /> },
-    { number: 5, title: 'WhatsApp Setup', icon: <PiPlugs /> },
+    { number: 1, title: 'Account', icon: <UserCircle className="h-5 w-5" /> },
+    { number: 2, title: 'Business', icon: <Briefcase className="h-5 w-5" /> },
+    { number: 3, title: 'Plan', icon: <CreditCard className="h-5 w-5" /> },
+    { number: 4, title: 'WhatsApp', icon: <MessageSquare className="h-5 w-5" /> },
   ];
   const currentStepInfo = steps.find((step) => step.number === currentStep) ?? steps[0];
   const nextStepInfo = steps.find((step) => step.number === currentStep + 1);
 
   return (
-    <div className="mb-5 w-full">
+    <div className="mb-6 w-full">
       <div className="md:hidden">
         <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
-          <span>
-            Step {currentStep} of {steps.length}
-          </span>
+          <span>Step {currentStep} of {steps.length}</span>
           <span className="font-medium text-foreground">{currentStepInfo.title}</span>
         </div>
-
-        <div className="grid grid-cols-[minmax(0,1fr)_32px_minmax(0,1fr)] items-start">
-          <div
-            key={`mobile-current-${currentStepInfo.number}`}
-            className="flex min-w-0 translate-x-0 flex-col items-start opacity-100 transition-all duration-300 ease-out"
-          >
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-              <span className="text-sm font-medium text-primary-foreground">
-                {currentStepInfo.icon}
-              </span>
+        <div className="grid grid-cols-[minmax(0,1fr)_24px_minmax(0,1fr)] items-start gap-2">
+          <div className="flex flex-col items-start">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+              {currentStepInfo.icon}
             </div>
-            <span className="mt-2 max-w-full truncate text-xs font-medium text-foreground">
+            <span className="mt-1.5 max-w-full truncate text-xs font-medium text-foreground">
               {currentStepInfo.title}
             </span>
           </div>
-
-          <div className="pt-4">
-            <div className="h-0.5 w-full rounded-full bg-primary" />
+          <div className="pt-3">
+            <div className="h-0.5 w-full rounded-full bg-primary/20" />
           </div>
-
-          <div
-            key={`mobile-next-${nextStepInfo?.number ?? 'complete'}`}
-            className="flex min-w-0 translate-x-0 flex-col items-end opacity-100 transition-all duration-300 ease-out"
-          >
-            <div
-              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
-                nextStepInfo ? 'bg-primary-tertiary text-gray-400' : 'bg-primary/10 text-primary'
-              }`}
-            >
-              <span className="text-sm font-medium">
-                {nextStepInfo ? nextStepInfo.icon : '✓'}
-              </span>
+          <div className="flex flex-col items-end">
+            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+              nextStepInfo ? 'bg-primary-tertiary text-gray-400' : 'bg-primary/10 text-primary'
+            }`}>
+              {nextStepInfo ? nextStepInfo.icon : <CheckCircle className="h-4 w-4 text-primary" />}
             </div>
-            <span
-              className={`mt-2 max-w-full truncate text-right text-xs font-medium ${
-                nextStepInfo ? 'text-gray-400' : 'text-primary'
-              }`}
-            >
+            <span className={`mt-1.5 max-w-full truncate text-right text-xs font-medium ${
+              nextStepInfo ? 'text-gray-400' : 'text-primary'
+            }`}>
               {nextStepInfo ? nextStepInfo.title : 'Complete'}
             </span>
           </div>
         </div>
       </div>
-
       <div className="hidden w-full items-start md:flex">
         {steps.map((step, index) => {
           const isDone = step.number < currentStep;
           const isActive = step.number === currentStep;
           const isReached = step.number <= currentStep;
-
           return (
             <div key={step.number} className="flex min-w-0 flex-1 items-start last:flex-none">
               <div className="flex min-w-0 flex-col items-center">
-                <div
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all duration-200 sm:h-9 sm:w-9 xl:h-11 xl:w-11 ${
-                    isReached
-                      ? 'bg-primary border-primary text-primary-foreground'
-                      : 'bg-primary-tertiary text-gray-400'
-                  }`}
-                >
-                  <span
-                    className={`text-xs font-medium sm:text-sm ${
-                      isReached ? 'text-primary-foreground' : 'text-foreground'
-                    }`}
-                  >
-                    {step.icon}
-                  </span>
+                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all duration-200 ${
+                  isReached ? 'bg-primary text-primary-foreground' : 'bg-primary-tertiary text-gray-400'
+                }`}>
+                  {step.icon}
                 </div>
-                <span
-                  className={`mt-2 hidden max-w-[82px] text-center text-xs font-medium leading-tight xl:block ${
-                    isReached ? 'text-foreground' : 'text-gray-400'
-                  }`}
-                >
+                <span className={`mt-2 hidden text-xs font-medium leading-tight xl:block ${
+                  isReached ? 'text-foreground' : 'text-gray-400'
+                }`}>
                   {step.title}
                 </span>
               </div>
-
               {index < steps.length - 1 && (
-                <div className="flex min-w-0 flex-1 items-center px-1 pt-4 sm:px-2 xl:pt-5">
-                  <div
-                    className={`h-0.5 w-full rounded-full ${
-                      isDone || isActive ? 'bg-primary' : 'bg-primary-tertiary'
-                    }`}
-                  />
+                <div className="flex min-w-0 flex-1 items-center px-1 pt-[14px] sm:px-2 xl:pt-5">
+                  <div className={`h-0.5 w-full rounded-full ${isDone || isActive ? 'bg-primary' : 'bg-primary-tertiary'}`} />
                 </div>
               )}
             </div>

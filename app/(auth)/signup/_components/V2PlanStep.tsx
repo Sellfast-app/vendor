@@ -153,7 +153,7 @@ export default function V2PlanStep({
                   >
                     <span className="flex items-center justify-between">
                       <span className="text-sm font-semibold text-foreground">
-                        {model === 'subscription' ? 'Subscription' : 'Markup'}
+                        {model === 'subscription' ? 'Subscription' : `Free (+ markup)`}
                       </span>
                       {model === 'subscription' && (
                         <Badge variant="outline" className="border-primary/20 text-primary">
