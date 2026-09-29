@@ -3,7 +3,7 @@
 import Analytics from "@/components/svgIcons/Analytics";
 import Orders from "@/components/svgIcons/Orders";
 import Products from "@/components/svgIcons/Products";
-import { LayoutDashboardIcon, Wallet } from "lucide-react";
+import { LayoutDashboardIcon, Wallet, Bell } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -32,6 +32,11 @@ const routes = [
     icon: Wallet,
     label: "Wallet",
     href: "/wallet",
+  },
+  {
+    icon: Bell,
+    label: "Notifications",
+    href: "/notifications",
   },
 ];
 
