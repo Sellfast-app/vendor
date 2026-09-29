@@ -166,15 +166,15 @@ export const NavbarRoutes = () => {
 
       <div className="flex items-center gap-3">
         <Button variant="ghost" onClick={() => setIsNotificationModalOpen(true)}>
-                  <IoNotificationsOutline className="w-5 h-5" />
-                </Button>
-       
-        <Button variant="ghost" onClick={() => router.push("/settings")}>
-          <Settings className="md:hidden w-4 h-4 cursor-pointer hover:text-gray-600 dark:hover:text-gray-300 transition-colors"/>
+          <IoNotificationsOutline className="w-5 h-5" />
         </Button>
-        
-        <Button 
-          variant={"outline"} 
+
+        <Button variant="ghost" onClick={() => router.push("/settings")}>
+          <Settings className="md:hidden w-4 h-4 cursor-pointer hover:text-gray-600 dark:hover:text-gray-300 transition-colors" />
+        </Button>
+
+        <Button
+          variant={"outline"}
           className="rounded-full dark:bg-background hidden md:flex"
           onClick={handleVisitStorefront}
         >
