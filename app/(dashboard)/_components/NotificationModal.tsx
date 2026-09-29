@@ -74,7 +74,7 @@ export default function NotificationModal({ isOpen, onClose }: NotificationModal
         onClick={onClose}
       />
       <div
-        className="h-full w-[65%] bg-background shadow-lg overflow-x-auto transform transition-transform duration-300 ease-in-out rounded-xl border border-[#F5F5F5] dark:border-[#1F1F1F]"
+        className="relative z-10 h-full w-[65%] bg-background shadow-lg overflow-x-auto transform transition-transform duration-300 ease-in-out rounded-xl border border-[#F5F5F5] dark:border-[#1F1F1F]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
