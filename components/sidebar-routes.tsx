@@ -2,7 +2,7 @@
 
 import { AvatarImage } from "@/components/ui/avatar";
 import { Avatar, AvatarFallback } from "@radix-ui/react-avatar";
-import { LayoutDashboardIcon, ShieldCheck, Wallet } from "lucide-react";
+import { LayoutDashboardIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { SVGProps, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -11,8 +11,10 @@ import Products from "./svgIcons/Products";
 import Orders from "./svgIcons/Orders";
 import Analytics from "./svgIcons/Analytics";
 import Settings from "./svgIcons/Settings";
-import Events from "./svgIcons/Events";
+import EventIcon from "./svgIcons/EventIcon";
 import Logout from "./svgIcons/Logout";
+import WalletIcon from "./svgIcons/WalletIcon";
+import StaffIcon from "./svgIcons/StaffIcon";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 
 interface RouteLink {
@@ -33,9 +35,9 @@ const adminRoutes: Route[] = [
   { icon: Products, label: "Products", href: "/products" },
   { icon: Orders, label: "Orders", href: "/orders" },
   { icon: Analytics, label: "Analytics", href: "/analytics" },
-  { icon: Wallet, label: "Wallet", href: "/wallet" },
-  { icon: Events, label: "Events", href: "/events" },
-  { icon: ShieldCheck, label: "Staff", href: "/staff" },
+  { icon: WalletIcon, label: "Wallet", href: "/wallet" },
+  { icon: EventIcon, label: "Events", href: "/events" },
+  { icon: StaffIcon, label: "Staff", href: "/staff" },
 ];
 
 const actionRoutes: Route[] = [
