@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -25,6 +26,7 @@ import {
   UserRound,
   UsersRound,
 } from "lucide-react";
+import { InviteStaffModal } from "./_components/InviteStaffModal";
 
 const staffMembers = [
   {
@@ -110,6 +112,7 @@ const inviteSteps = [
 ];
 
 export default function StaffPage() {
+  const [inviteOpen, setInviteOpen] = useState(false);
   return (
     <div className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -130,7 +133,7 @@ export default function StaffPage() {
             <Mail className="h-4 w-4" />
             <span className="ml-2">Invite link</span>
           </Button>
-          <Button>
+          <Button onClick={() => setInviteOpen(true)}>
             <Plus className="h-4 w-4" />
             <span className="ml-2">Invite staff</span>
           </Button>
@@ -343,6 +346,11 @@ export default function StaffPage() {
           </CardContent>
         </Card>
       </div>
+
+      <InviteStaffModal
+        open={inviteOpen}
+        onOpenChange={setInviteOpen}
+      />
     </div>
   );
 }

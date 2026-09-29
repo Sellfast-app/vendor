@@ -16,6 +16,8 @@ import QrIcon from "@/components/svgIcons/QrIcon";
 import LinkIcon from "@/components/svgIcons/LinkIcon";
 import ThemeIcon from "@/components/svgIcons/ThemeIcon";
 import AddBankModal from "../../payouts/_components/AddBankModal";
+import PaymentMethods from "./PaymentMethods";
+import LogisticsSettings from "./LogisticsSettings";
 import Accessbank from "@/components/svgIcons/Accessbank";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -1551,6 +1553,8 @@ function StorefrontComponent() {
         </CardContent>
       </Card>
 
+      <PaymentMethods />
+      <LogisticsSettings />
       <AddBankModal isOpen={isAddBankModalOpen} onClose={() => setIsAddBankModalOpen(false)} onAddBank={handleAddBank} />
     </div>
   );

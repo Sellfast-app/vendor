@@ -1,24 +1,33 @@
-import { SVGProps } from "react";
+import * as React from "react";
 
-export default function StaffIcon({
-  color,
-  ...rest
-}: SVGProps<SVGSVGElement> & { color?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke={color || "currentColor"}
-      strokeWidth="2"
+const StaffIcon: React.FC<React.SVGProps<SVGSVGElement> & { color?: string }> = ({
+  color = "#061400",
+  ...props
+}) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="18"
+    height="18"
+    fill="none"
+    viewBox="0 0 18 18"
+    {...props}
+  >
+    <path
+      stroke={color}
       strokeLinecap="round"
       strokeLinejoin="round"
-      className="w-5 h-5"
-      {...rest}
-    >
-      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-    </svg>
-  );
-}
+      strokeWidth="1.2"
+      d="M9 16.5v-2.25a2.25 2.25 0 0 0-2.25-2.25H4.5A2.25 2.25 0 0 0 2.25 12V16.5"
+    />
+    <circle cx="4.5" cy="4.5" r="2.25" />
+    <path
+      stroke={color}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.2"
+      d="M15.75 16.5v-2.25a2.25 2.25 0 0 0-1.59-2.15M13.5 5.25a2.25 2.25 0 1 0 0-4.5 2.25 2.25 0 0 0 0 4.5Z"
+    />
+  </svg>
+);
+
+export default StaffIcon;

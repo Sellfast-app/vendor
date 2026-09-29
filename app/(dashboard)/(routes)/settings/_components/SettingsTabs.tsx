@@ -5,8 +5,6 @@ import StoreFront from './StoreFront'
 import Finance from './Finance'
 import Notification from './Notification'
 import Support from './Support'
-import PaymentMethods from './PaymentMethods'
-import LogisticsSettings from './LogisticsSettings'
 import LocalizationSettings from './LocalizationSettings'
 
 function SettingsTabs() {
@@ -16,12 +14,9 @@ function SettingsTabs() {
             <TabsList className="w-full overflow-x-auto flex-nowrap justify-start scrollbar-hide">
                     <TabsTrigger value="account">Account</TabsTrigger>
                     <TabsTrigger value="store">StoreFront Settings</TabsTrigger>
-                    <TabsTrigger value="payments">Payment Methods</TabsTrigger>
-                    <TabsTrigger value="logistics">Logistics</TabsTrigger>
                     <TabsTrigger value="localization">Localization</TabsTrigger>
                     <TabsTrigger value="finance">Finance & Billings</TabsTrigger>
                     <TabsTrigger value="notification">Notifications</TabsTrigger>
-                    {/* <TabsTrigger value="security">Security & Access</TabsTrigger> */}
                     <TabsTrigger value="support">Support & Help</TabsTrigger>
                 </TabsList>
                 <TabsContent value="account" className='mt-4'>
@@ -29,12 +24,6 @@ function SettingsTabs() {
                 </TabsContent>
                 <TabsContent value="store" className='mt-4'>
                     <StoreFront/>
-                </TabsContent>
-                <TabsContent value="payments" className='mt-4'>
-                    <PaymentMethods/>
-                </TabsContent>
-                <TabsContent value="logistics" className='mt-4'>
-                    <LogisticsSettings/>
                 </TabsContent>
                 <TabsContent value="localization" className='mt-4'>
                     <LocalizationSettings/>
@@ -45,9 +34,6 @@ function SettingsTabs() {
                 <TabsContent value="notification" className='mt-4'>
                     <Notification/>
                 </TabsContent>
-                {/* <TabsContent value='security'>
-                    <Security/>
-                </TabsContent> */}
                 <TabsContent value='support'>
                     <Support/>
                 </TabsContent>

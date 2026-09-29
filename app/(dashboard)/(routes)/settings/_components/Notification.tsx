@@ -2,9 +2,12 @@
 
 import React, { useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { Bell, Mail, MessageCircle, Smartphone } from "lucide-react";
 
 interface NotificationSetting {
@@ -148,6 +151,41 @@ function PreferencesComponent() {
               </div>
             </div>
           ))}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
+        <CardHeader className="border-b">
+          <div>
+            <h2 className="text-sm font-semibold">Send notification</h2>
+            <p className="text-xs text-muted-foreground mt-1">
+              Send a one-off email or in-app notification to users.
+            </p>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4 p-5">
+          <div className="space-y-2">
+            <Label htmlFor="notif-title">Subject</Label>
+            <Input id="notif-title" placeholder="Notification subject line" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="notif-message">Message</Label>
+            <Textarea id="notif-message" placeholder="Write your notification message..." className="min-h-[100px] resize-none" />
+          </div>
+          <div className="space-y-2">
+            <Label>Channels</Label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" defaultChecked className="rounded border-muted-foreground/30" />
+                Email
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" defaultChecked className="rounded border-muted-foreground/30" />
+                In-app
+              </label>
+            </div>
+          </div>
+          <Button className="bg-primary hover:bg-primary/90">Send notification</Button>
         </CardContent>
       </Card>
     </div>
