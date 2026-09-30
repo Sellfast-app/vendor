@@ -20,6 +20,7 @@ import {
   Landmark,
   QrCode,
   Smartphone,
+  PlusIcon,
 } from "lucide-react";
 
 const providers = [
@@ -115,7 +116,7 @@ export default function PaymentMethods() {
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <Card className="shadow-none">
           <CardHeader className="border-b">
-            <h3 className="text-sm font-semibold">Settlement account</h3>
+            <h3 className="text-sm font-semibold">Manual rate setup</h3>
             <p className="text-xs text-muted-foreground">
               Used for fiat settlement after Paystack, Nomba, Kuvarpay or
               Fincra webhook confirmation.
@@ -155,25 +156,35 @@ export default function PaymentMethods() {
                 </div>
               </div>
             </div>
+
+            {/* Manual Delivery Setup */}
+            <div className="space-y-3 pt-4 border-t">
+              <h4 className="text-sm font-medium">Manual Delivery Setup</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label className="text-xs">Location</Label>
+                  <Input placeholder="Enter location" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs">Delivery Fee (₦)</Label>
+                  <Input placeholder="0" />
+                </div>
+              </div>
+              <Button size="sm" className="w-full">Add Location</Button>
+            </div>
           </CardContent>
         </Card>
 
         <Card className="shadow-none">
           <CardHeader className="border-b">
-            <h3 className="text-sm font-semibold">Checkout fee routing</h3>
+            <h3 className="text-sm font-semibold">Branch pickup locations</h3>
             <p className="text-xs text-muted-foreground">
               Shows how the markup model routes fees before vendor wallet
               settlement.
             </p>
           </CardHeader>
           <CardContent className="space-y-4 p-5">
-            {[
-              ["Base item price", "₦10,000"],
-              ["Markup added to buyer", "₦500"],
-              ["Transaction fee", "₦500"],
-              ["Swiftree master wallet", "₦1,000"],
-              ["Vendor instant wallet", "₦9,500"],
-            ].map(([label, value], index) => (
+            {["Base item price", "Markup added to buyer", "Transaction fee", "Swiftree master wallet", "Vendor instant wallet"].map(([label, value], index) => (
               <div
                 key={label}
                 className={`flex items-center justify-between rounded-lg border p-3 text-sm ${
@@ -188,6 +199,26 @@ export default function PaymentMethods() {
               <Banknote className="h-4 w-4" />
               <span className="ml-2">View wallet ledger</span>
             </Button>
+
+            {/* Branch Pickup Locations */}
+            <div className="space-y-3 pt-4 border-t">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-medium">Branch Pickup Locations</h4>
+                <Button size="sm" variant="outline"><PlusIcon className="h-4 w-4 mr-1" />Add</Button>
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 rounded-lg border">
+                  <div>
+                    <p className="text-sm font-medium">Main Branch</p>
+                    <p className="text-xs text-muted-foreground">123 Market Street, Lagos</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline">Edit</Button>
+                    <Button size="sm" variant="destructive">Delete</Button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

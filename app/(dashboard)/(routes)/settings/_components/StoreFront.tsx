@@ -1112,52 +1112,6 @@ function StorefrontComponent() {
         </CardContent>
       </Card>
 
-      {/* Manual Delivery Setup */}
-      <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
-        <CardContent>
-          <div className="space-y-4 pt-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium">Manual Delivery Setup</h3>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-xs">Location</Label>
-                <Input placeholder="Enter location" />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs">Delivery Fee (₦)</Label>
-                <Input placeholder="0" />
-              </div>
-            </div>
-            <Button size="sm" className="w-full">Add Location</Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Branch Pickup Locations */}
-      <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
-        <CardContent>
-          <div className="space-y-4 pt-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium">Branch Pickup Locations</h3>
-              <Button size="sm" variant="outline"><PlusIcon className="h-4 w-4 mr-1" />Add Pickup Location</Button>
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-4 rounded-lg border">
-                <div>
-                  <p className="text-sm font-medium">Main Branch</p>
-                  <p className="text-xs text-muted-foreground">123 Market Street, Lagos</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline">Edit</Button>
-                  <Button size="sm" variant="destructive">Delete</Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Availability Setup */}
       <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
         <CardContent>
