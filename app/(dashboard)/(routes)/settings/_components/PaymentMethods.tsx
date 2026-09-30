@@ -114,111 +114,67 @@ export default function PaymentMethods() {
       </Card>
 
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        {/* Manual Rate Setup */}
         <Card className="shadow-none">
           <CardHeader className="border-b">
             <h3 className="text-sm font-semibold">Manual rate setup</h3>
             <p className="text-xs text-muted-foreground">
-              Used for fiat settlement after Paystack, Nomba, Kuvarpay or
-              Fincra webhook confirmation.
+              Flat rates shown to buyers when automated logistics are not used.
             </p>
           </CardHeader>
           <CardContent className="space-y-4 p-5">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Bank</Label>
-                <Select defaultValue="access">
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select bank" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="access">Access Bank</SelectItem>
-                    <SelectItem value="gtb">GTBank</SelectItem>
-                    <SelectItem value="zenith">Zenith Bank</SelectItem>
-                    <SelectItem value="uba">UBA</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label className="text-xs">Location</Label>
+                <Input placeholder="Enter location" defaultValue="Lagos Mainland" />
               </div>
               <div className="space-y-2">
-                <Label>Account number</Label>
-                <Input placeholder="0123456789" />
+                <Label className="text-xs">Rate (₦)</Label>
+                <Input placeholder="0" defaultValue="2500" />
               </div>
             </div>
-            <div className="rounded-lg bg-[#F5F5F5] p-4 dark:bg-background">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white text-primary dark:bg-muted">
-                  <Landmark className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium">Swiftree Demo Store</p>
-                  <p className="text-xs text-muted-foreground">
-                    Primary settlement account
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Manual Delivery Setup */}
-            <div className="space-y-3 pt-4 border-t">
-              <h4 className="text-sm font-medium">Manual Delivery Setup</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label className="text-xs">Location</Label>
-                  <Input placeholder="Enter location" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs">Delivery Fee (₦)</Label>
-                  <Input placeholder="0" />
-                </div>
-              </div>
-              <Button size="sm" className="w-full">Add Location</Button>
+            <div className="rounded-lg bg-[#D1FFDB] p-3 dark:bg-background">
+              <p className="text-xs text-primary">
+                <strong>Buyer sees:</strong> Manual shipping - ₦2,500
+              </p>
             </div>
           </CardContent>
         </Card>
 
+        {/* Branch Pickup Locations */}
         <Card className="shadow-none">
           <CardHeader className="border-b">
             <h3 className="text-sm font-semibold">Branch pickup locations</h3>
             <p className="text-xs text-muted-foreground">
-              Shows how the markup model routes fees before vendor wallet
-              settlement.
+              Localized pickup options can be restricted by customer state.
             </p>
           </CardHeader>
           <CardContent className="space-y-4 p-5">
-            {["Base item price", "Markup added to buyer", "Transaction fee", "Swiftree master wallet", "Vendor instant wallet"].map(([label, value], index) => (
-              <div
-                key={label}
-                className={`flex items-center justify-between rounded-lg border p-3 text-sm ${
-                  index >= 3 ? "bg-primary/5" : ""
-                }`}
-              >
-                <span>{label}</span>
-                <span className="font-medium">{value}</span>
-              </div>
-            ))}
-            <Button variant="outline" className="w-full">
-              <Banknote className="h-4 w-4" />
-              <span className="ml-2">View wallet ledger</span>
-            </Button>
-
-            {/* Branch Pickup Locations */}
-            <div className="space-y-3 pt-4 border-t">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-medium">Branch Pickup Locations</h4>
-                <Button size="sm" variant="outline"><PlusIcon className="h-4 w-4 mr-1" />Add</Button>
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 rounded-lg border">
+            <div className="space-y-3">
+              {[
+                { name: "Lekki branch", address: "Lekki Phase 1, Lagos", tag: "Pickup + local dispatch" },
+                { name: "Ikeja branch", address: "Allen Avenue, Lagos", tag: "Pickup only" },
+                { name: "Abuja branch", address: "Wuse 2, Abuja", tag: "Manual shipping" },
+              ].map((branch) => (
+                <div
+                  key={branch.name}
+                  className="flex items-center justify-between p-3 rounded-lg border"
+                >
                   <div>
-                    <p className="text-sm font-medium">Main Branch</p>
-                    <p className="text-xs text-muted-foreground">123 Market Street, Lagos</p>
+                    <p className="text-sm font-medium">{branch.name}</p>
+                    <p className="text-xs text-muted-foreground">{branch.address}</p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-center">
+                    <Badge variant="secondary" className="text-[10px]">{branch.tag}</Badge>
                     <Button size="sm" variant="outline">Edit</Button>
                     <Button size="sm" variant="destructive">Delete</Button>
                   </div>
                 </div>
-              </div>
+              ))}
             </div>
+            <Button size="sm" variant="outline" className="w-full">
+              <PlusIcon className="h-4 w-4 mr-1" /> Add pickup location
+            </Button>
           </CardContent>
         </Card>
       </div>
