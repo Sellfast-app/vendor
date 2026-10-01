@@ -123,6 +123,20 @@ export function EventDetailModal({
     );
   };
 
+  const handleTicketTypeChange = (ticket: TicketType, type: TicketType["type"]) => {
+    if (type === "free") {
+      updateTicket(ticket.id, { type, price: 0, tag: "Free" });
+      return;
+    }
+
+    if (type === "invite") {
+      updateTicket(ticket.id, { type, price: undefined, tag: "Invite Only" });
+      return;
+    }
+
+    updateTicket(ticket.id, { type, price: ticket.price || 0, tag: "Single Ticket" });
+  };
+
   const calculateTotalCapacity = () => {
     return formData.tickets.reduce((sum, t) => {
       if (t.type === "invite") return sum;
@@ -418,8 +432,27 @@ export function EventDetailModal({
                           </Button>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-3">
-                          {ticket.type !== "invite" ? (
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Ticket type</Label>
+                            <Select
+                              value={ticket.type}
+                              onValueChange={(value) =>
+                                handleTicketTypeChange(ticket, value as TicketType["type"])
+                              }
+                            >
+                              <SelectTrigger className="h-8 text-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="paid">Paid</SelectItem>
+                                <SelectItem value="free">Free</SelectItem>
+                                <SelectItem value="invite">Invite-only</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {ticket.type === "paid" ? (
                             <div className="space-y-1">
                               <Label className="text-xs text-muted-foreground">Price (₦)</Label>
                               <Input
@@ -432,9 +465,13 @@ export function EventDetailModal({
                               />
                             </div>
                           ) : (
-                            <div className="space-y-1 col-span-3">
-                              <Label className="text-xs text-muted-foreground">Invite-only — no price set</Label>
-                              <p className="text-xs text-muted-foreground">Invite-only tickets are sent directly to selected attendees</p>
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground">
+                                {ticket.type === "free" ? "Price" : "Access"}
+                              </Label>
+                              <div className="flex h-8 items-center rounded-md border border-input bg-muted/40 px-3 text-xs text-muted-foreground">
+                                {ticket.type === "free" ? "Free ticket" : "Invite-only"}
+                              </div>
                             </div>
                           )}
 
