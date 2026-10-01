@@ -198,6 +198,8 @@ function StorefrontComponent() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [isAddBankModalOpen, setIsAddBankModalOpen] = useState(false);
   const [storefrontUrl, setStorefrontUrl] = useState("");
+  const [webchatUrl, setWebchatUrl] = useState("");
+  const [linkinbioUrl, setLinkinbioUrl] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
@@ -545,6 +547,17 @@ function StorefrontComponent() {
       } catch {
         setStorefrontUrl(urlFromCookie);
       }
+    }
+
+    const storeId = getCookie("store_id");
+    if (storeId) {
+      const decodedStoreId = decodeURIComponent(storeId);
+      const webchatBase =
+        process.env.NEXT_PUBLIC_WEBCHAT_BASE_URL || "https://webchat.swiftree.app";
+      const linkinbioBase =
+        process.env.NEXT_PUBLIC_LINKINBIO_BASE_URL || "https://linkinbio.swiftree.app";
+      setWebchatUrl(`${webchatBase}/?vendor=${decodedStoreId}`);
+      setLinkinbioUrl(`${linkinbioBase}/${decodedStoreId}`);
     }
   }, []);
 
@@ -1104,6 +1117,30 @@ function StorefrontComponent() {
                   <span className="text-sm">{storefrontData.botUrl || "No bot URL available"}</span>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => copyToClipboard(storefrontData.botUrl)} className="dark:bg-background" disabled={!storefrontData.botUrl}>
+                  <span className="hidden sm:inline">Copy Link </span><Copy className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="webchatUrl" className="text-xs">Web Chat URL *</Label>
+              <div className="flex flex-col md:flex-row gap-2">
+                <div className="flex items-center gap-2 flex-1 px-2 py-1.5 border rounded-md dark:bg-background overflow-auto">
+                  <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm">{webchatUrl || "No web chat URL available"}</span>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => copyToClipboard(webchatUrl)} className="dark:bg-background" disabled={!webchatUrl}>
+                  <span className="hidden sm:inline">Copy Link </span><Copy className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="linkinbioUrl" className="text-xs">Link-in-Bio URL *</Label>
+              <div className="flex flex-col md:flex-row gap-2">
+                <div className="flex items-center gap-2 flex-1 px-2 py-1.5 border rounded-md dark:bg-background overflow-auto">
+                  <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm">{linkinbioUrl || "No link-in-bio URL available"}</span>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => copyToClipboard(linkinbioUrl)} className="dark:bg-background" disabled={!linkinbioUrl}>
                   <span className="hidden sm:inline">Copy Link </span><Copy className="w-4 h-4" />
                 </Button>
               </div>
