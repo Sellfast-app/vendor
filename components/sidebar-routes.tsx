@@ -182,12 +182,13 @@ export const SidebarRoutes = () => {
 
   return (
     <div className="flex flex-col w-full">
-      {adminRoutes.map((route) => (
+      {adminRoutes.map((route, index) => (
         <SidebarItem
           key={route.href!}
           icon={route.icon}
           label={route.label}
           href={route.href}
+          data-tour={index === 0 ? "sidebar-nav" : undefined}
         />
       ))}
       <div className="mt-[300px] w-full">

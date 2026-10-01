@@ -9,9 +9,10 @@ interface SidebarItemProps {
   href?: string;
   onClick?: () => void;
   disabled?: boolean;
+  'data-tour'?: string;
 }
 
-export const SidebarItem = ({ icon: Icon, label, href, onClick, disabled }: SidebarItemProps) => {
+export const SidebarItem = ({ icon: Icon, label, href, onClick, disabled, 'data-tour': dataTour }: SidebarItemProps) => {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -34,6 +35,7 @@ export const SidebarItem = ({ icon: Icon, label, href, onClick, disabled }: Side
 
   return (
     <div
+      data-tour={dataTour}
       className={cn(
         'border-l-5 rounded-r-lg transition-colors duration-200',
         isActive ? 'border-l-primary' : 'border-l-transparent'

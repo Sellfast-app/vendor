@@ -35,6 +35,7 @@ import AddProductModal from "../products/_components/AddProductModal";
 import AddFoodModal from "../products/_components/AddFoodModal";
 import RecentOrdersTable from "./_components/RecentOrdersTable";
 import { isFoodBusinessType } from "@/lib/store";
+import OnboardingTour, { type TourStep } from "./_components/OnboardingTour";
 
 interface Product {
   sku: string;
@@ -119,6 +120,45 @@ function OverviewValue({
     </div>
   );
 }
+
+const tourSteps: TourStep[] = [
+  {
+    target: "launch-banner",
+    title: "Your launch setup",
+    description:
+      "Track how ready your store is and continue setup anytime from this banner.",
+  },
+  {
+    target: "add-product",
+    title: "Add your first item",
+    description:
+      "Use this button to create products or food items — they go live on every sales channel.",
+  },
+  {
+    target: "business-overview",
+    title: "Business overview",
+    description:
+      "Orders, sales, catalog size and revenue at a glance — refreshed as your store grows.",
+  },
+  {
+    target: "todo-list",
+    title: "To-do list",
+    description:
+      "A guided checklist of everything left to launch. Tick items off as you go.",
+  },
+  {
+    target: "quick-actions",
+    title: "Quick actions",
+    description:
+      "One-tap shortcuts to the things you do most: add items, open wallet and manage settings.",
+  },
+  {
+    target: "sidebar-nav",
+    title: "Navigate anywhere",
+    description:
+      "Products, orders, analytics, wallet and more live here. You're all set — welcome aboard!",
+  },
+];
 
 function DashboardPage() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -347,7 +387,7 @@ function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#FAFBFA] px-4 py-6 sm:px-6 lg:px-8 dark:bg-background">
-      <div className="mb-5 rounded-lg bg-[#101820] px-4 py-3 text-white shadow-sm">
+      <div className="mb-5 rounded-lg bg-[#101820] px-4 py-3 text-white shadow-sm" data-tour="launch-banner">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <p className="text-sm font-medium">
             Your Swiftree launch setup is {setupProgress}% complete. Finish the next steps to unlock every sales channel.
@@ -404,6 +444,7 @@ function DashboardPage() {
             onClick={handleOpenAddModal}
             disabled={storeTypeStatus !== "ready"}
             title={storeTypeStatus === "error" ? "Store type could not be loaded. Refresh and try again." : undefined}
+            data-tour="add-product"
           >
             <PlusIcon className="h-4 w-4" />
             <span className="ml-2">
@@ -415,7 +456,7 @@ function DashboardPage() {
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-5">
-          <Card className="shadow-none">
+          <Card className="shadow-none" data-tour="business-overview">
             <CardHeader className="pb-3">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
@@ -474,7 +515,7 @@ function DashboardPage() {
         </div>
 
         <div className="space-y-5">
-          <Card className="border-primary/10 bg-primary/5 shadow-none">
+          <Card className="border-primary/10 bg-primary/5 shadow-none" data-tour="todo-list">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between gap-3">
                 <CardTitle className="text-base">To-do List</CardTitle>
@@ -546,7 +587,7 @@ function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-none">
+          <Card className="shadow-none" data-tour="quick-actions">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Quick Actions</CardTitle>
             </CardHeader>
@@ -612,6 +653,7 @@ function DashboardPage() {
         fieldOptions={fieldOptions}
         dataName={isRestaurant ? "Food Items" : "Products"}
       />
+      <OnboardingTour storageKey="swiftree-dashboard-tour-v1" steps={tourSteps} />
     </div>
   );
 }
