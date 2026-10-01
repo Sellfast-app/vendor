@@ -1,19 +1,44 @@
 "use client";
 
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
   Bike,
   Boxes,
   Building2,
   MapPin,
+  MapPinPlus,
   PackageCheck,
+  Plus,
+  Trash2,
   Truck,
 } from "lucide-react";
+import { toast } from "sonner";
+import AddManualRateModal, {
+  formatNaira,
+  type ManualRate,
+} from "./AddManualRateModal";
+import AddPickupLocationModal, {
+  type PickupLocation,
+} from "./AddPickupLocationModal";
+
+const EditIcon = ({ className }: { className?: string }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+    <path d="m15 5 4 4" />
+  </svg>
+);
 
 const logisticsModes = [
   {
@@ -53,13 +78,70 @@ const logisticsModes = [
   },
 ];
 
-const branchRows = [
-  ["Lekki branch", "Lekki Phase 1, Lagos", "Pickup + local dispatch"],
-  ["Ikeja branch", "Allen Avenue, Lagos", "Pickup only"],
-  ["Abuja branch", "Wuse 2, Abuja", "Manual shipping"],
-];
-
 export default function LogisticsSettings() {
+  const [isRateModalOpen, setIsRateModalOpen] = useState(false);
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+  const [editingRate, setEditingRate] = useState<ManualRate | null>(null);
+  const [editingLocation, setEditingLocation] = useState<PickupLocation | null>(null);
+  const [manualRates, setManualRates] = useState<ManualRate[]>([]);
+  const [pickupLocations, setPickupLocations] = useState<PickupLocation[]>([]);
+
+  const openAddRateModal = () => {
+    setEditingRate(null);
+    setIsRateModalOpen(true);
+  };
+
+  const openEditRateModal = (rate: ManualRate) => {
+    setEditingRate(rate);
+    setIsRateModalOpen(true);
+  };
+
+  const openAddLocationModal = () => {
+    setEditingLocation(null);
+    setIsLocationModalOpen(true);
+  };
+
+  const openEditLocationModal = (location: PickupLocation) => {
+    setEditingLocation(location);
+    setIsLocationModalOpen(true);
+  };
+
+  const handleAddRate = (rate: ManualRate) => {
+    setManualRates((current) => [...current, rate]);
+    toast.success(`Manual rate for ${rate.location} added`);
+  };
+
+  const handleUpdateRate = (rate: ManualRate) => {
+    setManualRates((current) =>
+      current.map((item) => (item.id === rate.id ? rate : item))
+    );
+    toast.success(`Manual rate for ${rate.location} updated`);
+  };
+
+  const handleRemoveRate = (id: string) => {
+    setManualRates((current) => current.filter((rate) => rate.id !== id));
+    toast.success("Manual rate removed");
+  };
+
+  const handleAddLocation = (location: PickupLocation) => {
+    setPickupLocations((current) => [...current, location]);
+    toast.success(`${location.name} added`);
+  };
+
+  const handleUpdateLocation = (location: PickupLocation) => {
+    setPickupLocations((current) =>
+      current.map((item) => (item.id === location.id ? location : item))
+    );
+    toast.success(`${location.name} updated`);
+  };
+
+  const handleRemoveLocation = (id: string) => {
+    setPickupLocations((current) =>
+      current.filter((location) => location.id !== id)
+    );
+    toast.success("Pickup location removed");
+  };
+
   return (
     <div className="space-y-6">
       <Card className="shadow-none">
@@ -115,62 +197,168 @@ export default function LogisticsSettings() {
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <Card className="shadow-none">
           <CardHeader className="border-b">
-            <h3 className="text-sm font-semibold">Manual rate setup</h3>
-            <p className="text-xs text-muted-foreground">
-              Flat rates shown to buyers when automated logistics are not used.
-            </p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-sm font-semibold">Manual rate setup</h3>
+                <p className="text-xs text-muted-foreground">
+                  Flat rates shown to buyers when automated logistics are not
+                  used.
+                </p>
+              </div>
+              <Button size="sm" onClick={openAddRateModal}>
+                <Plus className="h-4 w-4" />
+                Add manual rate
+              </Button>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-4 p-5">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Location</Label>
-                <Input defaultValue="Lagos Mainland" />
+          <CardContent className="p-5">
+            {manualRates.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-8 text-center">
+                <Boxes className="h-8 w-8 text-muted-foreground/60" />
+                <p className="text-sm font-medium">No manual rates yet</p>
+                <p className="text-xs text-muted-foreground">
+                  Add a location and flat rate to charge buyers manually.
+                </p>
               </div>
-              <div className="space-y-2">
-                <Label>Rate</Label>
-                <Input defaultValue="₦2,500" />
+            ) : (
+              <div className="divide-y">
+                {manualRates.map((rate) => (
+                  <div
+                    key={rate.id}
+                    className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                  >
+                    <div className="flex min-w-0 gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#F5F5F5] text-primary">
+                        <MapPin className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">
+                          {rate.location}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Buyer sees: Manual shipping — {formatNaira(rate.rate)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <span className="text-sm font-semibold text-primary">
+                        {formatNaira(rate.rate)}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                        onClick={() => openEditRateModal(rate)}
+                        aria-label={`Edit manual rate for ${rate.location}`}
+                      >
+                        <EditIcon className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-red-600"
+                        onClick={() => handleRemoveRate(rate.id)}
+                        aria-label={`Remove manual rate for ${rate.location}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-            <div className="rounded-lg border bg-[#F7FFF9] p-4">
-              <p className="text-sm font-medium text-primary">
-                Buyer sees: Manual shipping - ₦2,500
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Use this for custom regions, local vendor delivery and branch
-                fulfillment.
-              </p>
-            </div>
+            )}
           </CardContent>
         </Card>
 
         <Card className="shadow-none">
           <CardHeader className="border-b">
-            <h3 className="text-sm font-semibold">Branch pickup locations</h3>
-            <p className="text-xs text-muted-foreground">
-              Localized pickup options can be restricted by customer state.
-            </p>
-          </CardHeader>
-          <CardContent className="divide-y p-0">
-            {branchRows.map(([name, address, mode]) => (
-              <div
-                key={name}
-                className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between"
-              >
-                <div className="flex gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#F5F5F5] text-primary">
-                    <MapPin className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">{name}</p>
-                    <p className="text-xs text-muted-foreground">{address}</p>
-                  </div>
-                </div>
-                <Badge variant="secondary">{mode}</Badge>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-sm font-semibold">
+                  Branch pickup locations
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Localized pickup options can be restricted by customer state.
+                </p>
               </div>
-            ))}
+              <Button size="sm" onClick={openAddLocationModal}>
+                <MapPinPlus className="h-4 w-4" />
+                Add pickup location
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-5">
+            {pickupLocations.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-8 text-center">
+                <Building2 className="h-8 w-8 text-muted-foreground/60" />
+                <p className="text-sm font-medium">No pickup locations yet</p>
+                <p className="text-xs text-muted-foreground">
+                  Add branch addresses buyers can collect orders from.
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y">
+                {pickupLocations.map((location) => (
+                  <div
+                    key={location.id}
+                    className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 md:flex-row md:items-center md:justify-between"
+                  >
+                    <div className="flex min-w-0 gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#F5F5F5] text-primary">
+                        <MapPin className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">
+                          {location.name}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {location.address} · {location.state}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Badge variant="secondary">{location.mode}</Badge>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                        onClick={() => openEditLocationModal(location)}
+                        aria-label={`Edit ${location.name}`}
+                      >
+                        <EditIcon className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-red-600"
+                        onClick={() => handleRemoveLocation(location.id)}
+                        aria-label={`Remove ${location.name}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
+
+      <AddManualRateModal
+        isOpen={isRateModalOpen}
+        onClose={() => setIsRateModalOpen(false)}
+        onAddRate={handleAddRate}
+        onUpdateRate={handleUpdateRate}
+        editingRate={editingRate}
+      />
+      <AddPickupLocationModal
+        isOpen={isLocationModalOpen}
+        onClose={() => setIsLocationModalOpen(false)}
+        onAddLocation={handleAddLocation}
+        onUpdateLocation={handleUpdateLocation}
+        editingLocation={editingLocation}
+      />
     </div>
   );
 }

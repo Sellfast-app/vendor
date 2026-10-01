@@ -113,71 +113,7 @@ export default function PaymentMethods() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        {/* Manual Rate Setup */}
-        <Card className="shadow-none">
-          <CardHeader className="border-b">
-            <h3 className="text-sm font-semibold">Manual rate setup</h3>
-            <p className="text-xs text-muted-foreground">
-              Flat rates shown to buyers when automated logistics are not used.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4 p-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-xs">Location</Label>
-                <Input placeholder="Enter location" defaultValue="Lagos Mainland" />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs">Rate (₦)</Label>
-                <Input placeholder="0" defaultValue="2500" />
-              </div>
-            </div>
-            <div className="rounded-lg bg-[#D1FFDB] p-3 dark:bg-background">
-              <p className="text-xs text-primary">
-                <strong>Buyer sees:</strong> Manual shipping - ₦2,500
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Branch Pickup Locations */}
-        <Card className="shadow-none">
-          <CardHeader className="border-b">
-            <h3 className="text-sm font-semibold">Branch pickup locations</h3>
-            <p className="text-xs text-muted-foreground">
-              Localized pickup options can be restricted by customer state.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4 p-5">
-            <div className="space-y-3">
-              {[
-                { name: "Lekki branch", address: "Lekki Phase 1, Lagos", tag: "Pickup + local dispatch" },
-                { name: "Ikeja branch", address: "Allen Avenue, Lagos", tag: "Pickup only" },
-                { name: "Abuja branch", address: "Wuse 2, Abuja", tag: "Manual shipping" },
-              ].map((branch) => (
-                <div
-                  key={branch.name}
-                  className="flex items-center justify-between p-3 rounded-lg border"
-                >
-                  <div>
-                    <p className="text-sm font-medium">{branch.name}</p>
-                    <p className="text-xs text-muted-foreground">{branch.address}</p>
-                  </div>
-                  <div className="flex gap-2 items-center">
-                    <Badge variant="secondary" className="text-[10px]">{branch.tag}</Badge>
-                    <Button size="sm" variant="outline">Edit</Button>
-                    <Button size="sm" variant="destructive">Delete</Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <Button size="sm" variant="outline" className="w-full">
-              <PlusIcon className="h-4 w-4 mr-1" /> Add pickup location
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+     
     </div>
   );
 }
