@@ -15,6 +15,7 @@ import EventIcon from "./svgIcons/EventIcon";
 import Logout from "./svgIcons/Logout";
 import WalletIcon from "./svgIcons/WalletIcon";
 import StaffIcon from "./svgIcons/StaffIcon";
+import Emailcon from "./svgIcons/Emailcon";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 
 interface RouteLink {
@@ -37,6 +38,7 @@ const adminRoutes: Route[] = [
   { icon: Analytics, label: "Analytics", href: "/analytics" },
   { icon: WalletIcon, label: "Wallet", href: "/wallet" },
   { icon: EventIcon, label: "Events", href: "/events" },
+  { icon: Emailcon, label: "Leads", href: "/leads" },
   { icon: StaffIcon, label: "Staff", href: "/staff" },
 ];
 
