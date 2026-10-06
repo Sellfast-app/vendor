@@ -67,8 +67,6 @@ export const SidebarRoutes = () => {
   // Fetch store data including logo
   const fetchStoreData = async () => {
     try {
-      console.log('🔄 Sidebar - Fetching store data for logo...');
-      
       const response = await fetch('/api/store');
       
       if (!response.ok) {
@@ -84,7 +82,6 @@ export const SidebarRoutes = () => {
         // Set store logo if available
         if (storeDetails.logo) {
           setStoreLogo(storeDetails.logo);
-          console.log('✅ Sidebar - Logo fetched:', storeDetails.logo);
         }
         
         // Also update business name from API if different from cookie
@@ -93,9 +90,8 @@ export const SidebarRoutes = () => {
           setBusinessName(storeName);
         }
       }
-    } catch (error) {
-      console.error('❌ Sidebar - Error fetching store data:', error);
-      // Don't show toast error here to avoid spamming
+    } catch {
+      // Keep sidebar rendering stable if store branding is temporarily unavailable.
     }
   };
 
@@ -183,19 +179,20 @@ export const SidebarRoutes = () => {
   };
 
   return (
-    <div className="flex flex-col w-full">
-      {adminRoutes.map((route, index) => (
-        <SidebarItem
-          key={route.href!}
-          icon={route.icon}
-          label={route.label}
-          href={route.href}
-          data-tour={index === 0 ? "sidebar-nav" : undefined}
-        />
-      ))}
-      <div className="mt-[300px] w-full">
+    <div className="flex min-h-full w-full flex-col">
+      <div className="space-y-1">
+        {adminRoutes.map((route, index) => (
+          <SidebarItem
+            key={route.href!}
+            icon={route.icon}
+            label={route.label}
+            href={route.href}
+            data-tour={index === 0 ? "sidebar-nav" : undefined}
+          />
+        ))}
+      </div>
+      <div className="mt-auto w-full pt-6">
         <div className="w-full border-b border-[#F5F5F5] dark:border-[#1F1F1F]">
-        
           {updatedActionRoutes.map((route) => (
             <SidebarItem
               key={route.label}
@@ -208,30 +205,28 @@ export const SidebarRoutes = () => {
           ))}
         </div>
         <DropdownMenu>
-          <DropdownMenuTrigger className="w-full"> 
-            <div className="flex items-center space-x-3 ml-6 mt-5">
-          <Avatar className="w-10 h-10 border rounded-full text-center">
-            {/* Display logo if available, otherwise fallback */}
-            <AvatarImage 
-              src={storeLogo || ""} 
-              alt={businessName} 
-              className="object-cover rounded-full"
-            />
-            <AvatarFallback>{getInitials(businessName)}</AvatarFallback>
-          </Avatar>
-          <div>
-            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-              {businessName}
-            </p>
-          </div>
-        </div></DropdownMenuTrigger>
-        <DropdownMenuContent>
-          <DropdownMenuItem>
-            Other Stores
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-         </DropdownMenu>
-        
+          <DropdownMenuTrigger className="w-full">
+            <div className="mx-4 mt-4 flex items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted">
+              <Avatar className="h-10 w-10 rounded-full border text-center">
+                <AvatarImage
+                  src={storeLogo || ""}
+                  alt={businessName}
+                  className="rounded-full object-cover"
+                />
+                <AvatarFallback>{getInitials(businessName)}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
+                  {businessName}
+                </p>
+                <p className="text-xs text-muted-foreground">Store workspace</p>
+              </div>
+            </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuItem>Other Stores</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );

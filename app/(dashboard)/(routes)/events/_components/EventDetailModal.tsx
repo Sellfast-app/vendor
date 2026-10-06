@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,6 +32,7 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Event, TicketType, generateEventId, generateTicketId } from "@/lib/events-data";
+import { EventImagePicker } from "./EventImagePicker";
 
 interface EventDetailModalProps {
   event: Event | null;
@@ -192,46 +192,10 @@ export function EventDetailModal({
 
         <div className="px-6 py-4 space-y-6">
           {/* Cover Image */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Cover Image</Label>
-            <div
-              className="relative rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/50 aspect-video flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors"
-              onClick={() => document.getElementById("cover-image-input")?.click()}
-            >
-              {formData.coverImage ? (
-                <Image
-                  src={formData.coverImage}
-                  alt="Event cover"
-                  fill
-                  className="object-cover rounded-lg"
-                />
-              ) : (
-                <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <span className="text-xs font-medium">Upload cover image</span>
-                  <span className="text-xs text-muted-foreground">PNG, JPG, GIF up to 10MB</span>
-                </div>
-              )}
-              <Input
-                id="cover-image-input"
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    const reader = new FileReader();
-                    reader.onload = () => handleInputChange("coverImage", reader.result as string);
-                    reader.readAsDataURL(file);
-                  }
-                }}
-              />
-            </div>
-          </div>
+          <EventImagePicker
+            value={formData.coverImage}
+            onChange={(url) => handleInputChange("coverImage", url)}
+          />
 
           {/* Event Details */}
           <div className="grid gap-4">
