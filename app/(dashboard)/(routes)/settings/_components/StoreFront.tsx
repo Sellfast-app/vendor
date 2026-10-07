@@ -44,6 +44,11 @@ interface StoreMetadata {
   state?: string;
   post_code?: string;
   phone?: string;
+  email?: string;
+  instagram?: string;
+  facebook?: string;
+  twitter?: string;
+  x?: string;
   latitude?: number;
   longitude?: number;
   country?: string;
@@ -61,6 +66,8 @@ interface StoreDetails {
   botUrl: string;
   logo?: string | null;
   banner?: string | null;
+  banner_style?: "portrait" | "carousel";
+  banner_images?: string[];
   metadata?: StoreMetadata;
   enabled_fulfillment_modes?: string[];
 }
@@ -203,6 +210,7 @@ function StorefrontComponent() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
+  const [isUploadingBannerImages, setIsUploadingBannerImages] = useState(false);
   const [isSavingTheme, setIsSavingTheme] = useState(false);
   const [isSavingDeliveryMethod, setIsSavingDeliveryMethod] = useState(false);
   const [isEditingPaymentMethod, setIsEditingPaymentMethod] = useState(false);
@@ -212,6 +220,7 @@ function StorefrontComponent() {
   const [isFoodVendor, setIsFoodVendor] = useState(false); // ← NEW
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
+  const bannerImagesInputRef = useRef<HTMLInputElement>(null);
 
   const [storefrontData, setStorefrontData] = useState<StoreDetails>({
     storeName: "",
@@ -224,6 +233,8 @@ function StorefrontComponent() {
     botUrl: "",
     logo: null,
     banner: null,
+    banner_style: "portrait",
+    banner_images: [],
   });
 
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
@@ -451,6 +462,12 @@ function StorefrontComponent() {
             location: metadata.city || "Lagos",
             logo: storeDetails.logo || null,
             banner: storeDetails.banner || null,
+            banner_style: storeDetails.banner_style || "portrait",
+            banner_images: Array.isArray(storeDetails.banner_images)
+              ? storeDetails.banner_images
+              : storeDetails.banner
+                ? [storeDetails.banner]
+                : [],
             botUrl: storeDetails.bot_url || "",
             metadata: metadata,
             enabled_fulfillment_modes: enabledModes
@@ -603,7 +620,15 @@ function StorefrontComponent() {
       const result = await parseApiResponse(response);
       if (!response.ok) throw new Error(result.error || 'Failed to upload banner');
       const newBanner = result.data?.banner || result.data?.store?.banner;
-      if (newBanner) setStorefrontData(prev => ({ ...prev, banner: newBanner }));
+      if (newBanner) {
+        setStorefrontData(prev => ({
+          ...prev,
+          banner: newBanner,
+          // Portrait fallback: keep banner as the first image in the carousel
+          banner_images: prev.banner_images?.length ? prev.banner_images : [newBanner],
+          banner_style: "portrait",
+        }));
+      }
       toast.success('Banner uploaded successfully!');
       if (bannerInputRef.current) bannerInputRef.current.value = '';
     } catch (error) {
@@ -611,6 +636,44 @@ function StorefrontComponent() {
       toast.error(error instanceof Error ? error.message : 'Failed to upload banner');
     } finally {
       setIsUploadingBanner(false);
+    }
+  };
+
+  const handleBannerImagesUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const invalid = files.some((f) => !allowedTypes.includes(f.type));
+    if (invalid) { toast.error('All banner images must be JPEG, PNG, or WebP'); return; }
+
+    const tooLarge = files.some((f) => f.size > 10 * 1024 * 1024);
+    if (tooLarge) { toast.error('Each banner image must be less than 10MB'); return; }
+
+    setIsUploadingBannerImages(true);
+    try {
+      const formData = new FormData();
+      files.forEach((file) => formData.append('banner_images', file));
+
+      const response = await fetch('/api/store/banner-images', { method: 'POST', body: formData });
+      const result = await parseApiResponse(response);
+      if (!response.ok) throw new Error(result.error || 'Failed to upload banner images');
+
+      const newImages = result.data?.banner_images || result.data?.images || [];
+      if (Array.isArray(newImages) && newImages.length > 0) {
+        setStorefrontData(prev => ({
+          ...prev,
+          banner_images: newImages,
+          banner_style: "carousel",
+        }));
+      }
+      toast.success('Banner images uploaded successfully!');
+      if (bannerImagesInputRef.current) bannerImagesInputRef.current.value = '';
+    } catch (error) {
+      console.error('❌ Banner images upload error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to upload banner images');
+    } finally {
+      setIsUploadingBannerImages(false);
     }
   };
 
@@ -637,11 +700,19 @@ function StorefrontComponent() {
           state: storefrontData.metadata?.state || storefrontData.location,
           post_code: storefrontData.metadata?.post_code || "",
           phone: formattedPhone,
+          email: storefrontData.metadata?.email || "",
+          instagram: storefrontData.metadata?.instagram || "",
+          facebook: storefrontData.metadata?.facebook || "",
+          twitter: storefrontData.metadata?.twitter || "",
+          x: storefrontData.metadata?.x || "",
           latitude: storefrontData.metadata?.latitude || 0,
           longitude: storefrontData.metadata?.longitude || 0,
           country: storefrontData.metadata?.country || "NG",
           brand_color: storefrontData.metadata?.brand_color || getThemeColors(themeColor),
         },
+        // Forward banner style + multi-image list to the backend
+        banner_style: storefrontData.banner_style,
+        banner_images: storefrontData.banner_images || [],
       };
 
       const response = await fetch('/api/store', {
@@ -678,6 +749,11 @@ function StorefrontComponent() {
           state: storefrontData.metadata?.state || "Lagos",
           post_code: storefrontData.metadata?.post_code || "",
           phone: storefrontData.metadata?.phone || `+234${storefrontData.whatsappNumber.replace(/^0/, '')}`,
+          email: storefrontData.metadata?.email || "",
+          instagram: storefrontData.metadata?.instagram || "",
+          facebook: storefrontData.metadata?.facebook || "",
+          twitter: storefrontData.metadata?.twitter || "",
+          x: storefrontData.metadata?.x || "",
           latitude: storefrontData.metadata?.latitude || 0,
           longitude: storefrontData.metadata?.longitude || 0,
           country: storefrontData.metadata?.country || "NG",
@@ -874,6 +950,16 @@ function StorefrontComponent() {
 
   const handleInputChange = (field: keyof StoreDetails, value: string) => {
     setStorefrontData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleMetadataChange = (field: keyof StoreMetadata, value: string) => {
+    setStorefrontData((prev) => ({
+      ...prev,
+      metadata: {
+        ...prev.metadata,
+        [field]: value,
+      },
+    }));
   };
 
   const copyToClipboard = (text: string) => {
@@ -1075,6 +1161,66 @@ function StorefrontComponent() {
               <div className="text-right text-xs text-muted-foreground">{storefrontData.bio.length}/500</div>
             </div>
 
+            <div className="rounded-2xl border border-[#F1F1F1] p-4 dark:border-[#252525]">
+              <div className="mb-4">
+                <h3 className="text-sm font-medium">Contact and social links</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  These details appear on the storefront footer and contact page.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="storeEmail" className="text-xs">Contact Email</Label>
+                  <Input
+                    id="storeEmail"
+                    type="email"
+                    value={storefrontData.metadata?.email || ""}
+                    onChange={(e) => handleMetadataChange("email", e.target.value)}
+                    disabled={!isEditingStorefront}
+                    className="dark:bg-background"
+                    placeholder="orders@yourstore.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="instagram" className="text-xs">Instagram URL</Label>
+                  <Input
+                    id="instagram"
+                    value={storefrontData.metadata?.instagram || ""}
+                    onChange={(e) => handleMetadataChange("instagram", e.target.value)}
+                    disabled={!isEditingStorefront}
+                    className="dark:bg-background"
+                    placeholder="https://instagram.com/yourstore"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="facebook" className="text-xs">Facebook URL</Label>
+                  <Input
+                    id="facebook"
+                    value={storefrontData.metadata?.facebook || ""}
+                    onChange={(e) => handleMetadataChange("facebook", e.target.value)}
+                    disabled={!isEditingStorefront}
+                    className="dark:bg-background"
+                    placeholder="https://facebook.com/yourstore"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="twitter" className="text-xs">X / Twitter URL</Label>
+                  <Input
+                    id="twitter"
+                    value={storefrontData.metadata?.x || storefrontData.metadata?.twitter || ""}
+                    onChange={(e) => {
+                      handleMetadataChange("x", e.target.value);
+                      handleMetadataChange("twitter", e.target.value);
+                    }}
+                    disabled={!isEditingStorefront}
+                    className="dark:bg-background"
+                    placeholder="https://x.com/yourstore"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Store Banner — portrait fallback */}
             <div className="space-y-2">
               <Label htmlFor="banner" className="text-xs">Store Banner</Label>
               <input type="file" ref={bannerInputRef} onChange={handleBannerUpload} accept="image/jpeg,image/jpg,image/png,image/webp" className="hidden" />
@@ -1092,6 +1238,61 @@ function StorefrontComponent() {
                     <ImageIcon className="w-8 h-8 text-primary" />
                     <p className="text-sm font-medium">{isEditingStorefront ? 'Upload store banner' : 'No banner uploaded'}</p>
                     <p className="text-xs text-muted-foreground">{isEditingStorefront ? 'Max 10MB, JPEG, PNG, WebP' : 'Edit to upload banner'}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Storefront/Banner style selector */}
+            <div className="space-y-2">
+              <Label className="text-xs">Storefront / Banner style</Label>
+              <Select
+                value={storefrontData.banner_style || "portrait"}
+                onValueChange={(value) => handleInputChange("banner_style", value)}
+                disabled={!isEditingStorefront}
+              >
+                <SelectTrigger className="dark:bg-background"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="portrait">Portrait (single banner)</SelectItem>
+                  <SelectItem value="carousel">Carousel (multi-image, auto-sliding)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {storefrontData.banner_style === "carousel"
+                  ? "Upload multiple banner images — the carousel will slide through them automatically."
+                  : "A single portrait banner is shown. Use multi-image upload for the carousel."}
+              </p>
+            </div>
+
+            {/* Multi-banner upload for carousel */}
+            <div className="space-y-2">
+              <Label htmlFor="banner-images" className="text-xs">Banner Images (multi-image)</Label>
+              <input
+                type="file"
+                ref={bannerImagesInputRef}
+                onChange={handleBannerImagesUpload}
+                accept="image/jpeg,image/jpg,image/png,image/webp"
+                multiple
+                className="hidden"
+              />
+              <div className="border-1 border-dashed border-primary rounded-2xl p-8 text-center cursor-pointer hover:bg-primary/5 transition-colors" onClick={() => isEditingStorefront && bannerImagesInputRef.current?.click()}>
+                {isUploadingBannerImages ? (
+                  <div className="flex flex-col items-center gap-2"><Loader2 className="w-8 h-8 animate-spin text-primary" /><p className="text-sm font-medium">Uploading banner images...</p></div>
+                ) : storefrontData.banner_images && storefrontData.banner_images.length > 0 ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="grid w-40 h-16 grid-cols-3 gap-2 rounded-md border overflow-hidden">
+                      {storefrontData.banner_images.map((img, i) => (
+                        <div key={i} className="bg-cover bg-center" style={{ backgroundImage: `url(${img})` }} />
+                      ))}
+                    </div>
+                    <p className="text-sm font-medium">{storefrontData.banner_images.length} banner images</p>
+                    <p className="text-xs text-muted-foreground">Click to add more images for the carousel</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2">
+                    <ImageIcon className="w-8 h-8 text-primary" />
+                    <p className="text-sm font-medium">{isEditingStorefront ? 'Upload banner images' : 'No banner images uploaded'}</p>
+                    <p className="text-xs text-muted-foreground">{isEditingStorefront ? 'JPEG, PNG, WebP — used for the carousel' : 'Edit to upload multi-image banner'}</p>
                   </div>
                 )}
               </div>

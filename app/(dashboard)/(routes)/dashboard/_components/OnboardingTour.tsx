@@ -133,19 +133,62 @@ export default function OnboardingTour({ storageKey, steps }: OnboardingTourProp
 
   return createPortal(
     <div className="fixed inset-0 z-[100]">
-      {/* Click-away layer: same blur treatment as the app's modals */}
-      <div
-        aria-hidden
-        className="absolute inset-0 backdrop-blur-xs bg-[#06140033] dark:bg-black/50"
-        onClick={endTour}
-      />
+      {/* Keep the target clear by placing the dimmed/blurred backdrop around it. */}
+      {spotlight ? (
+        <>
+          <div
+            aria-hidden
+            className="absolute left-0 right-0 top-0 backdrop-blur-xs bg-[#06140033] dark:bg-black/50"
+            style={{ height: spotlight.top }}
+            onClick={endTour}
+          />
+          <div
+            aria-hidden
+            className="absolute bottom-0 left-0 right-0 backdrop-blur-xs bg-[#06140033] dark:bg-black/50"
+            style={{ top: spotlight.top + spotlight.height }}
+            onClick={endTour}
+          />
+          <div
+            aria-hidden
+            className="absolute left-0 backdrop-blur-xs bg-[#06140033] dark:bg-black/50"
+            style={{
+              top: spotlight.top,
+              width: spotlight.left,
+              height: spotlight.height,
+            }}
+            onClick={endTour}
+          />
+          <div
+            aria-hidden
+            className="absolute right-0 backdrop-blur-xs bg-[#06140033] dark:bg-black/50"
+            style={{
+              top: spotlight.top,
+              left: spotlight.left + spotlight.width,
+              height: spotlight.height,
+            }}
+            onClick={endTour}
+          />
+        </>
+      ) : (
+        <div
+          aria-hidden
+          className="absolute inset-0 backdrop-blur-xs bg-[#06140033] dark:bg-black/50"
+          onClick={endTour}
+        />
+      )}
 
       {/* Highlight ring around the current target */}
       {spotlight && (
         <div
           aria-hidden
-          className="pointer-events-none absolute rounded-xl ring-4 ring-primary transition-all duration-200"
-          style={spotlight}
+          className="pointer-events-none absolute rounded-xl border-2 border-primary bg-transparent transition-all duration-200"
+          style={{
+            ...spotlight,
+            zIndex: 1,
+            backgroundColor: "transparent",
+            backdropFilter: "none",
+            WebkitBackdropFilter: "none",
+          }}
         />
       )}
 

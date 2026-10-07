@@ -24,7 +24,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
-import AddBankModal from "../payouts/_components/AddBankModal";
+import { AddBankModal } from "./_components/AddBankModal";
 import { WithdrawModal } from "./_components/WithdrawModal";
 
 interface BankData {

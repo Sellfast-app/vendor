@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -86,6 +86,47 @@ export default function LogisticsSettings() {
   const [manualRates, setManualRates] = useState<ManualRate[]>([]);
   const [pickupLocations, setPickupLocations] = useState<PickupLocation[]>([]);
 
+  useEffect(() => {
+    const loadManualRates = async () => {
+      try {
+        const response = await fetch("/api/store", { cache: "no-store" });
+        const result = await response.json();
+        const rates = result.data?.storeDetails?.metadata?.manual_shipping_rates;
+
+        if (Array.isArray(rates)) {
+          setManualRates(
+            rates.filter(
+              (rate): rate is ManualRate =>
+                typeof rate?.id === "string" &&
+                typeof rate?.location === "string" &&
+                typeof rate?.rate === "number" &&
+                Number.isFinite(rate.rate) &&
+                rate.rate > 0
+            )
+          );
+        }
+      } catch (error) {
+        console.error("Failed to load manual shipping rates:", error);
+      }
+    };
+
+    loadManualRates();
+  }, []);
+
+  const persistManualRates = async (rates: ManualRate[]) => {
+    const response = await fetch("/api/store", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ metadata: { manual_shipping_rates: rates } }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error || result.message || "Failed to save manual shipping rates");
+    }
+    setManualRates(rates);
+  };
+
   const openAddRateModal = () => {
     setEditingRate(null);
     setIsRateModalOpen(true);
@@ -106,21 +147,33 @@ export default function LogisticsSettings() {
     setIsLocationModalOpen(true);
   };
 
-  const handleAddRate = (rate: ManualRate) => {
-    setManualRates((current) => [...current, rate]);
-    toast.success(`Manual rate for ${rate.location} added`);
+  const handleAddRate = async (rate: ManualRate) => {
+    try {
+      await persistManualRates([...manualRates, rate]);
+      toast.success(`Manual rate for ${rate.location} added`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save manual rate");
+    }
   };
 
-  const handleUpdateRate = (rate: ManualRate) => {
-    setManualRates((current) =>
-      current.map((item) => (item.id === rate.id ? rate : item))
-    );
-    toast.success(`Manual rate for ${rate.location} updated`);
+  const handleUpdateRate = async (rate: ManualRate) => {
+    try {
+      await persistManualRates(
+        manualRates.map((item) => (item.id === rate.id ? rate : item))
+      );
+      toast.success(`Manual rate for ${rate.location} updated`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update manual rate");
+    }
   };
 
-  const handleRemoveRate = (id: string) => {
-    setManualRates((current) => current.filter((rate) => rate.id !== id));
-    toast.success("Manual rate removed");
+  const handleRemoveRate = async (id: string) => {
+    try {
+      await persistManualRates(manualRates.filter((rate) => rate.id !== id));
+      toast.success("Manual rate removed");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to remove manual rate");
+    }
   };
 
   const handleAddLocation = (location: PickupLocation) => {

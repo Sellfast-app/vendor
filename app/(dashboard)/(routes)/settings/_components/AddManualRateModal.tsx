@@ -24,8 +24,8 @@ export const formatNaira = (value: number) => `₦${value.toLocaleString("en-NG"
 interface AddManualRateModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddRate: (rate: ManualRate) => void;
-  onUpdateRate: (rate: ManualRate) => void;
+  onAddRate: (rate: ManualRate) => void | Promise<void>;
+  onUpdateRate: (rate: ManualRate) => void | Promise<void>;
   editingRate: ManualRate | null;
 }
 

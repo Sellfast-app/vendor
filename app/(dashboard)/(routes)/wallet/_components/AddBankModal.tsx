@@ -4,37 +4,50 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import { Banknote, ArrowUpRight } from "lucide-react";
+import { Banknote } from "lucide-react";
 
-interface AddBankModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+interface BankData {
+  bankName: string;
+  accountNumber: string;
+  accountHolder: string;
+  bankCode: string;
 }
 
-export function AddBankModal({ open, onOpenChange }: AddBankModalProps) {
+interface AddBankModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onAddBank: (bankData: BankData) => void;
+}
+
+export function AddBankModal({ isOpen, onClose, onAddBank }: AddBankModalProps) {
   const [bankName, setBankName] = useState("");
-  const [accountName, setAccountName] = useState("");
+  const [accountHolder, setAccountHolder] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
+  const [bankCode, setBankCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSave = async () => {
-    if (!bankName || !accountName || !accountNumber) return;
+    if (!bankName || !accountHolder || !accountNumber) return;
     setIsSubmitting(true);
-    // TODO: connect to bank account API
-    setTimeout(() => setIsSubmitting(false), 500);
-    onOpenChange(false);
+    onAddBank({
+      bankName,
+      accountNumber,
+      accountHolder,
+      bankCode,
+    });
+    setIsSubmitting(false);
+    onClose();
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold">
@@ -53,10 +66,10 @@ export function AddBankModal({ open, onOpenChange }: AddBankModalProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Account name</Label>
+              <Label className="text-sm font-medium">Account holder</Label>
               <Input
-                value={accountName}
-                onChange={(e) => setAccountName(e.target.value)}
+                value={accountHolder}
+                onChange={(e) => setAccountHolder(e.target.value)}
                 placeholder="Name on the account"
                 className="h-10"
               />
@@ -71,21 +84,26 @@ export function AddBankModal({ open, onOpenChange }: AddBankModalProps) {
                 maxLength={10}
               />
             </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Bank code</Label>
+              <Input
+                value={bankCode}
+                onChange={(e) => setBankCode(e.target.value)}
+                placeholder="e.g. 044"
+                className="h-10"
+              />
+            </div>
             <div className="rounded-lg border border-dashed border-primary/30 p-3 text-xs text-muted-foreground text-center">
               Your bank account is used for instant wallet settlements.
             </div>
             <div className="flex gap-2 pt-2">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => onOpenChange(false)}
-              >
+              <Button variant="outline" className="flex-1" onClick={onClose}>
                 Cancel
               </Button>
               <Button
                 className="flex-1 bg-primary hover:bg-primary/90"
                 onClick={handleSave}
-                disabled={!bankName || !accountName || !accountNumber || isSubmitting}
+                disabled={!bankName || !accountHolder || !accountNumber || isSubmitting}
               >
                 {isSubmitting ? "Saving..." : "Save bank"}
               </Button>
