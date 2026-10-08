@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import FoodInventoryPage from "@/components/food-inventory";
 import React, { JSX, useState, useEffect } from "react";
 import { RiShare2Fill } from "react-icons/ri";
 import { Card, CardContent } from "@/components/ui/card";
@@ -147,6 +148,8 @@ function ProductsPage() {
       </div>
     );
   }
+
+  if (isRestaurant) return <FoodInventoryPage view="items" />;
 
   return (
     <div className="min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6">

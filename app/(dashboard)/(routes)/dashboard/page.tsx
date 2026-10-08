@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import React, { JSX, useEffect, useMemo, useState } from "react";
 import { RiShare2Fill } from "react-icons/ri";
 import {
@@ -32,7 +33,6 @@ import SalesRevenueChart from "./_components/SalesRevenueChart";
 import BestSellingProducts from "./_components/BestSellingProducts";
 import { ExportModal } from "@/components/ExportModal";
 import AddProductModal from "../products/_components/AddProductModal";
-import AddFoodModal from "../products/_components/AddFoodModal";
 import RecentOrdersTable from "./_components/RecentOrdersTable";
 import { isFoodBusinessType } from "@/lib/store";
 import OnboardingTour, { type TourStep } from "./_components/OnboardingTour";
@@ -163,7 +163,7 @@ const tourSteps: TourStep[] = [
 function DashboardPage() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
-  const [isFoodModalOpen, setIsFoodModalOpen] = useState(false);
+  const router = useRouter();
   const [storeContext, setStoreContext] = useState<StoreContext>({
     name: "there",
     businessType: null,
@@ -240,12 +240,9 @@ function DashboardPage() {
 
     if (isRestaurant && isProductModalOpen) {
       setIsProductModalOpen(false);
-      setIsFoodModalOpen(true);
-    } else if (!isRestaurant && isFoodModalOpen) {
-      setIsFoodModalOpen(false);
-      setIsProductModalOpen(true);
+      router.push("/inventory/items?create=1");
     }
-  }, [isFoodModalOpen, isProductModalOpen, isRestaurant, storeTypeStatus]);
+  }, [isProductModalOpen, isRestaurant, storeTypeStatus, router]);
 
   const snapshotMetrics = useMemo(
     () => [
@@ -369,16 +366,11 @@ function DashboardPage() {
     setIsProductModalOpen(false);
   }
 
-  function handleFoodAdded() {
-    window.dispatchEvent(new CustomEvent("foodAdded"));
-    setIsFoodModalOpen(false);
-  }
-
   function handleOpenAddModal() {
     if (storeTypeStatus !== "ready") return;
 
     if (isRestaurant) {
-      setIsFoodModalOpen(true);
+      router.push("/inventory/items?create=1");
       return;
     }
 
@@ -640,11 +632,6 @@ function DashboardPage() {
         isOpen={isProductModalOpen}
         onClose={() => setIsProductModalOpen(false)}
         onAddProduct={handleAddProduct}
-      />
-      <AddFoodModal
-        isOpen={isFoodModalOpen}
-        onClose={() => setIsFoodModalOpen(false)}
-        onFoodAdded={handleFoodAdded}
       />
       <ExportModal
         isOpen={isExportModalOpen}

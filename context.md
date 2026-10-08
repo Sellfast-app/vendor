@@ -111,3 +111,73 @@ subscription payment, never on a client-side click or redirect.
 
 See docs/ticketing-preview.md for checkout, emailed QR issuance, permissions,
 atomic admission validation, and the boundary between preview and production.
+
+## Food inventory (Daash reference, October 8)
+
+### UI and routes
+
+- Inventory expands to Items (/inventory/items), Categories (/inventory/categories)
+  and Units (/inventory/units). No Sub-recipes or Purchase logging in this scope.
+- The existing food Products view now opens the Inventory items UI. Retail products
+  remain unchanged. Inventory routes stay accessible for frontend review without
+  a successful store API response; business-specific navigation requires authoritative
+  store context when API integration begins.
+- Three right-side drawers replace the food inventory creation experience:
+  Add item, Create category and Create unit.
+- Item fields: name, optional 200-character description, quantity, unit, price 1,
+  optional price 2, derived total, optional category, low-stock toggle and threshold.
+- Preserve multiple image selection with thumbnails below the picker. Maximum
+  five images, each PNG/JPG/GIF up to 10 MB before client compression.
+- Category fields: name, description, apply-to-all-branches.
+- Unit fields: name, optional abbreviation (10 characters maximum), description,
+  apply-to-all-branches.
+- Platform units currently displayed: Pack, Pieces, Kg, Gram, Litre, Gallon.
+  They cannot be edited or deleted through the custom-unit UI.
+
+### Required dropdown relationships
+
+Categories created by the vendor MUST appear in the item category dropdown.
+Custom units MUST appear alongside platform-defined units in the item unit dropdown.
+Use stable category/unit IDs, not display names, in saved item payloads.
+After a successful create/edit, invalidate or update dependent option queries
+immediately; no reload should be needed. Preserve existing selected IDs on edit.
+Do not duplicate options after pagination/refetch. Enforce case-insensitive names
+and non-conflicting unit abbreviations on the server.
+The unit dropdown is required; category can be No category.
+Disallow deleting a unit/category referenced by an item unless the backend defines
+an explicit reassignment/archive policy. Renaming must not break references.
+
+### API contract to agree
+
+- Store/branch-scoped list/create/update/archive endpoints for items, categories,
+  custom units, plus platform unit retrieval. Paths are not yet assumed.
+- Server authorization must enforce store ownership, branch scope and staff
+  inventory permissions. Apply-to-all-branches must be a server operation with
+  defined semantics for existing versus future branches.
+- Quantity supports fractional amounts for measured units. Define precision,
+  conversions and allowed decimal places server-side.
+- Total inventory value currently previews quantity times price 1. Confirm whether
+  this represents purchase cost or selling price. Price 2's meaning (alternate,
+  wholesale or cost price) is not defined by the screenshots: do not use it for
+  checkout until agreed. Both prices remain base values, never compounded markup.
+- Clarify whether these are raw stock ingredients or sellable food items; Daash's
+  Inventory is distinct from Menu. This UI does not delete the legacy customizable,
+  portion, add-on or bundle domain models. Map those explicitly before replacing
+  their production endpoints or feeding this inventory directly to the storefront.
+- Low-stock threshold defaults to 4 when enabled. The preview shows stock status;
+  actual notifications, delivery channels and deduplication are backend work.
+- Persist uploaded asset IDs/URLs and order; first image is the primary image.
+  Handle compression, upload progress, failed retry, removal and abandoned uploads.
+  Local base64 storage is only for preview, not the production upload contract.
+- Add pagination/search/category/status filters and aggregate stats server-side.
+  Inventory import needs a validated, documented schema; no pretend import action
+  is included. Current export is a JSON preview backup, not a production import format.
+
+### Preview boundaries
+
+Records are stored under swiftree:food-inventory-preview:<store_id or demo>.
+Create/edit/delete, search, filters, pagination, category/unit relationships and
+image previews work locally. Cross-device sync, real branch propagation, stock
+deduction and storefront publishing are not implemented. The all-branches flag
+is captured but does not fabricate branches. Existing API product payloads are
+not rewritten. Saved malformed data is not silently overwritten.

@@ -8,6 +8,8 @@ import { SVGProps, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { SidebarItem } from "../app/(dashboard)/_components/sidebar-item";
 import Products from "./svgIcons/Products";
+import InventoryNavigation from "./inventory-navigation";
+import { isFoodBusinessType } from "@/lib/store";
 import Orders from "./svgIcons/Orders";
 import Analytics from "./svgIcons/Analytics";
 import Settings from "./svgIcons/Settings";
@@ -52,6 +54,7 @@ export const SidebarRoutes = () => {
   const [storeLogo, setStoreLogo] = useState<string | null>(null); // Add this state
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [isFoodStore, setIsFoodStore] = useState(false);
 
   // Helper function to get cookie value
   const getCookieValue = (name: string): string | null => {
@@ -78,6 +81,7 @@ export const SidebarRoutes = () => {
       
       if (result.status === 'success' && result.data?.storeDetails) {
         const storeDetails = result.data.storeDetails;
+        setIsFoodStore(isFoodBusinessType(storeDetails.business_type));
         
         // Set store logo if available
         if (storeDetails.logo) {
@@ -182,13 +186,16 @@ export const SidebarRoutes = () => {
     <div className="flex min-h-full w-full flex-col">
       <div className="space-y-1">
         {adminRoutes.map((route, index) => (
-          <SidebarItem
+          <div key={route.label}>
+          {!(route.label === "Products" && isFoodStore) && <SidebarItem
             key={route.href!}
             icon={route.icon}
             label={route.label}
             href={route.href}
             data-tour={index === 0 ? "sidebar-nav" : undefined}
-          />
+          />}
+          {route.label === "Products" && <InventoryNavigation />}
+          </div>
         ))}
       </div>
       <div className="mt-auto w-full pt-6">
