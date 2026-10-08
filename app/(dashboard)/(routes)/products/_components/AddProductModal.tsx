@@ -1,6 +1,7 @@
 "use client";
 
 import ImageIcon from '@/components/svgIcons/Image';
+import ProductMarkupPreview from '@/components/product-markup-preview';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -505,6 +506,7 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddPr
                                         step='0.01'
                                         disabled={isLoading}
                                     />
+                                    <ProductMarkupPreview basePrice={price} />
                                 </div>
                                 <div>
                                     <Label className='text-xs font-light mt-4 mb-1' htmlFor='weight'>

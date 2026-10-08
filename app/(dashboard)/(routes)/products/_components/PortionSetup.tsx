@@ -1,4 +1,5 @@
 "use client";
+import ProductMarkupPreview from '@/components/product-markup-preview';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -75,6 +76,7 @@ export default function PortionSetup({ portions, onChange }: PortionSetupProps) 
                                 <span className="px-2 text-sm text-[#A0A0A0] select-none">₦</span>
                                 <input type="number" min={0} step="0.01" value={portionPrice} onChange={(e) => setPortionPrice(e.target.value)} placeholder="0.00" className="flex-1 py-2 pr-3 text-sm outline-none bg-transparent" />
                             </div>
+                            <ProductMarkupPreview basePrice={portionPrice} />
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             <div>

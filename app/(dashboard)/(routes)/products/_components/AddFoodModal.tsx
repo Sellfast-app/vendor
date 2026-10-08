@@ -1,4 +1,5 @@
 "use client";
+import ProductMarkupPreview from '@/components/product-markup-preview';
 
 import ImageIcon from '@/components/svgIcons/Image';
 import { Button } from '@/components/ui/button';
@@ -753,6 +754,7 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                                                             disabled={isLoading}
                                                         />
                                                     </div>
+                                                    <ProductMarkupPreview basePrice={servingTypePrices[type] || ''} />
                                                 </div>
                                             ))}
                                         </div>
