@@ -1,6 +1,8 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import OrdersTable from "./_components/OrdersTable";
 import { CheckCircle2, CircleDashed, MessageCircle, MonitorSmartphone, PackageCheck, ShoppingBag, XCircle } from "lucide-react";
@@ -25,6 +27,7 @@ export default function OrdersPage() {
       <div className="mb-6">
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary">Omnichannel operations</p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">Orders</h1>
+        <Button variant="outline" asChild className="mt-3"><Link href="/orders/tickets">Ticket orders</Link></Button>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Manage orders from your website storefront, WhatsApp AI and web chat in one place.</p>
       </div>
 

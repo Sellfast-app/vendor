@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import EventsTable from "./_components/EventsTable";
 import { EventDetailModal } from "./_components/EventDetailModal";
 import { Event, mockEvents } from "@/lib/events-data";
@@ -95,10 +96,13 @@ export default function EventsPage() {
             Create ticketed experiences, manage capacity, and sell through website, WhatsApp AI, and web chat.
           </p>
         </div>
+        <div className="flex flex-wrap gap-2">
+        <Button variant="outline" asChild><Link href="/events/attendees"><Users className="mr-2 h-4 w-4" />Attendees & check-in</Link></Button>
         <Button onClick={handleAddEvent} className="h-10 w-full gap-2 lg:w-auto">
           <Plus className="h-4 w-4" />
           <span>Create event</span>
         </Button>
+        </div>
       </div>
 
       <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
