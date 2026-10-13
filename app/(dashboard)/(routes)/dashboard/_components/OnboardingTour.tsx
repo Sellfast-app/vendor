@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
@@ -18,13 +18,24 @@ interface OnboardingTourProps {
   steps: TourStep[];
 }
 
-const SPOTLIGHT_PADDING = 8;
 const TOOLTIP_WIDTH = 320;
 
 export default function OnboardingTour({ storageKey, steps }: OnboardingTourProps) {
   const [isActive, setIsActive] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
+  const [radius, setRadius] = useState(0);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const [tooltipHeight, setTooltipHeight] = useState(180);
+
+  useEffect(() => {
+    if (!isActive || !tooltipRef.current) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setTooltipHeight(entry.target.getBoundingClientRect().height);
+    });
+    observer.observe(tooltipRef.current);
+    return () => observer.disconnect();
+  }, [isActive]);
 
   // Show the tour only on the first visit for this storage key
   useEffect(() => {
@@ -46,18 +57,24 @@ export default function OnboardingTour({ storageKey, steps }: OnboardingTourProp
 
   // Scroll to and track the highlighted element on every step change
   useEffect(() => {
-    if (!isActive) return;
+    if (!isActive || !steps[stepIndex]) return;
 
     const targetSelector = `[data-tour="${steps[stepIndex].target}"]`;
 
     // Always bring the target into view (Next/Back can land off-screen)
-    document
-      .querySelector<HTMLElement>(targetSelector)
-      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const findTarget = () => Array.from(document.querySelectorAll<HTMLElement>(targetSelector))
+      .find((element) => {
+        const bounds = element.getBoundingClientRect();
+        return bounds.width > 0 && bounds.height > 0 && getComputedStyle(element).visibility !== "hidden";
+      });
+    findTarget()?.scrollIntoView({ behavior: "smooth", block: "center" });
 
     const updateRect = () => {
-      const target = document.querySelector<HTMLElement>(targetSelector);
+      const target = findTarget();
       setRect(target?.getBoundingClientRect() ?? null);
+      setRadius(target ? Math.max(...[
+        "borderTopLeftRadius", "borderTopRightRadius", "borderBottomLeftRadius", "borderBottomRightRadius",
+      ].map((property) => parseFloat(getComputedStyle(target)[property as keyof CSSStyleDeclaration] as string) || 0)) : 0);
     };
 
     updateRect();
@@ -65,10 +82,12 @@ export default function OnboardingTour({ storageKey, steps }: OnboardingTourProp
     // Follow the smooth-scroll animation and any layout shifts
     const interval = window.setInterval(updateRect, 100);
     window.addEventListener("resize", updateRect);
+    window.addEventListener("scroll", updateRect, true);
 
     return () => {
       window.clearInterval(interval);
       window.removeEventListener("resize", updateRect);
+      window.removeEventListener("scroll", updateRect, true);
     };
   }, [isActive, stepIndex, steps]);
 
@@ -87,7 +106,7 @@ export default function OnboardingTour({ storageKey, steps }: OnboardingTourProp
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive, stepIndex, endTour]);
 
-  if (!isActive || typeof document === "undefined") return null;
+  if (!isActive || !steps[stepIndex] || typeof document === "undefined") return null;
 
   function handleNext() {
     if (stepIndex < steps.length - 1) {
@@ -101,89 +120,60 @@ export default function OnboardingTour({ storageKey, steps }: OnboardingTourProp
     setStepIndex((current) => Math.max(0, current - 1));
   }
 
-  const pad = SPOTLIGHT_PADDING;
   const spotlight = rect
     ? {
-        top: rect.top - pad,
-        left: rect.left - pad,
-        width: rect.width + pad * 2,
-        height: rect.height + pad * 2,
+        top: Math.max(0, rect.top),
+        left: Math.max(0, rect.left),
+        width: Math.max(0, Math.min(window.innerWidth, rect.right) - Math.max(0, rect.left)),
+        height: Math.max(0, Math.min(window.innerHeight, rect.bottom) - Math.max(0, rect.top)),
       }
     : null;
+
+  // One rounded cutout avoids overlapping blur panes and clear rectangular halos.
+  let backdropClip: string | undefined;
+  if (spotlight) {
+    const { left: x, top: y, width: w, height: h } = spotlight;
+    const r = Math.min(radius, w / 2, h / 2);
+    backdropClip = `path(evenodd, "M0 0H${window.innerWidth}V${window.innerHeight}H0Z M${x + r} ${y}H${x + w - r}Q${x + w} ${y} ${x + w} ${y + r}V${y + h - r}Q${x + w} ${y + h} ${x + w - r} ${y + h}H${x + r}Q${x} ${y + h} ${x} ${y + h - r}V${y + r}Q${x} ${y} ${x + r} ${y}Z")`;
+  }
 
   // Prefer below the target; flip above when there is more room there
   const spaceBelow = rect ? window.innerHeight - rect.bottom : 0;
   const spaceAbove = rect ? rect.top : 0;
-  const placeAbove = rect ? spaceAbove > spaceBelow && spaceBelow < 180 : false;
+  const placeAbove = rect ? spaceAbove > spaceBelow && spaceBelow < tooltipHeight + 24 : false;
 
   const tooltipTop = rect
     ? placeAbove
-      ? Math.max(12, rect.top - 148)
-      : Math.min(window.innerHeight - 180, rect.bottom + 12)
-    : window.innerHeight / 2 - 80;
+      ? rect.top - tooltipHeight - 12
+      : rect.bottom + 12
+    : (window.innerHeight - tooltipHeight) / 2;
 
   const tooltipLeft = rect
     ? Math.min(
         Math.max(12, rect.left + rect.width / 2 - TOOLTIP_WIDTH / 2),
-        window.innerWidth - TOOLTIP_WIDTH - 12
+        Math.max(12, window.innerWidth - TOOLTIP_WIDTH - 12)
       )
-    : window.innerWidth / 2 - TOOLTIP_WIDTH / 2;
+    : Math.max(12, window.innerWidth / 2 - TOOLTIP_WIDTH / 2);
 
   const isLastStep = stepIndex === steps.length - 1;
 
   return createPortal(
     <div className="fixed inset-0 z-[100]">
-      {/* Keep the target clear by placing the dimmed/blurred backdrop around it. */}
-      {spotlight ? (
-        <>
-          <div
-            aria-hidden
-            className="absolute left-0 right-0 top-0 backdrop-blur-xs bg-[#06140033] dark:bg-black/50"
-            style={{ height: spotlight.top }}
-            onClick={endTour}
-          />
-          <div
-            aria-hidden
-            className="absolute bottom-0 left-0 right-0 backdrop-blur-xs bg-[#06140033] dark:bg-black/50"
-            style={{ top: spotlight.top + spotlight.height }}
-            onClick={endTour}
-          />
-          <div
-            aria-hidden
-            className="absolute left-0 backdrop-blur-xs bg-[#06140033] dark:bg-black/50"
-            style={{
-              top: spotlight.top,
-              width: spotlight.left,
-              height: spotlight.height,
-            }}
-            onClick={endTour}
-          />
-          <div
-            aria-hidden
-            className="absolute right-0 backdrop-blur-xs bg-[#06140033] dark:bg-black/50"
-            style={{
-              top: spotlight.top,
-              left: spotlight.left + spotlight.width,
-              height: spotlight.height,
-            }}
-            onClick={endTour}
-          />
-        </>
-      ) : (
-        <div
-          aria-hidden
-          className="absolute inset-0 backdrop-blur-xs bg-[#06140033] dark:bg-black/50"
-          onClick={endTour}
-        />
-      )}
+      <div
+        aria-hidden
+        className="absolute inset-0 backdrop-blur-xs bg-[#06140033] dark:bg-black/50"
+        style={{ clipPath: backdropClip }}
+        onClick={endTour}
+      />
 
       {/* Highlight ring around the current target */}
       {spotlight && (
         <div
           aria-hidden
-          className="pointer-events-none absolute rounded-xl border-2 border-primary bg-transparent transition-all duration-200"
+          className="pointer-events-none absolute border-2 border-primary bg-transparent"
           style={{
             ...spotlight,
+            borderRadius: radius,
             zIndex: 1,
             backgroundColor: "transparent",
             backdropFilter: "none",
@@ -194,15 +184,19 @@ export default function OnboardingTour({ storageKey, steps }: OnboardingTourProp
 
       {/* Tooltip card */}
       <div
+        ref={tooltipRef}
         role="dialog"
         aria-modal="true"
         aria-label={`Onboarding step ${stepIndex + 1} of ${steps.length}`}
         className="fixed rounded-xl border bg-background p-4 shadow-xl"
         style={{
-          top: tooltipTop,
+          top: Math.max(12, Math.min(tooltipTop, window.innerHeight - tooltipHeight - 12)),
           left: tooltipLeft,
           width: TOOLTIP_WIDTH,
           maxWidth: "calc(100vw - 24px)",
+          maxHeight: "calc(100dvh - 24px)",
+          overflowY: "auto",
+          zIndex: 2,
         }}
       >
         <div className="mb-1 flex items-start justify-between gap-2">
