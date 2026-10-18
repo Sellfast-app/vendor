@@ -3,9 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-const CACHE_DURATION = 300; // 5 minutes
-const cache = new Map();
-
 // Helper function to get all products with pagination
 async function getAllProducts(token: string, storeId: string) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -242,21 +239,6 @@ export async function GET(
       );
     }
 
-    // Create cache key
-    const cacheKey = `order-food-details-v1-${orderId}`;
-
-    // Check cache
-    const cachedData = cache.get(cacheKey);
-    if (
-      cachedData &&
-      Date.now() - cachedData.timestamp < CACHE_DURATION * 1000
-    ) {
-      console.log("Returning cached order details");
-      return NextResponse.json(cachedData.data);
-    }
-
-    console.log(`🔍 Fetching order details for: ${orderId}`);
-
     // Fetch order details
     const orderResponse = await fetch(`${API_BASE_URL}/api/orders/${orderId}`, {
       method: "GET",
@@ -289,7 +271,6 @@ export async function GET(
     }
 
     const orderResult = await orderResponse.json();
-    console.log("✅ Successfully fetched order details");
 
     // If order fetch was successful, enrich order items with product data
     if (
@@ -297,14 +278,12 @@ export async function GET(
       orderResult.data &&
       orderResult.data.order
     ) {
-      console.log("🔄 Enriching order items with product data...");
 
       // Fetch both catalogs so normal and food orders can use the same detail page.
       const [allProducts, allFoodProducts] = await Promise.all([
         getAllProducts(token, storeId),
         getAllFoodProducts(token, storeId),
       ]);
-      console.log(`📦 Fetched ${allProducts.length} products for enrichment`);
 
       // Create a map for quick product lookups
       const productMap = new Map();
@@ -349,19 +328,10 @@ export async function GET(
       // Update the order with enriched items
       orderResult.data.order.order_items = enrichedOrderItems;
 
-      console.log("✅ Order items enriched with product data");
     }
-
-    // Cache the successful response
-    if (orderResult.status === "success") {
-      cache.set(cacheKey, {
-        data: orderResult,
-        timestamp: Date.now(),
-      });
-      console.log("Cached enriched order details for key:", cacheKey);
-    }
-
-    return NextResponse.json(orderResult);
+    return NextResponse.json(orderResult, {
+      headers: { "Cache-Control": "no-store" },
+    });
   } // eslint-disable-next-line @typescript-eslint/no-explicit-any
   catch (error: any) {
     console.error("Error fetching order details:", error);
@@ -428,7 +398,7 @@ export async function PATCH(
       "pending",
       "processing",
       "shipped",
-      "fulfilled",
+      "delivered",
     ];
     if (!validStatuses.includes(status)) {
       return NextResponse.json(
@@ -439,8 +409,6 @@ export async function PATCH(
         { status: 400 },
       );
     }
-
-    console.log(`🔄 Updating order ${orderId} status to: ${status}`);
 
     // Send PATCH request to backend API
     const updateResponse = await fetch(
@@ -478,18 +446,12 @@ export async function PATCH(
     }
 
     const result = await updateResponse.json();
-    console.log("✅ Successfully updated order status");
-
-    // Invalidate cache for this order
-    const cacheKey = `order-food-details-v1-${orderId}`;
-    cache.delete(cacheKey);
-
     return NextResponse.json({
       status: "success",
       message: `Order status updated to ${status}`,
       data: result.data,
     });
-  }// eslint-disable-next-line @typescript-eslint/no-explicit-any 
+  }
   catch (error: any) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     console.error("Error updating order status:", error);
