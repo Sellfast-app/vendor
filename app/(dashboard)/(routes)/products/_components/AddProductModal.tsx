@@ -1,780 +1,419 @@
 "use client";
 
-import ImageIcon from '@/components/svgIcons/Image';
-import ProductMarkupPreview from '@/components/product-markup-preview';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Loader2, X, Check } from 'lucide-react';
-import React, { useState } from 'react';
-import Image from 'next/image';
-import { toast } from 'sonner';
-import imageCompression from 'browser-image-compression';
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import Image from "next/image";
+import { toast } from "sonner";
+import { Archive, Box, Check, ImagePlus, Loader2, PackagePlus, Plus, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import ProductMarkupPreview from "@/components/product-markup-preview";
+
+type ProductKind = "regular" | "variants" | "bundle";
+type RetailProduct = {
+  id: string;
+  productName: string;
+  sku: string;
+  stock: number;
+  sales: number;
+  thumbnail: string | string[];
+  productType?: string;
+};
+type RetailProductVariant = {
+  id: string;
+  size: string | number;
+  color: string;
+  price: number;
+  quantity: number;
+};
+type CreatedRetailProduct = {
+  id: string;
+  sku: string;
+  productName: string;
+  description: string;
+  stock: number;
+  remanent: number;
+  sales: number;
+  status: string;
+  createdAt: string;
+  thumbnail: string;
+  variants: RetailProductVariant[];
+  weight: number;
+  productType?: string;
+};
+type VariantDraft = {
+  id: string;
+  name: string;
+  size: string;
+  color: string;
+  sku: string;
+  price: string;
+  quantity: string;
+};
+type BundleEntry = { productId: string; quantity: string };
 
 interface AddProductModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any 
-    onAddProduct: (product: any) => void;
+  isOpen: boolean;
+  onClose: () => void;
+  onAddProduct: (product: CreatedRetailProduct) => void;
+  availableProducts?: RetailProduct[];
 }
 
-interface UploadedImage {
-    file: File;
-    progress: number;
-    isUploading: boolean;
-    id: string;
-    compressedFile?: File;
-}
+const PRODUCT_TYPES: { id: ProductKind; title: string; description: string; icon: typeof Archive }[] = [
+  { id: "regular", title: "Regular product", description: "A product without variations.", icon: Archive },
+  { id: "variants", title: "Product with variants", description: "Different sizes, colours, or options.", icon: Box },
+  { id: "bundle", title: "Product bundle", description: "A group of products sold together.", icon: PackagePlus },
+];
 
-interface Variant {
-    id: string;
-    size: string | number;
-    quantity: number;
-    color: string;
-    price?: string;
-}
-
-interface ApiVariant {
-    size: string;
-    quantity: number;
-    color: string;
-    price?: string;
-}
-
-// Cookie utility function
-const getCookie = (name: string): string | null => {
-    if (typeof document === 'undefined') return null;
-
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
-    return null;
+const UNIT_OPTIONS = ["pc", "pair", "set", "pack", "box", "kg", "g", "litre", "ml"];
+const statusFromApi: Record<string, string> = {
+  ready: "Ready Stock",
+  "made-to-order": "Made-to-order",
+  "out-of-stock": "Out of Stock",
 };
 
-// Image compression configuration - silent background compression
-const compressionOptions = {
-    maxSizeMB: 0.8,
-    maxWidthOrHeight: 1600,
-    useWebWorker: true,
-    initialQuality: 0.65,
-    fileType: 'image/webp',
-    alwaysKeepResolution: false,
-    onProgress: undefined
-};
+const newVariant = (): VariantDraft => ({
+  id: crypto.randomUUID(), name: "", size: "", color: "", sku: "", price: "", quantity: "",
+});
 
-// Silent compression function - no toast messages
-const compressImageSilently = async (file: File): Promise<File> => {
+export default function AddProductModal({ isOpen, onClose, onAddProduct, availableProducts = [] }: AddProductModalProps) {
+  const [kind, setKind] = useState<ProductKind>("regular");
+  const [name, setName] = useState("");
+  const [location, setLocation] = useState("");
+  const [shortDescription, setShortDescription] = useState("");
+  const [description, setDescription] = useState("");
+  const [collection, setCollection] = useState("");
+  const [sizeChartEnabled, setSizeChartEnabled] = useState(false);
+  const [sizeChartUrl, setSizeChartUrl] = useState("");
+  const [price, setPrice] = useState("");
+  const [costPrice, setCostPrice] = useState("");
+  const [compareAtPrice, setCompareAtPrice] = useState("");
+  const [stock, setStock] = useState("");
+  const [status, setStatus] = useState("ready");
+  const [unit, setUnit] = useState("pc");
+  const [barcode, setBarcode] = useState("");
+  const [weight, setWeight] = useState("1");
+  const [productionFrom, setProductionFrom] = useState("2");
+  const [productionTo, setProductionTo] = useState("5");
+  const [orderQuantityEnabled, setOrderQuantityEnabled] = useState(false);
+  const [minimumOrder, setMinimumOrder] = useState("1");
+  const [maximumOrder, setMaximumOrder] = useState("");
+  const [variants, setVariants] = useState<VariantDraft[]>([newVariant()]);
+  const [bundleEntries, setBundleEntries] = useState<BundleEntry[]>([]);
+  const [images, setImages] = useState<File[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const previews = useMemo(() => images.map(file => URL.createObjectURL(file)), [images]);
+  useEffect(() => () => previews.forEach(URL.revokeObjectURL), [previews]);
+
+  const bundleCandidates = availableProducts.filter(product => product.productType !== "bundle");
+  const selectedProducts = bundleCandidates.filter(product => bundleEntries.some(entry => entry.productId === product.id));
+  const bundleStockLimit = selectedProducts.length
+    ? Math.min(...selectedProducts.map(product => {
+        const entry = bundleEntries.find(item => item.productId === product.id);
+        return Math.floor(product.stock / Math.max(1, Number(entry?.quantity || 1)));
+      }))
+    : 0;
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !isSaving) onClose();
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [isOpen, isSaving, onClose]);
+
+  const reset = () => {
+    setKind("regular"); setName(""); setLocation(""); setShortDescription(""); setDescription("");
+    setCollection(""); setSizeChartEnabled(false); setSizeChartUrl(""); setPrice(""); setCostPrice("");
+    setCompareAtPrice(""); setStock(""); setStatus("ready"); setUnit("pc"); setBarcode("");
+    setWeight("1"); setProductionFrom("2"); setProductionTo("5"); setOrderQuantityEnabled(false);
+    setMinimumOrder("1"); setMaximumOrder(""); setVariants([newVariant()]); setBundleEntries([]); setImages([]);
+  };
+
+  const handleImages = (event: ChangeEvent<HTMLInputElement>) => {
+    const incoming = Array.from(event.target.files || []);
+    const valid = incoming.filter(file => file.type.startsWith("image/") && file.size <= 5 * 1024 * 1024);
+    if (valid.length !== incoming.length) toast.error("Use image files up to 5 MB each.");
+    setImages(current => [...current, ...valid].slice(0, 5));
+    event.target.value = "";
+  };
+
+  const updateVariant = (id: string, key: keyof VariantDraft, value: string) => {
+    setVariants(current => current.map(variant => variant.id === id ? { ...variant, [key]: value } : variant));
+  };
+
+  const updateBundleEntry = (productId: string, quantity: string) => {
+    setBundleEntries(current => current.map(entry => entry.productId === productId ? { ...entry, quantity } : entry));
+  };
+
+  const addBundleProduct = (productId: string) => {
+    if (bundleEntries.some(entry => entry.productId === productId)) return;
+    if (bundleEntries.length >= 20) return toast.error("A bundle can include up to 20 products.");
+    setBundleEntries(current => [...current, { productId, quantity: "1" }]);
+  };
+
+  const handleSave = async () => {
+    if (!name.trim()) return toast.error("Product name is required.");
+    if (!price || Number(price) < 0) return toast.error("Enter a valid selling price.");
+    if (kind !== "bundle" && (!weight || Number(weight) <= 0)) return toast.error("Enter a valid product weight.");
+    if (!stock || Number(stock) < 0) return toast.error("Enter a valid stock quantity.");
+    if (kind === "bundle" && bundleEntries.length === 0) return toast.error("Select at least one product for this bundle.");
+    if (kind === "bundle" && Number(stock) > bundleStockLimit) return toast.error(`Bundle stock cannot exceed ${bundleStockLimit} based on selected product quantities.`);
+    if (kind === "variants" && variants.some(variant => !variant.name.trim() || !variant.quantity || Number(variant.quantity) < 0)) {
+      return toast.error("Add a name and stock quantity for every variant.");
+    }
+
+    setIsSaving(true);
     try {
-        if (file.size < 300 * 1024) return file;
-        if (file.type === 'image/webp') return file;
-        const compressedFile = await imageCompression(file, compressionOptions);
-        return compressedFile;
+      const storeId = document.cookie.split(";").map(value => value.trim()).find(value => value.startsWith("store_id="))?.split("=")[1];
+      if (!storeId) throw new Error("Store ID not found. Please sign in again.");
+
+      const formData = new FormData();
+      formData.append("name", name.trim());
+      formData.append("description", description);
+      formData.append("short_description", shortDescription);
+      formData.append("price", price);
+      formData.append("type", kind === "regular" ? "single" : kind === "variants" ? "variant" : "bundle");
+      formData.append("status", status);
+      formData.append("weight", kind === "bundle" ? "1" : weight);
+      formData.append("quantity", kind === "variants" ? variants.reduce((sum, variant) => sum + Number(variant.quantity || 0), 0).toString() : stock);
+      formData.append("est_prod_days_from", productionFrom);
+      formData.append("est_prod_days_to", productionTo);
+      formData.append("store_id", storeId);
+      formData.append("cost_price", costPrice);
+      formData.append("compare_at_price", compareAtPrice);
+      formData.append("unit", unit);
+      formData.append("barcode", barcode);
+      formData.append("collection", collection);
+      formData.append("size_chart_url", sizeChartEnabled ? sizeChartUrl : "");
+      formData.append("min_order_quantity", orderQuantityEnabled ? minimumOrder : "");
+      formData.append("max_order_quantity", orderQuantityEnabled ? maximumOrder : "");
+      formData.append("location", location);
+      formData.append("variants", JSON.stringify(kind === "variants" ? variants.map(variant => ({
+        size: variant.size || variant.name,
+        name: variant.name,
+        color: variant.color,
+        sku: variant.sku,
+        quantity: Number(variant.quantity),
+        ...(variant.price ? { price: Number(variant.price) } : {}),
+      })) : []));
+      formData.append("bundle_items", JSON.stringify(kind === "bundle" ? bundleEntries.map(entry => ({
+        product_id: entry.productId,
+        quantity: Number(entry.quantity),
+      })) : []));
+      images.forEach((file, index) => formData.append("files", file, `product-image-${index}.${file.name.split(".").pop() || "jpg"}`));
+
+      const response = await fetch("/api/products", { method: "POST", body: formData });
+      const result = await response.json();
+      if (!response.ok || result?.status !== "success" || !result.data) {
+        throw new Error(result?.message || "Unable to create product.");
+      }
+
+      const product = result.data;
+      const returnedVariants = Array.isArray(product.variants) ? product.variants : [];
+      onAddProduct({
+        id: String(product.id),
+        sku: String(product.product_sku || ""),
+        productName: String(product.product_name || name),
+        description: String(product.product_description || description || shortDescription),
+        stock: Number(product.product_quantity || 0),
+        remanent: Number(product.product_quantity || 0),
+        sales: Number(product.product_price ?? product.price ?? price),
+        status: statusFromApi[product.product_status] || product.product_status || "Ready Stock",
+        createdAt: product.created_at || new Date().toISOString(),
+        thumbnail: product.product_images?.[0] || "",
+        variants: returnedVariants.map((variant: Record<string, unknown>, index: number) => ({
+          id: String(variant.id || variant.uid || `${product.id}-variant-${index}`),
+          size: String(variant.size || variant.name || ""),
+          color: String(variant.color || ""),
+          price: Number(variant.price || product.product_price || price),
+          quantity: Number(variant.quantity || 0),
+        })),
+        weight: Number(product.product_weight || weight),
+        productType: String(product.product_type || (kind === "bundle" ? "bundle" : kind === "variants" ? "variant" : "single")),
+      });
+      toast.success("Product created.");
+      reset();
+      onClose();
     } catch (error) {
-        console.error('Silent compression failed, using original:', error);
-        return file;
+      toast.error(error instanceof Error ? error.message : "Unable to create product.");
+    } finally {
+      setIsSaving(false);
     }
-};
+  };
 
-// Process multiple images silently
-const compressImagesSilently = async (files: File[]): Promise<File[]> => {
-    const compressedFiles: File[] = [];
-    for (const file of files) {
-        const compressedFile = await compressImageSilently(file);
-        compressedFiles.push(compressedFile);
-    }
-    return compressedFiles;
-};
+  if (!isOpen) return null;
 
-// Helper to check if a color string is valid (name like 'red' or hex like '#FF0000')
-const isValidColor = (color: string): boolean => {
-    if (!color.trim()) return false;
-    const s = new Option().style;
-    s.color = color;
-    return s.color !== '';
-};
+  const section = (title: string, children: React.ReactNode) => (
+    <section className="border-b last:border-b-0">
+      <h3 className="bg-muted/60 px-4 py-3 text-sm font-semibold text-foreground">{title}</h3>
+      <div className="grid gap-4 p-4 sm:grid-cols-2">{children}</div>
+    </section>
+  );
 
-// Resolve a color name or hex to a hex string for the swatch
-const resolveColorToHex = (color: string): string => {
-    if (!isValidColor(color)) return '';
-    try {
-        const canvas = document.createElement('canvas');
-        canvas.width = canvas.height = 1;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return '';
-        ctx.fillStyle = color;
-        ctx.fillRect(0, 0, 1, 1);
-        const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
-        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-    } catch {
-        return '';
-    }
-};
+  const field = (label: string, child: React.ReactNode, optional = false) => (
+    <div className="min-w-0 space-y-1.5">
+      <Label className="text-xs text-muted-foreground">{label}{optional ? " (Optional)" : <span className="text-destructive"> *</span>}</Label>
+      {child}
+    </div>
+  );
 
-export default function AddProductModal({ isOpen, onClose, onAddProduct }: AddProductModalProps) {
-    const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
-    const [productType, setProductType] = useState<'single' | 'variant'>('single');
-    const [variants, setVariants] = useState<Variant[]>([{
-        id: Math.random().toString(36).substr(2, 9),
-        size: '',
-        quantity: 0,
-        color: '#000000',
-        price: ''
-    }]);
-    const [productName, setProductName] = useState('');
-    const [description, setDescription] = useState('');
-    const [price, setPrice] = useState('');
-    const [weight, setWeight] = useState('1');
-    const [quantity, setQuantity] = useState('');
-    const [prodFrom, setProdFrom] = useState('');
-    const [prodTo, setProdTo] = useState('');
-    const [status, setStatus] = useState('ready');
-    const [isLoading, setIsLoading] = useState(false);
-
-    const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const files = event.target.files;
-        if (!files) return;
-
-        if (uploadedImages.length + files.length > 5) {
-            toast.error(`You can only upload ${5 - uploadedImages.length} more image(s)`);
-            return;
-        }
-
-        const validFiles: File[] = [];
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            if (!file.type.startsWith('image/')) {
-                toast.error(`${file.name} is not an image file`);
-                continue;
-            }
-            if (file.size > 10 * 1024 * 1024) {
-                toast.error(`${file.name} exceeds 10MB limit`);
-                continue;
-            }
-            validFiles.push(file);
-        }
-
-        if (validFiles.length === 0) return;
-
-        toast.success(`Added ${validFiles.length} image(s)`);
-
-        const compressedFiles = await compressImagesSilently(validFiles);
-
-        const newImages: UploadedImage[] = compressedFiles.map((file) => ({
-            file: file,
-            progress: 0,
-            isUploading: true,
-            id: Math.random().toString(36).substr(2, 9),
-            compressedFile: file,
-        }));
-
-        setUploadedImages(prev => [...prev, ...newImages]);
-
-        newImages.forEach((image, index) => {
-            const timer = setInterval(() => {
-                setUploadedImages(prev => prev.map(img => {
-                    if (img.id === image.id) {
-                        const newProgress = img.progress + 20;
-                        if (newProgress >= 100) {
-                            clearInterval(timer);
-                            return { ...img, progress: 100, isUploading: false };
-                        }
-                        return { ...img, progress: newProgress };
-                    }
-                    return img;
-                }));
-            }, 300 + (index * 100));
-        });
-    };
-
-    const handleRemoveImage = (id: string) => {
-        setUploadedImages(prev => prev.filter(img => img.id !== id));
-        toast.info("Image removed");
-    };
-
-    const handleVariantChange = (id: string, field: keyof Variant, value: string | number) => {
-        setVariants(prev => prev.map(variant =>
-            variant.id === id ? { ...variant, [field]: value } : variant
-        ));
-    };
-
-    const handleColorInputChange = (variantId: string, rawValue: string) => {
-        handleVariantChange(variantId, 'color', rawValue);
-    };
-
-    const handleAddVariant = () => {
-        setVariants(prev => [...prev, {
-            id: Math.random().toString(36).substr(2, 9),
-            size: '',
-            quantity: 0,
-            color: '#000000',
-            price: ''
-        }]);
-        toast.info("New variant added");
-    };
-
-    const handleRemoveVariant = (id: string) => {
-        setVariants(prev => prev.filter(variant => variant.id !== id));
-        toast.info("Variant removed");
-    };
-
-    const mapStatusToApi = (status: string): string => {
-        const statusMap: { [key: string]: string } = {
-            'Ready Stock': 'ready',
-            'Made-to-order': 'made-to-order',
-            'Out of Stock': 'out-of-stock'
-        };
-        return statusMap[status] || 'ready';
-    };
-
-    const mapStatusFromApi = (status: string): string => {
-        const statusMap: { [key: string]: string } = {
-            'ready': 'Ready Stock',
-            'made-to-order': 'Made-to-order',
-            'out-of-stock': 'Out of Stock'
-        };
-        return statusMap[status] || 'Ready Stock';
-    };
-
-    const handleSubmit = async () => {
-        if (!productName.trim()) { toast.error('Product name is required'); return; }
-        if (!description.trim()) { toast.error('Description is required'); return; }
-        if (!price || parseFloat(price) <= 0) { toast.error('Valid price is required'); return; }
-        if (!weight || parseFloat(weight) <= 0) { toast.error('Valid weight is required'); return; }
-        if (productType === 'single' && (!quantity || parseInt(quantity) <= 0)) {
-            toast.error('Quantity is required for single products'); return;
-        }
-        if (productType === 'variant' && variants.some(v => !v.size || v.quantity <= 0)) {
-            toast.error('All variants must have size and quantity'); return;
-        }
-        if (productType === 'variant' && variants.some(v => !isValidColor(v.color))) {
-            toast.error('All variants must have a valid color (e.g. red, blue, #FF0000)'); return;
-        }
-        if (!prodFrom || !prodTo) { toast.error('Production days are required'); return; }
-        if (uploadedImages.length === 0) { toast.error('Please upload at least one product image'); return; }
-        if (uploadedImages.some(img => img.isUploading)) {
-            toast.error('Please wait for images to finish uploading'); return;
-        }
-
-        setIsLoading(true);
-        const loadingToast = toast.loading('Adding product...');
-
-        try {
-            const storeId = getCookie('store_id');
-            if (!storeId) throw new Error('Store ID not found. Please login again.');
-
-            const formData = new FormData();
-            formData.append('name', productName);
-            formData.append('description', description);
-            formData.append('price', price);
-            formData.append('type', productType);
-            formData.append('status', mapStatusToApi(status));
-            formData.append('weight', weight);
-
-            const totalQuantity = productType === 'single'
-                ? parseInt(quantity).toString()
-                : variants.reduce((sum, v) => sum + v.quantity, 0).toString();
-
-            formData.append('quantity', totalQuantity);
-            formData.append('est_prod_days_from', prodFrom);
-            formData.append('est_prod_days_to', prodTo);
-            formData.append('store_id', storeId);
-
-            let variantsData: ApiVariant[] = [];
-            if (productType === 'variant') {
-                variantsData = variants.map(variant => {
-                    const variantData: ApiVariant = {
-                        size: variant.size.toString(),
-                        quantity: variant.quantity,
-                        color: variant.color
-                    };
-                    // Only add price if it's provided and valid
-                    if (variant.price && parseFloat(variant.price) > 0) {
-                        variantData.price = parseFloat(variant.price).toString();
-                    }
-                    return variantData;
-                });
-            }
-            formData.append('variants', JSON.stringify(variantsData));
-
-            uploadedImages.forEach((image, index) => {
-                const fileToSend = image.compressedFile || image.file;
-                formData.append('files', fileToSend, `product-image-${index}.webp`);
-            });
-
-            const response = await fetch('/api/products', { method: 'POST', body: formData });
-
-            const responseText = await response.text();
-            let result;
-            try {
-                result = JSON.parse(responseText);
-            } catch {
-                throw new Error('Server returned invalid response');
-            }
-
-            if (!response.ok) throw new Error(result.message || `Failed to add product: ${response.status}`);
-            if (!result || result.status !== 'success') throw new Error(result?.message || 'Unexpected response from server');
-            if (!result.data || typeof result.data !== 'object') throw new Error('Product created but server returned incomplete data');
-
-            const productData = result.data;
-            const newProduct = {
-                sku: productData.product_sku || `SKU-${Date.now()}`,
-                productName: productData.product_name || productName,
-                description: productData.product_description || description,
-                stock: productData.product_quantity || parseInt(quantity) || 0,
-                remanent: productData.product_quantity || parseInt(quantity) || 0,
-                sales: productData.product_price ? parseFloat(productData.product_price) : parseFloat(price),
-                status: productData.product_status ? mapStatusFromApi(productData.product_status) : mapStatusFromApi(status),
-                createdAt: productData.created_at || new Date().toISOString(),
-                thumbnail: productData.product_images?.[0] || '/thumbnails/default.png',
-                variants: (() => {
-                    try {
-                        const vData = productData.variants;
-                        if (!vData) return [];
-                        return typeof vData === 'string' ? JSON.parse(vData || '[]') : vData || [];
-                    } catch (e) {
-                        console.error('Error parsing variants:', e);
-                        return [];
-                    }
-                })(),
-                weight: productData.product_weight || weight,
-            };
-
-            onAddProduct(newProduct);
-            toast.dismiss(loadingToast);
-            toast.success('Product added successfully! 🎉');
-            resetForm();
-            onClose();
-
-        } catch (error) {
-            console.error('Error adding product:', error);
-            toast.dismiss(loadingToast);
-            toast.error(error instanceof Error ? error.message : 'Failed to add product');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const resetForm = () => {
-        setUploadedImages([]);
-        setProductType('single');
-        setVariants([{ id: Math.random().toString(36).substr(2, 9), size: '', quantity: 0, color: '#000000' }]);
-        setProductName('');
-        setDescription('');
-        setPrice('');
-        setWeight('1');
-        setQuantity('');
-        setProdFrom('');
-        setProdTo('');
-        setStatus('ready');
-    };
-
-    const handleClose = () => {
-        if (isLoading) {
-            toast.warning('Please wait while we finish adding your product');
-            return;
-        }
-        const hasData = productName || description || price || uploadedImages.length > 0;
-        if (hasData) {
-            toast('You have unsaved changes. Are you sure you want to close?', {
-                action: {
-                    label: 'Yes, close',
-                    onClick: () => { toast.info('Form closed without saving'); onClose(); }
-                },
-                cancel: {
-                    label: 'Cancel',
-                    onClick: () => toast.info('Stay on form')
-                }
-            });
-        } else {
-            onClose();
-        }
-    };
-
-    if (!isOpen) return null;
-
-    return (
-        <div className="fixed inset-0 z-[50] flex justify-end my-3 mr-3">
-            <div
-                className="fixed inset-0 backdrop-blur-xs bg-[#06140033] dark:bg-black/50"
-                onClick={handleClose}
-            />
-            <div
-                className="h-full w-[85%] md:w-[65%] bg-background shadow-lg overflow-x-auto transform transition-transform duration-300 ease-in-out rounded-xl"
-                style={{ transform: isOpen ? "translateX(0)" : "translateX(100%)" }}
-                onClick={(e) => e.stopPropagation()}
-            >
-                <div className="h-full p-4 overflow-y-auto">
-                    <div className="flex justify-between py-2 items-center border-b border-[#F8F8F8] dark:border-[#2A2A2A]">
-                        <div className="flex flex-col gap-0">
-                            <h2 className="text-sm font-semibold">Add Product</h2>
-                            <p className='text-xs font-light text-[#A0A0A0]'>Fill in the details to create a new product for your store.</p>
-                        </div>
-                        <Button variant="ghost" className="p-0 h-auto" onClick={handleClose} disabled={isLoading}>
-                            <X className="h-5 w-5" />
-                        </Button>
-                    </div>
-
-                    <div className='flex flex-col md:flex-row w-full gap-3 mt-2'>
-                        <div className='w-full md:w-[50%]'>
-                            <h2 className="text-sm font-semibold">Basic Information</h2>
-                            <div>
-                                <Label className='text-xs font-light mt-4 mb-1' htmlFor='product'>
-                                    Product Name<span className="text-destructive">*</span>
-                                </Label>
-                                <Input
-                                    id='product'
-                                    value={productName}
-                                    onChange={(e) => setProductName(e.target.value)}
-                                    placeholder='e.g. Premium Wireless Headphones'
-                                    disabled={isLoading}
-                                />
-                            </div>
-                            <div>
-                                <Label className='text-xs font-light mt-4 mb-1' htmlFor='description'>
-                                    Description<span className="text-destructive">*</span>
-                                </Label>
-                                <Textarea
-                                    id='description'
-                                    value={description}
-                                    onChange={(e) => setDescription(e.target.value)}
-                                    placeholder='Tell us about your product...'
-                                    className="w-full min-h-[100px] shadow-none focus:ring-2 transition-all duration-200 resize-none"
-                                    maxLength={500}
-                                    disabled={isLoading}
-                                />
-                                <div className="text-right text-xs">{description.length}/500</div>
-                            </div>
-
-                            <h2 className="text-sm font-semibold pt-4">Product Type & Status</h2>
-                            <div>
-                                <Label className='text-xs font-light mt-4 mb-2' htmlFor='product-type'>
-                                    Product Type<span className="text-destructive">*</span>
-                                </Label>
-                                <RadioGroup
-                                    id='product-type'
-                                    value={productType}
-                                    onValueChange={(value) => {
-                                        setProductType(value as 'single' | 'variant');
-                                        toast.info(`Product type set to: ${value}`);
-                                    }}
-                                    disabled={isLoading}
-                                >
-                                    <div className="flex items-center gap-3 text-sm">
-                                        <RadioGroupItem value="single" id="r1" />
-                                        <Label htmlFor="r1">Single Product</Label>
-                                    </div>
-                                    <div className="flex items-center gap-3 text-sm">
-                                        <RadioGroupItem value="variant" id="r2" />
-                                        <Label htmlFor="r2">Products with Variants</Label>
-                                    </div>
-                                </RadioGroup>
-                            </div>
-                            <div>
-                                <Label className='text-xs font-light mt-4 mb-2'>
-                                    Product Status<span className="text-destructive">*</span>
-                                </Label>
-                                <Select value={status} onValueChange={(value) => {
-                                    setStatus(value);
-                                    toast.info(`Status set to: ${value}`);
-                                }} disabled={isLoading}>
-                                    <SelectTrigger className='w-full'>
-                                        <SelectValue placeholder="Select product status" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value='ready'>Ready Stock</SelectItem>
-                                        <SelectItem value='made-to-order'>Made-to-order</SelectItem>
-                                        <SelectItem value='out-of-stock'>Out of Stock</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <h2 className="text-sm font-semibold pt-4">Pricing & Inventory</h2>
-                            <div className='flex gap-1'>
-                                <div>
-                                    <Label className='text-xs font-light mt-4 mb-1' htmlFor='price'>
-                                        Price<span className="text-destructive">*</span>
-                                    </Label>
-                                    <Input
-                                        id='price'
-                                        value={price}
-                                        onChange={(e) => setPrice(e.target.value)}
-                                        placeholder='e.g. 40000.00'
-                                        type='number'
-                                        step='0.01'
-                                        disabled={isLoading}
-                                    />
-                                    <ProductMarkupPreview basePrice={price} />
-                                </div>
-                                <div>
-                                    <Label className='text-xs font-light mt-4 mb-1' htmlFor='weight'>
-                                        Weight (kg)<span className="text-destructive">*</span>
-                                    </Label>
-                                    <Input
-                                        id='weight'
-                                        value={weight}
-                                        onChange={(e) => setWeight(e.target.value)}
-                                        placeholder='1'
-                                        type='number'
-                                        step='0.1'
-                                        min='0.1'
-                                        disabled={isLoading}
-                                    />
-                                </div>
-                                <div>
-                                    <Label className='text-xs font-light mt-4 mb-1' htmlFor='quantity'>
-                                        Quantity<span className="text-destructive">*</span>
-                                    </Label>
-                                    <Input
-                                        id='quantity'
-                                        type='number'
-                                        value={quantity}
-                                        onChange={(e) => setQuantity(e.target.value)}
-                                        placeholder='0'
-                                        disabled={productType === 'variant' || isLoading}
-                                    />
-                                </div>
-                            </div>
-                            <div className='flex gap-1 w-full'>
-                                <div className='w-[50%]'>
-                                    <Label className='text-xs font-light mt-4 mb-1'>
-                                        Estimated Production Days (From)<span className="text-destructive">*</span>
-                                    </Label>
-                                    <Input
-                                        type='number'
-                                        value={prodFrom}
-                                        onChange={(e) => setProdFrom(e.target.value)}
-                                        placeholder='2'
-                                        disabled={isLoading}
-                                    />
-                                </div>
-                                <div className='w-[50%]'>
-                                    <Label className='text-xs font-light mt-4 mb-1'>
-                                        Estimated Production Days (To)<span className="text-destructive">*</span>
-                                    </Label>
-                                    <Input
-                                        type='number'
-                                        value={prodTo}
-                                        onChange={(e) => setProdTo(e.target.value)}
-                                        placeholder='5'
-                                        disabled={isLoading}
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Variants Section */}
-                            {productType === 'variant' && (
-                                <div className="mt-4">
-                                    <h3 className="text-sm font-semibold">Variants</h3>
-                                    <p className="text-xs text-muted-foreground mb-3">
-                                        Add different sizes, colors and quantities for your product
-                                    </p>
-                                    {variants.map((variant) => (
-                                        <div key={variant.id} className="mt-4 border border-dashed border-primary rounded-lg p-4">
-                                            <div className="grid grid-cols-1 gap-4">
-                                                {/* Size */}
-                                                <div>
-                                                    <Label className="text-xs font-light">
-                                                        Size<span className="text-destructive">*</span>
-                                                    </Label>
-                                                    <Input
-                                                        type="text"
-                                                        value={variant.size.toString()}
-                                                        onChange={(e) => handleVariantChange(variant.id, 'size', e.target.value)}
-                                                        placeholder="e.g. S, M, L, XL"
-                                                        className="mt-1 w-full"
-                                                        disabled={isLoading}
-                                                    />
-                                                </div>
-
-                                                {/* Quantity */}
-                                                <div>
-                                                    <Label className="text-xs font-light">
-                                                        Quantity<span className="text-destructive">*</span>
-                                                    </Label>
-                                                    <Input
-                                                        type="number"
-                                                        value={variant.quantity}
-                                                        onChange={(e) => handleVariantChange(variant.id, 'quantity', parseInt(e.target.value))}
-                                                        placeholder="e.g. 10"
-                                                        className="mt-1"
-                                                        disabled={isLoading}
-                                                    />
-                                                </div>
-                                                {/* Price (Optional) */}
-                                                <div>
-                                                    <Label className="text-xs font-light">
-                                                        Price (Optional)
-                                                    </Label>
-                                                    <Input
-                                                        type="number"
-                                                        value={variant.price || ''}
-                                                        onChange={(e) => handleVariantChange(variant.id, 'price', e.target.value)}
-                                                        placeholder="Leave empty to use main price"
-                                                        className="mt-1"
-                                                        disabled={isLoading}
-                                                        step="0.01"
-                                                    />
-                                                    <p className="text-xs text-muted-foreground mt-1">
-                                                        Leave empty to use the main product price
-                                                    </p>
-                                                </div>
-
-                                                {/* Color Input */}
-                                                <div>
-                                                    <Label className="text-xs font-light">
-                                                        Color<span className="text-destructive">*</span>
-                                                    </Label>
-                                                    <div className="mt-1 flex items-center gap-2">
-                                                        {/* Color indicator swatch */}
-                                                        <div
-                                                            className="w-10 h-10 rounded-md border-2 flex-shrink-0 transition-colors duration-200"
-                                                            style={{
-                                                                backgroundColor: isValidColor(variant.color)
-                                                                    ? resolveColorToHex(variant.color)
-                                                                    : '#e5e7eb',
-                                                                borderColor: isValidColor(variant.color)
-                                                                    ? resolveColorToHex(variant.color)
-                                                                    : '#d1d5db',
-                                                            }}
-                                                        />
-                                                        {/* Text input */}
-                                                        <Input
-                                                            type="text"
-                                                            value={variant.color}
-                                                            onChange={(e) => handleColorInputChange(variant.id, e.target.value)}
-                                                            placeholder="e.g. black, red, blue"
-                                                            className="flex-1 text-sm"
-                                                            disabled={isLoading}
-                                                        />
-                                                    </div>
-                                                    {variant.color && !isValidColor(variant.color) && (
-                                                        <p className="text-xs text-destructive mt-1">
-                                                            Enter a valid color name (e.g. black, red, navy)
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            {variants.length > 1 && (
-                                                <Button
-                                                    variant="outline"
-                                                    size="icon"
-                                                    onClick={() => handleRemoveVariant(variant.id)}
-                                                    className="mt-4"
-                                                    disabled={isLoading}
-                                                >
-                                                    <X className="h-4 w-4" />
-                                                </Button>
-                                            )}
-                                        </div>
-                                    ))}
-                                    <Button
-                                        variant="outline"
-                                        className="mt-4 px-4 py-2 text-sm flex items-center gap-2"
-                                        onClick={handleAddVariant}
-                                        disabled={isLoading}
-                                    >
-                                        <Check className="h-4 w-4" />
-                                        Add Another Variant
-                                    </Button>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Right - Image Upload */}
-                        <div className='w-full md:w-[50%]'>
-                            <h2 className="text-sm font-semibold">Product Image</h2>
-                            <p className="text-xs text-muted-foreground">Upload product images (max 5)</p>
-                            <div className='border border-dashed border-primary rounded-lg w-full h-75 mt-4 flex flex-col items-center justify-center gap-3 py-3'>
-                                <ImageIcon />
-                                <Label
-                                    htmlFor="picture"
-                                    className={`flex items-center justify-center border rounded-lg p-2 ${isLoading ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-accent'
-                                        }`}
-                                >
-                                    <span className="text-sm text-muted-foreground">Upload Picture</span>
-                                </Label>
-                                <Input
-                                    id="picture"
-                                    type="file"
-                                    multiple
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={handleImageUpload}
-                                    disabled={isLoading}
-                                />
-                                <p className='text-xs text-[#A0A0A0]'>PNG, JPG, GIF up to 10MB, max 5 images</p>
-                            </div>
-
-                            {uploadedImages.length > 0 && (
-                                <div className="mt-4">
-                                    <div className="flex flex-wrap gap-2">
-                                        {uploadedImages.map((image) => (
-                                            <div key={image.id} className="relative w-10 h-10">
-                                                <div className="relative w-full h-full rounded border overflow-hidden">
-                                                    <Image
-                                                        src={URL.createObjectURL(image.file)}
-                                                        alt="Uploaded product"
-                                                        fill
-                                                        className="object-cover"
-                                                        sizes="40px"
-                                                    />
-                                                </div>
-                                                {image.isUploading && (
-                                                    <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded">
-                                                        <Loader2 className="w-4 h-4 text-green-500 animate-spin" />
-                                                    </div>
-                                                )}
-                                                {image.isUploading && (
-                                                    <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50">
-                                                        <div
-                                                            className="h-1 bg-green-500 transition-all duration-300"
-                                                            style={{ width: `${image.progress}%` }}
-                                                        />
-                                                    </div>
-                                                )}
-                                                <button
-                                                    onClick={() => handleRemoveImage(image.id)}
-                                                    className="absolute -top-2 -right-2 bg-red-500 rounded-full p-0.5 hover:bg-red-600 transition-colors"
-                                                    disabled={isLoading}
-                                                >
-                                                    <X className="w-3 h-3 text-white" />
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    {uploadedImages.length >= 5 && (
-                                        <p className="text-xs text-destructive mt-2">Maximum 5 images reached</p>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className='flex justify-end gap-2 border-t mt-4 pt-4'>
-                        <Button variant="outline" className="px-4 py-2 text-sm" onClick={handleClose} disabled={isLoading}>
-                            Cancel
-                        </Button>
-                        <Button
-                            className="px-4 py-2 text-sm"
-                            onClick={handleSubmit}
-                            disabled={isLoading || uploadedImages.length === 0}
-                        >
-                            {isLoading ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                    Adding Product...
-                                </>
-                            ) : (
-                                'Add Product'
-                            )}
-                        </Button>
-                    </div>
-                </div>
-            </div>
+  const imagePicker = (
+    <div className="sm:col-span-2">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div>
+          <Label className="text-xs font-medium">Product images <span className="text-muted-foreground">(Optional)</span></Label>
+          <p className="mt-1 text-xs text-muted-foreground">Recommended 930 x 1163 px. Up to 5 images, 5 MB each.</p>
         </div>
-    );
+        <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md border px-3 text-xs font-medium hover:bg-muted">
+          <ImagePlus className="h-4 w-4" /> Add images
+          <input type="file" accept="image/*" multiple className="sr-only" onChange={handleImages} />
+        </label>
+      </div>
+      <div className="grid min-h-28 grid-cols-3 gap-2 rounded-md border border-dashed bg-muted/30 p-3 sm:grid-cols-5">
+        {previews.map((src, index) => (
+          <div key={`${src}-${index}`} className="relative aspect-square overflow-hidden rounded border bg-background">
+            <Image src={src} alt={`Product image ${index + 1}`} fill unoptimized className="object-cover" />
+            <button type="button" aria-label="Remove image" className="absolute right-1 top-1 rounded-full bg-background p-1 shadow" onClick={() => setImages(current => current.filter((_, imageIndex) => imageIndex !== index))}>
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ))}
+        {images.length === 0 && (
+          <label className="col-span-3 flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1 text-xs text-muted-foreground sm:col-span-5">
+            <ImagePlus className="h-5 w-5" /> Drop images here or browse
+            <input type="file" accept="image/*" multiple className="sr-only" onChange={handleImages} />
+          </label>
+        )}
+      </div>
+    </div>
+  );
+
+  const productDetails = section(kind === "bundle" ? "Bundle details" : "Product details", <>
+    {field(kind === "bundle" ? "Bundle name" : "Product name", <Input value={name} onChange={event => setName(event.target.value)} placeholder="Enter name" />)}
+    {field("Store location", <Input value={location} onChange={event => setLocation(event.target.value)} placeholder="All locations" />, true)}
+    {imagePicker}
+    {field("Short description", <Input value={shortDescription} onChange={event => setShortDescription(event.target.value)} maxLength={180} placeholder="A short summary" />, true)}
+    {field("Long description", <Textarea value={description} onChange={event => setDescription(event.target.value)} rows={4} placeholder="Describe this product" className="sm:col-span-2" />, true)}
+    {field("Collection", <Input value={collection} onChange={event => setCollection(event.target.value)} placeholder="Enter collection name" />, true)}
+    <div className="flex items-center justify-between rounded-md border px-3 py-2 sm:col-span-2">
+      <div><p className="text-sm font-medium">Size chart</p><p className="text-xs text-muted-foreground">Attach sizing information to this product.</p></div>
+      <Switch checked={sizeChartEnabled} onCheckedChange={setSizeChartEnabled} />
+    </div>
+    {sizeChartEnabled && field("Size chart link", <Input value={sizeChartUrl} onChange={event => setSizeChartUrl(event.target.value)} placeholder="https://" />, true)}
+  </>);
+
+  const pricing = section(kind === "bundle" ? "Bundle pricing" : "Product pricing", <>
+    {field("Selling price", <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">₦</span><Input className="pl-8" type="number" min="0" value={price} onChange={event => setPrice(event.target.value)} placeholder="Enter amount" /></div>)}
+    {field("Cost price", <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">₦</span><Input className="pl-8" type="number" min="0" value={costPrice} onChange={event => setCostPrice(event.target.value)} placeholder="Enter cost" /></div>, true)}
+    {field("Compare at price", <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">₦</span><Input className="pl-8" type="number" min="0" value={compareAtPrice} onChange={event => setCompareAtPrice(event.target.value)} placeholder="Enter reference price" /></div>, true)}
+    <div className="sm:col-span-2"><ProductMarkupPreview basePrice={price} /></div>
+  </>);
+
+  const inventory = section(kind === "bundle" ? "Bundle inventory" : "Product inventory", <>
+    {kind === "bundle" && <p className="text-xs text-muted-foreground sm:col-span-2">Bundle quantity cannot exceed available component stock. Current maximum: {bundleStockLimit}.</p>}
+    {field("Stock quantity", <Input type="number" min="0" value={stock} onChange={event => setStock(event.target.value)} placeholder="Enter quantity" />)}
+    {field("Status", <Select value={status} onValueChange={setStatus}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ready">Ready stock</SelectItem><SelectItem value="made-to-order">Made to order</SelectItem><SelectItem value="out-of-stock">Out of stock</SelectItem></SelectContent></Select>, true)}
+    {field("Unit", <Select value={unit} onValueChange={setUnit}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{UNIT_OPTIONS.map(option => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent></Select>, true)}
+    {field("Barcode", <Input value={barcode} onChange={event => setBarcode(event.target.value)} placeholder="Scan or enter barcode" />, true)}
+    {kind !== "bundle" && field("Weight (kg)", <Input type="number" min="0.1" step="0.1" value={weight} onChange={event => setWeight(event.target.value)} />)}
+    {kind !== "bundle" && <>
+      {field("Production days (from)", <Input type="number" min="0" value={productionFrom} onChange={event => setProductionFrom(event.target.value)} />)}
+      {field("Production days (to)", <Input type="number" min="0" value={productionTo} onChange={event => setProductionTo(event.target.value)} />)}
+    </>}
+    <div className="flex items-center justify-between rounded-md border px-3 py-2 sm:col-span-2">
+      <div><p className="text-sm font-medium">Order quantity limits</p><p className="text-xs text-muted-foreground">Set minimum and maximum quantities per order.</p></div>
+      <Switch checked={orderQuantityEnabled} onCheckedChange={setOrderQuantityEnabled} />
+    </div>
+    {orderQuantityEnabled && <>
+      {field("Minimum quantity", <Input type="number" min="1" value={minimumOrder} onChange={event => setMinimumOrder(event.target.value)} />)}
+      {field("Maximum quantity", <Input type="number" min={minimumOrder} value={maximumOrder} onChange={event => setMaximumOrder(event.target.value)} placeholder="No maximum" />, true)}
+    </>}
+  </>);
+
+  const variantEditor = kind === "variants" && (
+    <section className="border-b">
+      <h3 className="bg-muted/60 px-4 py-3 text-sm font-semibold">Product variations</h3>
+      <div className="space-y-3 p-4">
+        <p className="text-xs text-muted-foreground">Add a row for each sellable combination. Stock and price can vary by option.</p>
+        {variants.map((variant, index) => (
+          <div key={variant.id} className="rounded-md border p-3">
+            <div className="mb-3 flex items-center justify-between"><p className="text-sm font-medium">Variant {index + 1}</p>{variants.length > 1 && <Button type="button" variant="ghost" size="icon" aria-label="Remove variant" onClick={() => setVariants(current => current.filter(item => item.id !== variant.id))}><X className="h-4 w-4" /></Button>}</div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {field("Variant name", <Input value={variant.name} onChange={event => updateVariant(variant.id, "name", event.target.value)} placeholder="e.g. Black / Medium" />)}
+              {field("Size", <Input value={variant.size} onChange={event => updateVariant(variant.id, "size", event.target.value)} placeholder="Optional" />, true)}
+              {field("Colour", <Input value={variant.color} onChange={event => updateVariant(variant.id, "color", event.target.value)} placeholder="e.g. Black" />, true)}
+              {field("SKU", <Input value={variant.sku} onChange={event => updateVariant(variant.id, "sku", event.target.value)} placeholder="Variant SKU" />, true)}
+              {field("Selling price", <Input type="number" min="0" value={variant.price} onChange={event => updateVariant(variant.id, "price", event.target.value)} placeholder={price || "Use product price"} />)}
+              {field("Stock quantity", <Input type="number" min="0" value={variant.quantity} onChange={event => updateVariant(variant.id, "quantity", event.target.value)} placeholder="0" />)}
+            </div>
+          </div>
+        ))}
+        <Button type="button" variant="outline" onClick={() => setVariants(current => [...current, newVariant()])}><Plus className="mr-2 h-4 w-4" />Add variation</Button>
+      </div>
+    </section>
+  );
+
+  const bundlePicker = kind === "bundle" && (
+    <section className="border-b">
+      <h3 className="bg-muted/60 px-4 py-3 text-sm font-semibold">Select products</h3>
+      <div className="space-y-3 p-4">
+        {availableProducts.length === 0 ? <p className="rounded-md border border-dashed p-5 text-sm text-muted-foreground">No products are available to add to this bundle.</p> : (
+          <div className="max-h-64 space-y-2 overflow-y-auto">
+            {bundleCandidates.map(product => {
+              const selected = bundleEntries.find(entry => entry.productId === product.id);
+              return <div key={product.id} className="flex items-center gap-3 rounded-md border p-3">
+                <input aria-label={`Select ${product.productName}`} type="checkbox" checked={!!selected} onChange={event => event.target.checked ? addBundleProduct(product.id) : setBundleEntries(current => current.filter(entry => entry.productId !== product.id))} />
+                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded border bg-muted">{typeof product.thumbnail === "string" && product.thumbnail && <Image src={product.thumbnail} alt="" fill unoptimized className="object-cover" />}</div>
+                <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{product.productName}</p><p className="text-xs text-muted-foreground">{product.sku} · {product.stock} in stock</p></div>
+                {selected && <Input aria-label={`Quantity of ${product.productName}`} className="w-20" type="number" min="1" max={product.stock} value={selected.quantity} onChange={event => updateBundleEntry(product.id, event.target.value)} />}
+              </div>;
+            })}
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground">Select up to 20 products. Bundle products cannot contain other bundles.</p>
+      </div>
+    </section>
+  );
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/45 p-2 sm:p-4" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget && !isSaving) onClose(); }}>
+      <div role="dialog" aria-modal="true" aria-labelledby="retail-product-title" className="flex max-h-[96vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg border bg-background shadow-xl">
+        <header className="flex items-center justify-between border-b px-4 py-3 sm:px-6">
+          <div><p className="text-xs text-muted-foreground">Products</p><h2 id="retail-product-title" className="text-lg font-semibold">Create product</h2></div>
+          <Button type="button" variant="ghost" size="icon" aria-label="Close" onClick={onClose} disabled={isSaving}><X className="h-5 w-5" /></Button>
+        </header>
+        <main className="min-h-0 flex-1 overflow-y-auto">
+          <div className="border-b p-4 sm:p-6">
+            <p className="text-sm font-semibold">Select product type</p>
+            <p className="mt-1 text-xs text-muted-foreground">Choose how customers can buy this product.</p>
+            <div className="mt-3 grid gap-2 md:grid-cols-3">
+              {PRODUCT_TYPES.map(option => {
+                const Icon = option.icon;
+                const active = kind === option.id;
+                return <button key={option.id} type="button" onClick={() => setKind(option.id)} className={`relative flex min-h-20 items-start gap-3 rounded-md border p-3 text-left transition-colors ${active ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}>
+                  <span className={`mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-md ${active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}><Icon className="h-4 w-4" /></span>
+                  <span><span className="block text-sm font-semibold">{option.title}</span><span className="mt-1 block text-xs text-muted-foreground">{option.description}</span></span>
+                  {active && <Check className="absolute right-2 top-2 h-4 w-4 text-primary" />}
+                </button>;
+              })}
+            </div>
+          </div>
+          {productDetails}
+          {kind === "bundle" ? bundlePicker : variantEditor}
+          {pricing}
+          {inventory}
+        </main>
+        <footer className="flex items-center justify-between gap-3 border-t bg-background px-4 py-3 sm:px-6">
+          <Button type="button" variant="ghost" onClick={reset} disabled={isSaving}>Clear fields</Button>
+          <div className="flex gap-2"><Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>Cancel</Button><Button type="button" onClick={handleSave} disabled={isSaving}>{isSaving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving</> : kind === "bundle" ? "Save bundle" : "Add product"}</Button></div>
+        </footer>
+      </div>
+    </div>
+  );
 }

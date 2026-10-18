@@ -79,6 +79,7 @@ interface FrontendProduct {
   createdAt: string;
   thumbnail: string | string[];
   variants?: { id: string; size: string | number; color: string; price: number; quantity: number }[];
+  productType?: string;
 }
 
 // Transform API product to frontend format
@@ -94,6 +95,7 @@ const transformProduct = (product: Product): FrontendProduct => ({
   createdAt: product.created_at,
   thumbnail: product.product_images?.[0] || '/thumbnails/default.png',
   variants: Array.isArray(product.variants) ? product.variants : [],
+  productType: product.product_type,
 });
 
 const mapStatusFromApi = (status: string): string => {
@@ -636,6 +638,7 @@ export default function ProductTable() {
         isOpen={isProductModalOpen}
         onClose={() => setIsProductModalOpen(false)}
         onAddProduct={handleAddProduct}
+        availableProducts={products}
       />
       <ProductDetailsModal
         isOpen={isDetailsModalOpen}
