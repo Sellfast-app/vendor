@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import EventsTable from "./_components/EventsTable";
 import { EventDetailModal } from "./_components/EventDetailModal";
-import { Event, mockEvents } from "@/lib/events-data";
+import { Event, mapApiEvent, toApiEventPayload } from "@/lib/events-data";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +19,10 @@ import {
   Plus,
   Ticket,
   Users,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const formatCompactNumber = (value: number) =>
   new Intl.NumberFormat("en-NG", { notation: "compact" }).format(value);
@@ -34,7 +37,28 @@ export default function EventsPage() {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [events, setEvents] = useState<Event[]>(mockEvents);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const loadEvents = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch("/api/vendor/events", { cache: "no-store" });
+      const result = await response.json();
+      if (!response.ok || result.status !== "success" || !Array.isArray(result.data)) {
+        throw new Error(result.message || "Unable to load events");
+      }
+      setEvents(result.data.map(mapApiEvent));
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Unable to load events");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { void loadEvents(); }, [loadEvents]);
 
   const handleAddEvent = () => {
     setSelectedEvent(null);
@@ -54,15 +78,23 @@ export default function EventsPage() {
     setIsModalOpen(true);
   };
 
-  const handleSave = (updatedEvent: Event) => {
-    setEvents((prev) => {
-      const existing = prev.find((e) => e.id === updatedEvent.id);
-      if (existing) {
-        return prev.map((e) => (e.id === updatedEvent.id ? updatedEvent : e));
-      }
-      return [...prev, updatedEvent];
+  const handleSave = async (updatedEvent: Event) => {
+    const editing = isEditMode && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(updatedEvent.id);
+    const response = await fetch(editing ? `/api/vendor/events/${updatedEvent.id}` : "/api/vendor/events", {
+      method: editing ? "PATCH" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(toApiEventPayload(updatedEvent)),
     });
-    setSelectedEvent(updatedEvent);
+    const result = await response.json();
+    if (!response.ok || result.status !== "success") {
+      throw new Error(result.message || "Unable to save event");
+    }
+    const savedEvent = mapApiEvent(result.data);
+    setEvents((previous) => editing
+      ? previous.map((item) => item.id === savedEvent.id ? savedEvent : item)
+      : [...previous, savedEvent].sort((a, b) => Date.parse(a.startDate) - Date.parse(b.startDate)));
+    setSelectedEvent(savedEvent);
+    return savedEvent;
   };
 
   const handleAddTicket = (ticketId: string) => {
@@ -105,6 +137,8 @@ export default function EventsPage() {
         </div>
       </div>
 
+      {error && <div role="alert" className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-md border border-destructive/30 p-4 text-sm"><span className="flex items-center gap-2"><AlertCircle className="h-4 w-4 text-destructive" />{error}</span><Button size="sm" variant="outline" onClick={() => void loadEvents()}><RefreshCw className="mr-2 h-4 w-4" />Retry</Button></div>}
+
       <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {[
           {
@@ -136,7 +170,7 @@ export default function EventsPage() {
             <CardContent className="flex items-center justify-between gap-4 p-5">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">{metric.label}</p>
-                <p className="mt-2 text-2xl font-semibold tracking-tight">{metric.value}</p>
+                {loading ? <Skeleton className="mt-2 h-8 w-24" /> : <p className="mt-2 text-2xl font-semibold tracking-tight">{metric.value}</p>}
                 <p className="mt-1 text-xs text-muted-foreground">{metric.sub}</p>
               </div>
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -208,7 +242,7 @@ export default function EventsPage() {
         </Card>
       </div>
 
-      {nextEvent && (
+      {!loading && nextEvent && (
         <Card className="mb-6 overflow-hidden border-primary/20 bg-primary/5 shadow-none">
           <CardContent className="flex flex-col gap-3 p-5 md:flex-row md:items-center md:justify-between">
             <div className="flex items-start gap-3">
@@ -233,12 +267,12 @@ export default function EventsPage() {
         </Card>
       )}
 
-      <EventsTable
+      {loading ? <div className="space-y-3">{Array.from({ length: 5 }).map((_, index) => <Skeleton key={index} className="h-14 w-full" />)}</div> : <EventsTable
         events={events}
         onAddEvent={handleAddEvent}
         onEditEvent={handleEditEvent}
         onViewEvent={handleViewEvent}
-      />
+      />}
 
       <EventDetailModal
         event={selectedEvent}

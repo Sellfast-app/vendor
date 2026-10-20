@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,12 +35,19 @@ import { Calendar } from "@/components/ui/calendar";
 import { Event, TicketType, generateEventId, generateTicketId } from "@/lib/events-data";
 import { EventImagePicker } from "./EventImagePicker";
 
+function localDateTime(value?: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}T${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
 interface EventDetailModalProps {
   event: Event | null;
   isOpen: boolean;
   onClose: () => void;
   isEditMode?: boolean;
-  onSave: (event: Event) => void;
+  onSave: (event: Event) => Promise<Event>;
   onAddTicket: (ticketId: string) => void;
   onRemoveTicket: (ticketId: string) => void;
 }
@@ -75,6 +83,29 @@ export function EventDetailModal({
     }
   );
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setFormData(event || {
+      id: "",
+      name: "",
+      description: "",
+      coverImage: "",
+      startDate: new Date().toISOString().split("T")[0],
+      endDate: new Date().toISOString().split("T")[0],
+      startTime: "18:00",
+      endTime: "23:00",
+      location: "",
+      organizerName: "",
+      organizerEmail: "",
+      organizerPhone: "",
+      status: "draft",
+      tickets: [],
+      totalCapacity: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  }, [event, isOpen]);
 
   const handleInputChange = <K extends keyof Event>(field: K, value: Event[K]) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -167,7 +198,8 @@ export function EventDetailModal({
         updatedAt: new Date().toISOString(),
         createdAt: formData.createdAt || new Date().toISOString(),
       };
-      onSave(updatedEvent);
+      const savedEvent = await onSave(updatedEvent);
+      setFormData(savedEvent);
       toast.success(isEditMode ? "Event updated successfully" : "Event created successfully");
       onClose();
     } catch {
@@ -179,7 +211,6 @@ export function EventDetailModal({
 
   const isPublished = formData.status === "published";
   const isDraft = formData.status === "draft";
-  const isEnded = formData.status === "ended";
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -472,11 +503,31 @@ export function EventDetailModal({
                         </div>
 
                         {ticket.type === "paid" && (
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span>Total value: </span>
-                            <span className="font-medium text-primary">
-                              ₦{((ticket.price || 0) * ticket.quantity).toLocaleString()}
-                            </span>
+                          <div className="space-y-3 border-t pt-3">
+                            <label className="flex items-center gap-2 text-sm">
+                              <Checkbox checked={!!ticket.discount} onCheckedChange={(checked) => updateTicket(ticket.id, {
+                                discount: checked ? { type: "fixed", value: 1, startsAt: null, endsAt: null } : null,
+                              })} />
+                              Apply a ticket discount
+                            </label>
+                            {ticket.discount && <div className="grid gap-3 sm:grid-cols-2">
+                              <div className="space-y-1"><Label className="text-xs text-muted-foreground">Discount type</Label>
+                                <Select value={ticket.discount.type} onValueChange={(type: "fixed" | "percentage") => updateTicket(ticket.id, { discount: { ...ticket.discount!, type } })}>
+                                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="fixed">Fixed amount (₦)</SelectItem><SelectItem value="percentage">Percentage (%)</SelectItem></SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-1"><Label className="text-xs text-muted-foreground">Discount value</Label>
+                                <Input type="number" min="0.01" step="0.01" max={ticket.discount.type === "percentage" ? "99.99" : undefined} value={ticket.discount.value}
+                                  onChange={(e) => updateTicket(ticket.id, { discount: { ...ticket.discount!, value: Number(e.target.value) || 0 } })} className="h-9" />
+                              </div>
+                              <div className="space-y-1"><Label className="text-xs text-muted-foreground">Starts (optional)</Label>
+                                <Input type="datetime-local" value={localDateTime(ticket.discount.startsAt)} onChange={(e) => updateTicket(ticket.id, { discount: { ...ticket.discount!, startsAt: e.target.value ? new Date(e.target.value).toISOString() : null } })} className="h-9" />
+                              </div>
+                              <div className="space-y-1"><Label className="text-xs text-muted-foreground">Ends (optional)</Label>
+                                <Input type="datetime-local" value={localDateTime(ticket.discount.endsAt)} onChange={(e) => updateTicket(ticket.id, { discount: { ...ticket.discount!, endsAt: e.target.value ? new Date(e.target.value).toISOString() : null } })} className="h-9" />
+                              </div>
+                            </div>}
+                            <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground"><span>Total value at list price</span><span className="font-medium text-primary">₦{((ticket.price || 0) * ticket.quantity).toLocaleString()}</span></div>
                           </div>
                         )}
                       </div>
@@ -520,13 +571,6 @@ export function EventDetailModal({
                   <span className="w-2 h-2 rounded-full bg-current" />
                   Published
                 </span>
-              </Button>
-              <Button
-                variant={isEnded ? "default" : "outline"}
-                className={cn("flex-1", isEnded && "bg-gray-500 hover:bg-gray-500/90")}
-                onClick={() => handleInputChange("status", "ended")}
-              >
-                Ended
               </Button>
             </div>
           </div>

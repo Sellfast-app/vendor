@@ -1,6 +1,6 @@
 // app/(dashboard)/(routes)/analytics/utils.ts
 
-export type DateRangeKey = '24hrs' | 'today' | 'last_week' | '30_days' | 'last_month' | '6_months' | 'last_year';
+export type DateRangeKey = '24hrs' | 'today' | 'last_week' | '30_days' | '6_months' | 'last_year';
 
 export const calculateDateRange = (key: DateRangeKey): { startDate: string; endDate: string } => {
   const now = new Date();
@@ -16,7 +16,6 @@ export const calculateDateRange = (key: DateRangeKey): { startDate: string; endD
     case 'last_week':
       startDate.setTime(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       break;
-    case 'last_month':
     case '30_days':
       startDate.setTime(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       break;
