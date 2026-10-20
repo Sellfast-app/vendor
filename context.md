@@ -21,8 +21,15 @@ Preserve Swiftree branding and the existing retail/food purchase flows.
 - Markup split: platform receives markup plus the transaction percentage of the
   base price; vendor receives base minus that percentage. Delivery is separate.
   Do not charge the transaction percentage again to the buyer without an agreed rule.
-- Subscription tier names/prices currently in lib/v2.ts are placeholders, not
-  approved billing prices. Finance intentionally does not present them as payable.
+- Signup offers duration-only subscription choices: quarterly (3 months),
+  bi-annually (6 months), and yearly (12 months). Starter/Growth/Pro tiers and
+  their placeholder prices were removed; do not reintroduce them without an
+  approved product/pricing decision. Finance must use server-authoritative,
+  currency-specific prices.
+- Monthly subscription price is configured per currency by admins with the
+  `subscriptions.manage` permission. NGN is seeded at NGN 10,000/month; signup
+  displays 3x, 6x and 12x totals returned by the API. Do not assume the NGN rate
+  applies to other currencies; admins must configure those currencies first.
 - Nigeria rates are defined above. Do not interpret NGN 500 as GBP/KES/GHS/RWF 500.
   Obtain authoritative currency-specific pricing before localization.
 
@@ -77,17 +84,34 @@ subscription payment, never on a client-side click or redirect.
   derived markup preview only for effective Markup. Saved product payloads are unchanged.
 - Other product surfaces, variant tables, ticket editors and customer storefront
   totals are not yet wired to this preview model. Do not claim catalog-wide live pricing.
-- Signup already serializes selections in business_details.metadata.v2. Finance
-  is not yet hydrated from signup/server metadata; use preview controls for now.
+- Signup serializes selections in business_details.metadata.v2 and calls
+  POST /api/v2/onboarding/business. The backend persists the business vertical,
+  country and plan selection. A subscription selection is not proof of payment
+  or an active subscription; markup selection is currently persisted as active
+  by the V2 onboarding API. Subscription signup must not grant dashboard access
+  until payment is confirmed server-side.
 - Preview expiry is evaluated in the browser; it does not schedule any server task.
 - Subscription selection in the preview does not activate or charge a subscription.
+- V2 signup fetches prices via `/api/v2/onboarding/pricing`; subscription checkout
+  is initialized at the final signup action and returns the customer to
+  `/signup/payment/callback`. The backend verifies with Paystack and activates
+  the store only after success; a verified webhook can complete the same flow
+  if the browser callback is abandoned. No V2 free trial is created.
+- V2 pricing admin saves create Paystack plans for quarterly, biannually and
+  annual billing. Those plans auto-renew; price changes create plans for new
+  signups and do not change existing vendor plans. Confirm gateway currency and
+  recurring support before enabling a currency in production.
 
 ## Backend contract to agree (no endpoint paths assumed)
 
 - Read store-scoped billing: business type, currency, effective model, subscription
   status, tier, interval, paid-through time, renewal status and pending change.
-- Read approved plan catalogue/prices and currency-specific markup/fee rules.
-- Initialize/verify subscription payment, with webhook-confirmed activation.
+- Return an approved subscription catalogue with duration and currency-specific
+  price for quarterly, bi-annually and yearly billing. Do not hard-code prices
+  or assume NGN amounts apply to GBP, KES, GHS or RWF.
+- Maintain these guarantees as the API evolves: pending checkout is resumable,
+  server verification/webhook is authoritative, and retries cannot duplicate
+  stores or subscriptions. Client redirects must never activate a subscription.
 - Schedule/cancel model changes with idempotency keys, optimistic concurrency,
   authoritative timestamps, finance permissions and audit history.
 - Background expiry transition with retries and reconciliation to the billing provider.
@@ -111,6 +135,13 @@ subscription payment, never on a client-side click or redirect.
 
 See docs/ticketing-preview.md for checkout, emailed QR issuance, permissions,
 atomic admission validation, and the boundary between preview and production.
+
+- Attendees & check-in now loads published events from the API, validates scans
+  server-side, and confirms check-in through an atomic API operation. The QR token
+  is not persisted by the vendor browser. API migration 036 and ticket issuance
+  are prerequisites; event/ticket creation and live admissions are still absent.
+- Ticket Orders continues to use clearly labelled preview bookings and import.
+  Never allow those browser records to authorize a real admission.
 
 ## Food inventory (Daash reference, October 8)
 
@@ -235,3 +266,31 @@ not rewritten. Saved malformed data is not silently overwritten.
   and shipping eligibility are still API integration work, not synchronized here.
 - No geolocation permission prompt, automatic nearest-branch selection or
   multi-branch checkout is introduced.
+
+## Payment-independent V2 integration status (2026-10-20)
+
+- Vendor order list filters remain backed by the orders API; the API validates
+  pagination, search, channel, payment/delivery method, status and date ranges.
+  Status changes persist and are audited. Paid cancellation is intentionally
+  blocked until a provider-confirmed refund path exists.
+- Analytics panels can select independent date ranges. Revenue, channels and
+  country metrics still come from API data. Checkout funnel reporting currently
+  counts website checkout sessions that submit an order within 30 minutes;
+  submission is not payment success, and WebChat abandoned checkout is not
+  available until WebChat has a checkout flow and emits these events.
+- Event management reads/writes real event and ticket-type records. The event
+  form supports paid/free/invite tickets and optional fixed/percentage discounts
+  with start/end times. No sample event dataset is used by the Events page.
+- Ticket orders now read the backend's ticket order/admission tables; no local
+  preview/import rows are presented as real orders. This list will remain empty
+  until ticket purchase creates order and admission records. Scanning continues
+  to validate and check in only backend-issued admissions.
+- Staff & Roles reads backend memberships, saved roles, invitations and audit
+  entries. Custom role CRUD, staff role/access updates, invite/revoke and the
+  signed-in invitation acceptance path call the API. Invitations require an
+  existing user account and the invited email to accept; account creation for
+  an unregistered invitee still needs a backend-defined flow. Invite mail links
+  require `VENDOR_DASHBOARD_URL` (or `FRONTEND_URL`) to point to this app.
+- Payment provider checkout, refunds, subscription settlement, wallet ledger
+  posting and withdrawals are not changed by this work and remain paused pending
+  payment custody/provider confirmations.

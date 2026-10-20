@@ -41,8 +41,7 @@ import { toast } from "sonner";
 interface Product {
   id: string;
   store_id: string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any 
-  variants: any[];
+  variants: Array<{ id?: string; name?: string; size?: string | number; color?: string; sku?: string; price?: number | string; quantity?: number | string }>;
   created_at: string;
   updated_at: string;
   product_sku: string;
@@ -78,8 +77,23 @@ interface FrontendProduct {
   status: string;
   createdAt: string;
   thumbnail: string | string[];
-  variants?: { id: string; size: string | number; color: string; price: number; quantity: number }[];
+  variants?: { id: string; name?: string; size: string | number; color: string; sku?: string; price: number; quantity: number }[];
+  bundleItems?: { productId: string; productName: string; sku: string; quantity: number }[];
+  product_type?: string;
   productType?: string;
+  shortDescription?: string;
+  costPrice?: number | null;
+  compareAtPrice?: number | null;
+  unit?: string;
+  barcode?: string;
+  collection?: string;
+  sizeChartUrl?: string;
+  minOrderQuantity?: number | null;
+  maxOrderQuantity?: number | null;
+  location?: string;
+  product_weight?: number;
+  est_prod_days_from?: number;
+  est_prod_days_to?: number;
 }
 
 // Transform API product to frontend format
@@ -93,9 +107,18 @@ const transformProduct = (product: Product): FrontendProduct => ({
   sales: product.product_price,
   status: mapStatusFromApi(product.product_status),
   createdAt: product.created_at,
-  thumbnail: product.product_images?.[0] || '/thumbnails/default.png',
-  variants: Array.isArray(product.variants) ? product.variants : [],
+  thumbnail: product.product_images?.length ? product.product_images : ['/thumbnails/default.png'],
+  variants: Array.isArray(product.variants) ? product.variants.map((variant, index) => ({
+    id: String(variant.id || `${product.id}-variant-${index}`),
+    name: String(variant.name || variant.size || ""),
+    size: variant.size || "",
+    color: String(variant.color || ""),
+    sku: String(variant.sku || ""),
+    price: Number(variant.price || product.product_price),
+    quantity: Number(variant.quantity || 0),
+  })) : [],
   productType: product.product_type,
+  product_type: product.product_type,
 });
 
 const mapStatusFromApi = (status: string): string => {
@@ -649,6 +672,7 @@ export default function ProductTable() {
         onEdit={handleEdit}
         onDelete={handleDelete}
         product={selectedProduct}
+        availableProducts={products.map((product) => ({ id: product.id, productName: product.productName, sku: product.sku, stock: product.stock, productType: product.productType }))}
         isEditMode={isEditMode}
       />
       <ActionModal

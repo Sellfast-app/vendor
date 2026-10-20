@@ -23,6 +23,13 @@ export type V2PlanModel = 'subscription' | 'markup';
 export const V2_BILLING_INTERVALS = ['quarterly', 'biannually', 'yearly'] as const;
 export type V2BillingInterval = (typeof V2_BILLING_INTERVALS)[number];
 
+export interface V2SubscriptionPricing {
+  currency: string;
+  monthly_amount: number;
+  payment_ready: boolean;
+  intervals: Record<V2BillingInterval, { months: number; amount: number }>;
+}
+
 /** Transaction fee (%) charged per business type under the markup model. */
 export const V2_MARKUP_TRANSACTION_FEES: Record<V2BusinessType, number> = {
   retail: 3,
@@ -133,77 +140,18 @@ export const isValidV2BusinessType = (businessType: unknown): businessType is V2
 export const isValidV2BillingInterval = (interval: unknown): interval is V2BillingInterval =>
   typeof interval === 'string' && (V2_BILLING_INTERVALS as readonly string[]).includes(interval);
 
-/**
- * Subscription plan tiers for the subscription model. Prices are placeholders
- * pending final Swiftree V2 pricing — tune here only.
- */
-export interface V2PlanTier {
-  id: 'starter' | 'growth' | 'pro';
-  name: string;
-  description: string;
-  /** Base price per billing interval, in the store's local currency. */
-  price: Record<V2BillingInterval, number>;
-  recommended?: boolean;
-  features: string[];
-}
-
-export const V2_PLAN_TIERS: V2PlanTier[] = [
-  {
-    id: 'starter',
-    name: 'Starter',
-    description: 'For new businesses still figuring things out',
-    price: { quarterly: 15000, biannually: 27500, yearly: 50000 },
-    features: [
-      'Add & manage products',
-      'Business website',
-      'Send invoices/receipts',
-      'Create discounts & coupons',
-      'Simple business analytics',
-    ],
-  },
-  {
-    id: 'growth',
-    name: 'Growth',
-    description: 'For growing businesses with a small team & multiple locations',
-    price: { quarterly: 30000, biannually: 55000, yearly: 100000 },
-    recommended: true,
-    features: [
-      'Everything in Starter',
-      'Add up to 3 staff accounts',
-      'Manage up to 2 store locations',
-      'Automated logistics rates at checkout',
-      'Sales channel analytics',
-    ],
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    description: 'For large multi-location businesses and chains',
-    price: { quarterly: 60000, biannually: 105000, yearly: 190000 },
-    features: [
-      'Everything in Growth',
-      'Unlimited staff accounts',
-      'Manage up to 5 store locations',
-      'Priority support',
-      'Advanced analytics',
-    ],
-  },
-];
-
 /** V2 onboarding selection carried through signup. */
 export interface V2OnboardingSelection {
   businessType: V2BusinessType;
   country: V2Country;
   planModel: V2PlanModel;
   billingInterval?: V2BillingInterval;
-  planTier?: V2PlanTier['id'];
 }
 
 /**
- * Serialize the V2 selection into business_details.metadata so the payload
- * stays backward-compatible with the current backend, which ignores
- * unknown metadata fields. When the V2 backend ships, these can be
- * promoted to top-level fields.
+ * Serialize the V2 selection into business_details.metadata for the V2
+ * onboarding API. Subscription billing still requires server-side payment
+ * initialization and confirmation before the account is activated.
  */
 export const v2SelectionToMetadata = (selection: V2OnboardingSelection) => ({
   v2: {
@@ -211,6 +159,5 @@ export const v2SelectionToMetadata = (selection: V2OnboardingSelection) => ({
     country: selection.country,
     plan_model: selection.planModel,
     ...(selection.billingInterval ? { billing_interval: selection.billingInterval } : {}),
-    ...(selection.planTier ? { plan_tier: selection.planTier } : {}),
   },
 });

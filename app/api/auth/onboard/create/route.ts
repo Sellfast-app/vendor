@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     const timeoutId = setTimeout(() => controller.abort(), EXTERNAL_API_TIMEOUT);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/onboard/create`, {
+      const response = await fetch(`${API_BASE_URL}/api/v2/onboarding/business`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

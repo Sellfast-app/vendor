@@ -7,14 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Camera, Copy, ExternalLink, PlusIcon, Loader2, ImageIcon, CreditCard } from "lucide-react";
+import { Camera, Copy, ExternalLink, PlusIcon, Loader2, ImageIcon, CreditCard, ArrowDown, ArrowUp, Trash2 } from "lucide-react";
 import EditIcon from "@/components/svgIcons/Edit";
 import SaveIcon from "@/components/svgIcons/SaveIcon";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import QrIcon from "@/components/svgIcons/QrIcon";
 import LinkIcon from "@/components/svgIcons/LinkIcon";
-import ThemeIcon from "@/components/svgIcons/ThemeIcon";
 import AddBankModal from "../../payouts/_components/AddBankModal";
 import PaymentMethods from "./PaymentMethods";
 import LogisticsSettings from "./LogisticsSettings";
@@ -36,6 +35,13 @@ interface BrandColor {
   accent: string;
 }
 
+interface StorefrontAnnouncement {
+  enabled: boolean;
+  message: string;
+  background_color: string;
+  text_color: string;
+}
+
 interface StoreMetadata {
   owner_name?: string;
   address?: string;
@@ -53,6 +59,7 @@ interface StoreMetadata {
   longitude?: number;
   country?: string;
   brand_color?: BrandColor;
+  storefront_announcement?: StorefrontAnnouncement;
 }
 
 interface StoreDetails {
@@ -199,7 +206,7 @@ const mapStoreAvailability = (
 
 function StorefrontComponent() {
   const [isEditingStorefront, setIsEditingStorefront] = useState(false);
-  const [isEditingTheme, setIsEditingTheme] = useState(false);
+  const [isEditingAppearance, setIsEditingAppearance] = useState(false);
   const [isEditingDeliveryMethod, setIsEditingDeliveryMethod] = useState(false);
   const [showDeleteSection, setShowDeleteSection] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
@@ -211,7 +218,7 @@ function StorefrontComponent() {
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
   const [isUploadingBannerImages, setIsUploadingBannerImages] = useState(false);
-  const [isSavingTheme, setIsSavingTheme] = useState(false);
+  const [isSavingAppearance, setIsSavingAppearance] = useState(false);
   const [isSavingDeliveryMethod, setIsSavingDeliveryMethod] = useState(false);
   const [isEditingPaymentMethod, setIsEditingPaymentMethod] = useState(false);
   const [isSavingPaymentMethod, setIsSavingPaymentMethod] = useState(false);
@@ -238,7 +245,17 @@ function StorefrontComponent() {
   });
 
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
-  const [themeColor, setThemeColor] = useState("Surge Green");
+  const [savedBrandColor, setSavedBrandColor] = useState<BrandColor>({
+    primary: "#005B14",
+    secondary: "#4FCA6A",
+    accent: "#E8F5E9",
+  });
+  const [savedAnnouncement, setSavedAnnouncement] = useState<StorefrontAnnouncement>({
+    enabled: false,
+    message: "",
+    background_color: "#005B14",
+    text_color: "#FFFFFF",
+  });
   const [availabilityEnabled, setAvailabilityEnabled] = useState(true);
   const [availability, setAvailability] =
     useState<AvailabilityDay[]>(defaultAvailability);
@@ -260,16 +277,6 @@ function StorefrontComponent() {
     gig: false,
     relay: false, // ← NEW
   });
-
-  const getThemeColors = (themeName: string): BrandColor => {
-    const themeMap: Record<string, BrandColor> = {
-      'Surge Green': { primary: '#4FCA6A', secondary: '#45B862', accent: '#D1FFDB' },
-      'Ocean Blue': { primary: '#3B82F6', secondary: '#2563EB', accent: '#E7F2FF' },
-      'Sunset Orange': { primary: '#F97316', secondary: '#EA580C', accent: '#FFEDD5' },
-      'Purple Elegance': { primary: '#8B5CF6', secondary: '#7C3AED', accent: '#EDE8FF' }
-    };
-    return themeMap[themeName] || themeMap['Surge Green'];
-  };
 
   const updateAvailabilityDay = (
     index: number,
@@ -357,15 +364,6 @@ function StorefrontComponent() {
     }
   };
 
-  const getThemeFromBrandColor = (brandColor?: BrandColor): string => {
-    if (!brandColor) return "Surge Green";
-    const { primary } = brandColor;
-    if (primary === '#3B82F6') return "Ocean Blue";
-    if (primary === '#F97316') return "Sunset Orange";
-    if (primary === '#8B5CF6') return "Purple Elegance";
-    return "Surge Green";
-  };
-
   useEffect(() => {
     const fetchStoreData = async () => {
       try {
@@ -388,28 +386,27 @@ function StorefrontComponent() {
           const storeDetails = result.data.storeDetails;
           const metadata = storeDetails.metadata || {};
           const brandColor = metadata.brand_color || {};
+          const resolvedBrandColor: BrandColor = {
+            primary: brandColor.primary || "#005B14",
+            secondary: brandColor.secondary || "#4FCA6A",
+            accent: brandColor.accent || "#E8F5E9",
+          };
+          const resolvedAnnouncement: StorefrontAnnouncement = {
+            enabled: metadata.storefront_announcement?.enabled || false,
+            message: metadata.storefront_announcement?.message || "",
+            background_color: metadata.storefront_announcement?.background_color || resolvedBrandColor.primary,
+            text_color: metadata.storefront_announcement?.text_color || "#FFFFFF",
+          };
+          metadata.brand_color = resolvedBrandColor;
+          metadata.storefront_announcement = resolvedAnnouncement;
+          setSavedBrandColor(resolvedBrandColor);
+          setSavedAnnouncement(resolvedAnnouncement);
 
           // ── Detect food vendor ──────────────────────────────────────────
           const businessType: string = storeDetails.business_type || '';
           const isFood = businessType === 'Restaurant/Food Service';
           setIsFoodVendor(isFood);
           console.log('🍔 Is food vendor:', isFood);
-
-          const currentTheme = getThemeFromBrandColor(brandColor);
-          setThemeColor(currentTheme);
-
-          if (!brandColor.primary && typeof window !== 'undefined') {
-            const storedTheme = localStorage.getItem('colorScheme');
-            if (storedTheme) {
-              const themeDisplayMap: Record<string, string> = {
-                'surge-green': 'Surge Green',
-                'ocean-blue': 'Ocean Blue',
-                'sunset-orange': 'Sunset Orange',
-                'purple-elegance': 'Purple Elegance'
-              };
-              setThemeColor(themeDisplayMap[storedTheme] || 'Surge Green');
-            }
-          }
 
           let countryCode = "+234";
           if (metadata.phone) {
@@ -693,6 +690,7 @@ function StorefrontComponent() {
         business_type: storefrontData.storeType,
         store_description: storefrontData.bio,
         metadata: {
+          ...storefrontData.metadata,
           owner_name: storefrontData.metadata?.owner_name || "",
           address: storefrontData.metadata?.address || "",
           address_line_2: storefrontData.metadata?.address_line_2 || "",
@@ -708,7 +706,8 @@ function StorefrontComponent() {
           latitude: storefrontData.metadata?.latitude || 0,
           longitude: storefrontData.metadata?.longitude || 0,
           country: storefrontData.metadata?.country || "NG",
-          brand_color: storefrontData.metadata?.brand_color || getThemeColors(themeColor),
+          brand_color: storefrontData.metadata?.brand_color || savedBrandColor,
+          storefront_announcement: storefrontData.metadata?.storefront_announcement || savedAnnouncement,
         },
         // Forward banner style + multi-image list to the backend
         banner_style: storefrontData.banner_style,
@@ -732,16 +731,20 @@ function StorefrontComponent() {
     }
   };
 
-  const handleEditTheme = () => setIsEditingTheme(true);
-  const handleCancelTheme = () => setIsEditingTheme(false);
-
-  const handleSaveTheme = async () => {
-    if (isSavingTheme) return;
-    setIsSavingTheme(true);
+  const handleEditAppearance = () => setIsEditingAppearance(true);
+  const handleSaveAppearance = async () => {
+    if (isSavingAppearance) return;
+    const announcement = storefrontData.metadata?.storefront_announcement || savedAnnouncement;
+    if (announcement.enabled && !announcement.message.trim()) {
+      toast.error("Add announcement text or turn the strip off before saving.");
+      return;
+    }
+    setIsSavingAppearance(true);
     try {
-      const brandColor = getThemeColors(themeColor);
+      const brandColor = storefrontData.metadata?.brand_color || savedBrandColor;
       const requestBody = {
         metadata: {
+          ...storefrontData.metadata,
           owner_name: storefrontData.metadata?.owner_name || "Store Owner",
           address: storefrontData.metadata?.address || "",
           address_line_2: storefrontData.metadata?.address_line_2 || "",
@@ -757,35 +760,91 @@ function StorefrontComponent() {
           latitude: storefrontData.metadata?.latitude || 0,
           longitude: storefrontData.metadata?.longitude || 0,
           country: storefrontData.metadata?.country || "NG",
-          brand_color: brandColor
+          brand_color: brandColor,
+          storefront_announcement: announcement,
         }
       };
-      toast.loading('Updating theme...');
+      toast.loading('Saving storefront appearance...');
       const response = await fetch('/api/store', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
       });
       const result = await parseApiResponse(response);
-      if (!response.ok) throw new Error(result.error || 'Failed to update theme');
+      if (!response.ok) throw new Error(result.error || 'Failed to save storefront appearance');
 
-      const themeMap: Record<string, string> = {
-        'Surge Green': 'surge-green', 'Ocean Blue': 'ocean-blue',
-        'Sunset Orange': 'sunset-orange', 'Purple Elegance': 'purple-elegance'
-      };
-      localStorage.setItem('colorScheme', themeMap[themeColor] || 'surge-green');
-      setIsEditingTheme(false);
+      setIsEditingAppearance(false);
       toast.dismiss();
-      toast.success('Theme updated successfully!');
-      setStorefrontData(prev => ({ ...prev, metadata: { ...prev.metadata, brand_color: brandColor } }));
-      window.dispatchEvent(new Event('themeChange'));
+      toast.success('Storefront appearance saved.');
+      setSavedBrandColor(brandColor);
+      setSavedAnnouncement(announcement);
+      setStorefrontData(prev => ({ ...prev, metadata: { ...prev.metadata, brand_color: brandColor, storefront_announcement: announcement } }));
     } catch (error) {
-      console.error('❌ Error updating theme:', error);
+      console.error('Error saving storefront appearance:', error);
       toast.dismiss();
-      toast.error(error instanceof Error ? error.message : 'Failed to update theme');
+      toast.error(error instanceof Error ? error.message : 'Failed to save storefront appearance');
     } finally {
-      setIsSavingTheme(false);
+      setIsSavingAppearance(false);
     }
+  };
+
+  const handleCancelAppearance = () => {
+    setStorefrontData((prev) => ({
+      ...prev,
+      metadata: {
+        ...prev.metadata,
+        brand_color: savedBrandColor,
+        storefront_announcement: savedAnnouncement,
+      },
+    }));
+    setIsEditingAppearance(false);
+  };
+
+  const updateBrandColor = (key: keyof BrandColor, value: string) => {
+    setStorefrontData((prev) => ({
+      ...prev,
+      metadata: {
+        ...prev.metadata,
+        brand_color: {
+          ...(prev.metadata?.brand_color || savedBrandColor),
+          [key]: value,
+        },
+      },
+    }));
+  };
+
+  const updateAnnouncement = (key: keyof StorefrontAnnouncement, value: string | boolean) => {
+    setStorefrontData((prev) => ({
+      ...prev,
+      metadata: {
+        ...prev.metadata,
+        storefront_announcement: {
+          ...(prev.metadata?.storefront_announcement || savedAnnouncement),
+          [key]: value,
+        },
+      },
+    }));
+  };
+
+  const moveBannerImage = (index: number, direction: -1 | 1) => {
+    const images = [...(storefrontData.banner_images || [])];
+    const target = index + direction;
+    if (target < 0 || target >= images.length) return;
+    [images[index], images[target]] = [images[target], images[index]];
+    setStorefrontData((prev) => ({ ...prev, banner_images: images }));
+  };
+
+  const removeBannerImage = (index: number) => {
+    setStorefrontData((prev) => {
+      const bannerImages = (prev.banner_images || []).filter((_, imageIndex) => imageIndex !== index);
+      return {
+        ...prev,
+        banner_images: bannerImages,
+        ...(bannerImages.length === 0 && prev.banner_style === "carousel"
+          ? { banner_style: "portrait" as const }
+          : {}),
+      };
+    });
   };
 
   const handleEditDeliveryMethod = () => setIsEditingDeliveryMethod(true);
@@ -1281,8 +1340,8 @@ function StorefrontComponent() {
                 ) : storefrontData.banner_images && storefrontData.banner_images.length > 0 ? (
                   <div className="flex flex-col items-center gap-2">
                     <div className="grid w-40 h-16 grid-cols-3 gap-2 rounded-md border overflow-hidden">
-                      {storefrontData.banner_images.map((img, i) => (
-                        <div key={i} className="bg-cover bg-center" style={{ backgroundImage: `url(${img})` }} />
+                      {storefrontData.banner_images.slice(0, 3).map((img, i) => (
+                        <div key={`${img}-${i}`} className="bg-cover bg-center" style={{ backgroundImage: `url(${img})` }} />
                       ))}
                     </div>
                     <p className="text-sm font-medium">{storefrontData.banner_images.length} banner images</p>
@@ -1296,6 +1355,19 @@ function StorefrontComponent() {
                   </div>
                 )}
               </div>
+              {storefrontData.banner_images && storefrontData.banner_images.length > 0 && (
+                <div className="space-y-2">
+                  {storefrontData.banner_images.map((image, index) => (
+                    <div key={`${image}-${index}`} className="flex items-center gap-3 rounded-lg border p-2">
+                      <div className="h-12 w-20 shrink-0 rounded bg-cover bg-center" style={{ backgroundImage: `url(${image})` }} />
+                      <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">Banner {index + 1}</span>
+                      <Button type="button" variant="ghost" size="icon" title="Move banner up" aria-label="Move banner up" disabled={!isEditingStorefront || index === 0} onClick={() => moveBannerImage(index, -1)}><ArrowUp className="h-4 w-4" /></Button>
+                      <Button type="button" variant="ghost" size="icon" title="Move banner down" aria-label="Move banner down" disabled={!isEditingStorefront || index === storefrontData.banner_images!.length - 1} onClick={() => moveBannerImage(index, 1)}><ArrowDown className="h-4 w-4" /></Button>
+                      <Button type="button" variant="ghost" size="icon" title="Remove banner" aria-label="Remove banner" disabled={!isEditingStorefront} onClick={() => removeBannerImage(index)}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -1546,39 +1618,116 @@ function StorefrontComponent() {
         </CardContent>
       </Card>
 
-      {/* Theme & Customization — unchanged */}
+      {/* Storefront appearance is separate from the vendor dashboard theme. */}
       <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
         <CardContent>
           <div className="space-y-4 pt-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium">Theme & Customization</h3>
-              {!isEditingTheme ? (
-                <Button onClick={handleEditTheme} variant="outline" size="sm" className="dark:bg-background">
+              <div>
+                <h3 className="text-sm font-medium">Storefront appearance</h3>
+                <p className="mt-1 text-xs text-muted-foreground">Customize the colors and announcement customers see in your store.</p>
+              </div>
+              {!isEditingAppearance ? (
+                <Button onClick={handleEditAppearance} variant="outline" size="sm" className="dark:bg-background">
                   <span className="hidden sm:inline mr-2">Edit</span><EditIcon />
                 </Button>
               ) : (
                 <div className="flex gap-2">
-                  <Button onClick={handleCancelTheme} variant="outline" size="sm">Cancel</Button>
-                  <Button onClick={handleSaveTheme} variant="default" size="sm" disabled={isSavingTheme}>
-                    {isSavingTheme ? <Loader2 className="w-4 h-4 animate-spin" /> : <><SaveIcon /><span className="hidden sm:inline ml-2">Save Changes</span></>}
+                  <Button onClick={handleCancelAppearance} variant="outline" size="sm">Cancel</Button>
+                  <Button onClick={handleSaveAppearance} variant="default" size="sm" disabled={isSavingAppearance}>
+                    {isSavingAppearance ? <Loader2 className="w-4 h-4 animate-spin" /> : <><SaveIcon /><span className="hidden sm:inline ml-2">Save appearance</span></>}
                   </Button>
                 </div>
               )}
             </div>
-            <div className="flex items-center justify-between p-4 rounded-lg">
-              <div className="flex items-center gap-3">
-                <ThemeIcon />
-                <span className="text-sm">Theme</span>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              {([
+                ["primary", "Primary", "Buttons and key accents"],
+                ["secondary", "Secondary", "Highlights and active states"],
+                ["accent", "Soft accent", "Subtle backgrounds"],
+              ] as const).map(([key, label, description]) => {
+                const value = storefrontData.metadata?.brand_color?.[key] || savedBrandColor[key];
+                return (
+                  <label key={key} className="flex items-center gap-3 rounded-lg border p-3">
+                    <input
+                      type="color"
+                      value={value}
+                      onChange={(event) => updateBrandColor(key, event.target.value.toUpperCase())}
+                      disabled={!isEditingAppearance}
+                      aria-label={`${label} color`}
+                      className="h-10 w-10 cursor-pointer rounded border-0 bg-transparent p-0 disabled:cursor-not-allowed"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium">{label}</span>
+                      <span className="block text-xs text-muted-foreground">{description}</span>
+                      <span className="mt-1 block font-mono text-xs uppercase">{value}</span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="space-y-4 rounded-lg border p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium">Announcement strip</p>
+                  <p className="mt-1 text-xs text-muted-foreground">A scrolling message at the top of your storefront.</p>
+                </div>
+                <Switch
+                  checked={storefrontData.metadata?.storefront_announcement?.enabled || false}
+                  onCheckedChange={(checked) => updateAnnouncement("enabled", checked)}
+                  disabled={!isEditingAppearance}
+                  aria-label="Enable announcement strip"
+                />
               </div>
-              <Select value={themeColor} onValueChange={setThemeColor} disabled={!isEditingTheme}>
-                <SelectTrigger className="w-[180px] dark:bg-background"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Surge Green">Surge Green</SelectItem>
-                  <SelectItem value="Ocean Blue">Ocean Blue</SelectItem>
-                  <SelectItem value="Sunset Orange">Sunset Orange</SelectItem>
-                  <SelectItem value="Purple Elegance">Purple Elegance</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="grid gap-4 md:grid-cols-[1fr_auto_auto]">
+                <div className="space-y-2">
+                  <Label htmlFor="announcement-message" className="text-xs">Message</Label>
+                  <Input
+                    id="announcement-message"
+                    value={storefrontData.metadata?.storefront_announcement?.message || ""}
+                    onChange={(event) => updateAnnouncement("message", event.target.value)}
+                    maxLength={140}
+                    disabled={!isEditingAppearance || !storefrontData.metadata?.storefront_announcement?.enabled}
+                    placeholder="Free delivery on orders over ..."
+                  />
+                  <p className="text-right text-xs text-muted-foreground">{storefrontData.metadata?.storefront_announcement?.message?.length || 0}/140</p>
+                </div>
+                {([
+                  ["background_color", "Strip color"],
+                  ["text_color", "Text color"],
+                ] as const).map(([key, label]) => {
+                  const fallback = key === "background_color" ? savedBrandColor.primary : "#FFFFFF";
+                  const value = storefrontData.metadata?.storefront_announcement?.[key] || fallback;
+                  return (
+                    <label key={key} className="flex items-center gap-2 rounded-md border px-3 py-2">
+                      <input
+                        type="color"
+                        value={value}
+                        onChange={(event) => updateAnnouncement(key, event.target.value.toUpperCase())}
+                        disabled={!isEditingAppearance || !storefrontData.metadata?.storefront_announcement?.enabled}
+                        aria-label={label}
+                        className="h-8 w-8 cursor-pointer rounded border-0 bg-transparent p-0 disabled:cursor-not-allowed"
+                      />
+                      <span className="text-xs">{label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+              <div
+                className="overflow-hidden rounded-md py-2 text-xs font-semibold"
+                style={{
+                  backgroundColor: storefrontData.metadata?.storefront_announcement?.background_color || savedBrandColor.primary,
+                  color: storefrontData.metadata?.storefront_announcement?.text_color || "#FFFFFF",
+                }}
+              >
+                <div className="px-4 text-center">
+                  {storefrontData.metadata?.storefront_announcement?.enabled
+                    ? storefrontData.metadata?.storefront_announcement?.message || "Your announcement preview"
+                    : "Announcement strip is off"}
+                </div>
+              </div>
             </div>
           </div>
         </CardContent>

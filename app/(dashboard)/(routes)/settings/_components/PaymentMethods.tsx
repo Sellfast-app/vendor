@@ -30,6 +30,7 @@ const providers = [
     description: "Cards, bank transfer and USSD for local checkout.",
     icon: CreditCard,
     active: true,
+    comingSoon: false,
     channels: ["Website", "Web chat", "WhatsApp"],
   },
   {
@@ -38,14 +39,16 @@ const providers = [
     description: "Cards, transfer and QR payment routes.",
     icon: QrCode,
     active: false,
+    comingSoon: false,
     channels: ["Website", "Web chat"],
   },
   {
     key: "kuvarpay",
     title: "Kuvarpay Crypto",
-    description: "Crypto checkout converted and settled to your local wallet.",
+    description: "Crypto checkout converted and settled to your local wallet. Not enabled for V2 checkout yet.",
     icon: Bitcoin,
-    active: true,
+    active: false,
+    comingSoon: true,
     channels: ["Website"],
   },
   {
@@ -54,6 +57,7 @@ const providers = [
     description: "Alternative wallet and transfer rails for supported markets.",
     icon: Smartphone,
     active: false,
+    comingSoon: false,
     channels: ["Website", "WhatsApp"],
   },
 ];
@@ -93,13 +97,16 @@ export default function PaymentMethods() {
                           Active
                         </Badge>
                       )}
+                      {provider.comingSoon && (
+                        <Badge variant="outline">Coming soon</Badge>
+                      )}
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {provider.description}
                     </p>
                   </div>
                 </div>
-                <Switch defaultChecked={provider.active} />
+                <Switch defaultChecked={provider.active} disabled={provider.comingSoon} />
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 {provider.channels.map((channel) => (

@@ -452,8 +452,7 @@ export async function PATCH(
       data: result.data,
     });
   }
-  catch (error: any) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  catch (error) {
     console.error("Error updating order status:", error);
     return NextResponse.json(
       { status: "error", message: "Internal server error" },

@@ -1,5 +1,7 @@
+"use client"
+
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import React from 'react'
+import { useEffect, useState } from 'react'
 import AccountInformation from './AccountInformation'
 import StoreFront from './StoreFront'
 import Finance from './Finance'
@@ -8,9 +10,14 @@ import Support from './Support'
 import LocalizationSettings from './LocalizationSettings'
 
 function SettingsTabs() {
+    const [tab, setTab] = useState('account')
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search)
+        if (params.has('subscription_payment')) setTab('finance')
+    }, [])
     return (
         <div className="container mx-auto p-4">
-            <Tabs defaultValue='account' className='w-full'>
+            <Tabs value={tab} onValueChange={setTab} className='w-full'>
             <TabsList className="w-full overflow-x-auto flex-nowrap justify-start scrollbar-hide">
                     <TabsTrigger value="account">Account</TabsTrigger>
                     <TabsTrigger value="store">StoreFront Settings</TabsTrigger>

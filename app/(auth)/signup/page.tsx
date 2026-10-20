@@ -22,7 +22,7 @@ import {
   V2Country,
   V2BillingInterval,
   V2PlanModel,
-  V2PlanTier,
+  V2SubscriptionPricing,
   V2_BUSINESS_TYPE_INFO,
   V2_COUNTRIES,
   V2_COUNTRY_INFO,
@@ -57,7 +57,6 @@ interface BusinessMetadata {
     country: string;
     plan_model: string;
     billing_interval?: string;
-    plan_tier?: string;
   };
 }
 
@@ -253,7 +252,9 @@ export default function MultiStepSignupPage() {
   const [v2Country, setV2Country] = useState<V2Country | null>(null);
   const [v2PlanModel, setV2PlanModel] = useState<V2PlanModel | null>(null);
   const [v2BillingInterval, setV2BillingInterval] = useState<V2BillingInterval>('quarterly');
-  const [v2PlanTier, setV2PlanTier] = useState<V2PlanTier['id'] | null>(null);
+  const [subscriptionPricing, setSubscriptionPricing] = useState<V2SubscriptionPricing | null>(null);
+  const [subscriptionPricingLoading, setSubscriptionPricingLoading] = useState(false);
+  const [subscriptionPricingError, setSubscriptionPricingError] = useState<string | null>(null);
 
   // Updated form data state with metadata wrapper
   const [formData, setFormData] = useState<{ user_details: UserDetails; business_details: BusinessDetails; agreeToTerms: boolean; countryCode: string; colorScheme: ThemeName }>({
@@ -289,6 +290,41 @@ export default function MultiStepSignupPage() {
     }));
   }, [v2Country]);
 
+  useEffect(() => {
+    if (!v2Country) {
+      setSubscriptionPricing(null);
+      setSubscriptionPricingError(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    const currency = V2_COUNTRY_INFO[v2Country].currency;
+    setSubscriptionPricingLoading(true);
+    setSubscriptionPricingError(null);
+
+    fetch(`/api/onboarding/pricing?currency=${encodeURIComponent(currency)}`, {
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok || result.status !== 'success') {
+          throw new Error(result.message || 'Unable to load subscription pricing');
+        }
+        setSubscriptionPricing(result.data ?? null);
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        setSubscriptionPricing(null);
+        setSubscriptionPricingError(error instanceof Error ? error.message : 'Unable to load subscription pricing');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setSubscriptionPricingLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [v2Country]);
+
   // UI state
   const [showPassword, setShowPassword] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
@@ -313,22 +349,12 @@ export default function MultiStepSignupPage() {
 
     if (value === 'ticketing') {
       setV2PlanModel('markup');
-      setV2PlanTier(null);
       return;
-    }
-
-    if (v2PlanModel === 'subscription' && !v2PlanTier) {
-      setV2PlanTier('growth');
     }
   };
 
   const handleV2PlanModelChange = (value: V2PlanModel) => {
     setV2PlanModel(value);
-    if (value === 'subscription') {
-      setV2PlanTier((current) => current ?? 'growth');
-      return;
-    }
-    setV2PlanTier(null);
   };
 
   const validateStep = (step: number) => {
@@ -380,12 +406,18 @@ export default function MultiStepSignupPage() {
         }
         return true;
       case 4:
-        if (!isV2PlanStepValid(v2BusinessType ?? 'retail', v2PlanModel, v2PlanTier)) {
+        if (!isV2PlanStepValid(v2BusinessType ?? 'retail', v2PlanModel)) {
           if (!v2PlanModel) {
             toast.error('Please choose how you want to pay for Swiftree');
           } else {
             toast.error('Please select a subscription plan');
           }
+          return false;
+        }
+        if (v2PlanModel === 'subscription' && !subscriptionPricing?.payment_ready) {
+          toast.error(subscriptionPricingError || (subscriptionPricing
+            ? 'Subscription checkout is not ready for this currency'
+            : 'Subscription pricing is not configured for this currency'));
           return false;
         }
         return true;
@@ -585,14 +617,27 @@ export default function MultiStepSignupPage() {
                   country: v2Country,
                   planModel: v2PlanModel ?? (v2BusinessType === 'ticketing' ? 'markup' : 'subscription'),
                   ...(v2PlanModel === 'subscription' ? { billingInterval: v2BillingInterval } : {}),
-                  ...(v2PlanModel === 'subscription' && v2PlanTier ? { planTier: v2PlanTier } : {}),
                 })
               : {}),
           },
         },
       };
-  
-  
+
+      if (v2PlanModel === 'subscription') {
+        sessionStorage.setItem('v2_subscription_signup_payload', JSON.stringify(payload));
+        const paymentResponse = await fetch('/api/auth/onboard/subscription/initialize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const paymentResult = await readApiResponse(paymentResponse);
+        if (!paymentResponse.ok || !paymentResult.success || !paymentResult.data?.authorization_url) {
+          throw new Error(paymentResult.message || 'Unable to start subscription payment');
+        }
+        window.location.assign(paymentResult.data.authorization_url);
+        return;
+      }
+
       const response = await fetch('/api/auth/onboard/create', {
         method: 'POST',
         headers: {
@@ -1007,7 +1052,9 @@ export default function MultiStepSignupPage() {
           disabled={isLoading}
           className="w-[67%] py-2 rounded-lg transition-colors duration-200"
         >
-          {isLoading ? 'Creating Storefront...' : 'Create Storefront'}
+          {isLoading
+            ? (v2PlanModel === 'subscription' ? 'Starting payment...' : 'Creating Storefront...')
+            : (v2PlanModel === 'subscription' ? 'Continue to payment' : 'Create Storefront')}
         </Button>
       </div>
     </div>
@@ -1170,10 +1217,11 @@ export default function MultiStepSignupPage() {
               businessType={v2BusinessType ?? 'retail'}
               planModel={v2PlanModel}
               billingInterval={v2BillingInterval}
-              planTier={v2PlanTier}
+              subscriptionPricing={subscriptionPricing}
+              pricingLoading={subscriptionPricingLoading}
+              pricingError={subscriptionPricingError}
               onPlanModelChange={handleV2PlanModelChange}
               onBillingIntervalChange={setV2BillingInterval}
-              onPlanTierChange={setV2PlanTier}
             />
             {renderWizardActions()}
           </div>

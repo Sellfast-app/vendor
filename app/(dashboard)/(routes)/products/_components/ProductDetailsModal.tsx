@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronRight, Edit, Trash, ChevronLeft, Upload, X } from "lucide-react";
+import { ChevronRight, Edit, Trash, ChevronLeft, Upload, X, Plus } from "lucide-react";
 import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
 import FlashIcon from "@/components/svgIcons/FlashIcon";
@@ -36,9 +36,57 @@ interface FrontendProduct {
     status: string;
     createdAt: string;
     thumbnail: string | string[];
-    variants?: { id: string; size: string | number; color: string; price: number; quantity: number }[];
+    variants?: { id: string; name?: string; size: string | number; color: string; sku?: string; price: number; quantity: number }[];
+    bundleItems?: { productId: string; productName: string; sku: string; quantity: number }[];
+    shortDescription?: string;
+    costPrice?: number | null;
+    compareAtPrice?: number | null;
+    unit?: string;
+    barcode?: string;
+    collection?: string;
+    sizeChartUrl?: string;
+    minOrderQuantity?: number | null;
+    maxOrderQuantity?: number | null;
+    location?: string;
     // New fields for API
     product_weight?: number;
+    est_prod_days_from?: number;
+    est_prod_days_to?: number;
+    product_type?: string;
+}
+
+interface AvailableProduct {
+    id: string;
+    productName: string;
+    sku: string;
+    stock: number;
+    productType?: string;
+    product_type?: string;
+}
+
+interface ApiProduct {
+    id: string;
+    product_sku?: string | null;
+    product_name?: string | null;
+    product_description?: string | null;
+    product_quantity?: number | string | null;
+    product_price?: number | string | null;
+    product_status?: string | null;
+    created_at?: string;
+    product_images?: string[] | null;
+    variants?: Array<{ id?: string; name?: string; size?: string | number; color?: string; sku?: string; price?: number | string; quantity?: number | string }>;
+    bundle_items?: Array<{ product_id: string; product_name?: string; product_sku?: string; quantity?: number | string }>;
+    short_description?: string | null;
+    cost_price?: number | string | null;
+    compare_at_price?: number | string | null;
+    product_unit?: string | null;
+    barcode?: string | null;
+    collection_name?: string | null;
+    size_chart_url?: string | null;
+    min_order_quantity?: number | null;
+    max_order_quantity?: number | null;
+    store_location?: string | null;
+    product_weight?: number | string | null;
     est_prod_days_from?: number;
     est_prod_days_to?: number;
     product_type?: string;
@@ -50,25 +98,27 @@ interface ProductDetailsModalProps {
     onEdit: (product: FrontendProduct) => void;
     onDelete: (product: FrontendProduct) => void;
     product: FrontendProduct | null;
+    availableProducts?: AvailableProduct[];
     isEditMode?: boolean;
 }
 
-export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete, product, isEditMode = false }: ProductDetailsModalProps) {
+export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete, product, availableProducts = [], isEditMode = false }: ProductDetailsModalProps) {
     const [localProduct, setLocalProduct] = useState<FrontendProduct | null>(null);
     const [editMode, setEditMode] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
     const [newImages, setNewImages] = useState<File[]>([]);
     const [removedImages, setRemovedImages] = useState<string[]>([]);
+    const [bundleProductToAdd, setBundleProductToAdd] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        console.log("ProductDetailsModal updating with product:", product, "Initial Edit Mode:", isEditMode);
         setLocalProduct(product);
         setEditMode(isEditMode);
         setCurrentImageIndex(0);
         setNewImages([]);
         setRemovedImages([]);
+        setBundleProductToAdd("");
     }, [product, isEditMode]);
 
     // Helper function to get current image URL for slider
@@ -82,31 +132,32 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
         return localProduct.thumbnail;
     };
 
-    const handleInputChange = (field: keyof FrontendProduct, value: string | number) => {
+    const handleInputChange = (field: keyof FrontendProduct, value: string | number | null) => {
         if (localProduct) {
             setLocalProduct(prev => prev ? { ...prev, [field]: value } : null);
         }
     };
 
+    const updateVariant = (index: number, field: "name" | "size" | "color" | "sku" | "price" | "quantity", value: string) => {
+        if (!localProduct) return;
+        const variants = [...(localProduct.variants || [])];
+        variants[index] = { ...variants[index], [field]: field === "price" || field === "quantity" ? Number(value) || 0 : value };
+        setLocalProduct({ ...localProduct, variants });
+    };
+
+    const addBundleProduct = () => {
+        if (!localProduct || !bundleProductToAdd) return;
+        const item = availableProducts.find((candidate) => candidate.id === bundleProductToAdd);
+        if (!item || (item.productType || item.product_type) === "bundle" || localProduct.bundleItems?.some((entry) => entry.productId === item.id)) return;
+        setLocalProduct({ ...localProduct, bundleItems: [...(localProduct.bundleItems || []), { productId: item.id, productName: item.productName, sku: item.sku, quantity: 1 }] });
+        setBundleProductToAdd("");
+    };
+
     const handleSave = async () => {
         if (!localProduct) return;
       
-        console.log('🔄 Starting product update process...');
-        console.log('📝 Local Product Data:', {
-          id: localProduct.id,
-          productName: localProduct.productName,
-          sales: localProduct.sales,
-          stock: localProduct.stock,
-          status: localProduct.status,
-          description: localProduct.description,
-          product_weight: localProduct.product_weight,
-          est_prod_days_from: localProduct.est_prod_days_from,
-          est_prod_days_to: localProduct.est_prod_days_to
-        });
-    
         // Validate that we have a product ID
         if (!localProduct.id) {
-            console.error('❌ Product ID is missing!');
             toast.error('Product ID is missing. Cannot update product.');
             return;
         }
@@ -116,95 +167,69 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
           // Prepare form data for PATCH request
           const formData = new FormData();
       
-          // Required fields from API docs - status is required
+          formData.append('name', localProduct.productName);
           formData.append('status', mapStatusToApi(localProduct.status));
-          
-          // Optional fields - only include if they have values
-          if (localProduct.productName) formData.append('name', localProduct.productName);
-          if (localProduct.sales) formData.append('price', localProduct.sales.toString());
-          if (localProduct.stock) formData.append('quantity', localProduct.stock.toString());
-          if (localProduct.description) formData.append('description', localProduct.description);
-          if (localProduct.est_prod_days_from) formData.append('est_prod_days_from', localProduct.est_prod_days_from.toString());
-          if (localProduct.est_prod_days_to) formData.append('est_prod_days_to', localProduct.est_prod_days_to.toString());
-          if (localProduct.product_weight) formData.append('weight', localProduct.product_weight.toString());
+          formData.append('price', localProduct.sales.toString());
+          formData.append('quantity', localProduct.stock.toString());
+          formData.append('description', localProduct.description || '');
+          formData.append('short_description', localProduct.shortDescription || '');
+          formData.append('cost_price', localProduct.costPrice?.toString() || '');
+          formData.append('compare_at_price', localProduct.compareAtPrice?.toString() || '');
+          formData.append('est_prod_days_from', String(localProduct.est_prod_days_from ?? 0));
+          formData.append('est_prod_days_to', String(localProduct.est_prod_days_to ?? 0));
+          formData.append('weight', String(localProduct.product_weight || 1));
+          formData.append('unit', localProduct.unit || '');
+          formData.append('barcode', localProduct.barcode || '');
+          formData.append('collection', localProduct.collection || '');
+          formData.append('size_chart_url', localProduct.sizeChartUrl || '');
+          formData.append('min_order_quantity', localProduct.minOrderQuantity?.toString() || '');
+          formData.append('max_order_quantity', localProduct.maxOrderQuantity?.toString() || '');
+          formData.append('location', localProduct.location || '');
+          formData.append('variants', JSON.stringify(localProduct.variants || []));
+          formData.append('bundle_items', JSON.stringify((localProduct.bundleItems || []).map(item => ({
+            product_id: item.productId,
+            quantity: item.quantity,
+          }))));
+          if (allImages.length > 5) throw new Error('A product can have at most five images.');
+          formData.append('existing_images', JSON.stringify(existingImages));
       
           // Add new images
           newImages.forEach((file) => {
             formData.append('files', file);
           });
       
-          console.log('🔄 Updating product with data:', {
-            productId: localProduct.id,
-            status: mapStatusToApi(localProduct.status),
-            name: localProduct.productName,
-            price: localProduct.sales,
-            quantity: localProduct.stock,
-            description: localProduct.description,
-            est_prod_days_from: localProduct.est_prod_days_from,
-            est_prod_days_to: localProduct.est_prod_days_to,
-            weight: localProduct.product_weight,
-            newImages: newImages.length
-          });
-      
           const apiUrl = `/api/products/${localProduct.id}`;
-          console.log('🔗 Calling API URL:', apiUrl);
-      
-          // Log form data being sent
-          console.log('📦 FormData contents:');
-          for (const [key, value] of formData.entries()) {
-            if (value instanceof File) {
-              console.log(`  ${key}: File - ${value.name}`);
-            } else {
-              console.log(`  ${key}:`, value);
-            }
-          }
       
           const response = await fetch(apiUrl, {
             method: 'PATCH',
             body: formData,
           });
       
-          console.log('📡 API Response Status:', response.status);
-          console.log('📡 API Response URL:', response.url);
     
           if (!response.ok) {
             const errorData = await response.json();
-            console.error('❌ API Error Response:', errorData);
             throw new Error(errorData.message || 'Failed to update product');
           }
       
           const result = await response.json();
-          console.log('✅ Full API Response:', result);
-          console.log('✅ Result keys:', Object.keys(result));
       
           if (result.status === 'success') {
-            // FIX: Backend is returning "datat" instead of "data" (typo in backend)
-            // Handle both cases for backwards compatibility
             const productData = result.data || result.datat;
-            
-            console.log('✅ Product data extracted:', productData);
-            
             if (!productData) {
-              console.error('❌ No product data found in response:', result);
               throw new Error('No product data returned from server');
             }
             
             // Update local product with the response data
             const updatedProduct = transformProduct(productData);
-            console.log('✅ Transformed product:', updatedProduct);
-            
             onEdit(updatedProduct);
             setEditMode(false);
             setNewImages([]);
             setRemovedImages([]);
             toast.success('Product updated successfully!');
           } else {
-            console.error('❌ Status is not success:', result);
             throw new Error(result.message || 'Failed to update product');
           }
         } catch (error) {
-          console.error('❌ Error updating product:', error);
-          console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
           toast.error(`Failed to update product: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
           setIsLoading(false);
@@ -271,20 +296,43 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
         fileInputRef.current?.click();
     };
 
-   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const transformProduct = (apiProduct: any): FrontendProduct => ({
+    const transformProduct = (apiProduct: ApiProduct): FrontendProduct => ({
         id: apiProduct.id,
-        sku: apiProduct.product_sku,
-        productName: apiProduct.product_name,
-        description: apiProduct.product_description,
-        stock: apiProduct.product_quantity,
-        remanent: apiProduct.product_quantity,
-        sales: parseFloat(apiProduct.product_price) || 0,
-        status: mapStatusFromApi(apiProduct.product_status),
-        createdAt: apiProduct.created_at,
-        thumbnail: apiProduct.product_images || [],
-        variants: Array.isArray(apiProduct.variants) ? apiProduct.variants : [],
-        product_weight: apiProduct.product_weight ? parseFloat(apiProduct.product_weight) : undefined,
+        sku: apiProduct.product_sku || "",
+        productName: apiProduct.product_name || "",
+        description: apiProduct.product_description || "",
+        stock: Number(apiProduct.product_quantity || 0),
+        remanent: Number(apiProduct.product_quantity || 0),
+        sales: Number(apiProduct.product_price || 0),
+        status: mapStatusFromApi(apiProduct.product_status || ""),
+        createdAt: apiProduct.created_at || "",
+        thumbnail: Array.isArray(apiProduct.product_images) ? apiProduct.product_images : [],
+        variants: Array.isArray(apiProduct.variants) ? apiProduct.variants.map((variant, index) => ({
+            id: String(variant.id || `${apiProduct.id}-variant-${index}`),
+            name: String(variant.name || variant.size || ""),
+            size: variant.size || "",
+            color: String(variant.color || ""),
+            sku: String(variant.sku || ""),
+            price: Number(variant.price ?? apiProduct.product_price ?? 0),
+            quantity: Number(variant.quantity || 0),
+        })) : [],
+        bundleItems: Array.isArray(apiProduct.bundle_items) ? apiProduct.bundle_items.map((item) => ({
+            productId: String(item.product_id),
+            productName: String(item.product_name || "Product"),
+            sku: String(item.product_sku || ""),
+            quantity: Number(item.quantity || 1),
+        })) : [],
+        shortDescription: apiProduct.short_description || "",
+        costPrice: apiProduct.cost_price == null ? null : Number(apiProduct.cost_price),
+        compareAtPrice: apiProduct.compare_at_price == null ? null : Number(apiProduct.compare_at_price),
+        unit: apiProduct.product_unit || "",
+        barcode: apiProduct.barcode || "",
+        collection: apiProduct.collection_name || "",
+        sizeChartUrl: apiProduct.size_chart_url || "",
+        minOrderQuantity: apiProduct.min_order_quantity ?? null,
+        maxOrderQuantity: apiProduct.max_order_quantity ?? null,
+        location: apiProduct.store_location || "",
+        product_weight: apiProduct.product_weight ? Number(apiProduct.product_weight) : undefined,
         est_prod_days_from: apiProduct.est_prod_days_from,
         est_prod_days_to: apiProduct.est_prod_days_to,
         product_type: apiProduct.product_type,
@@ -503,6 +551,10 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                     className={`min-h-[100px] resize-none ${!editMode ? 'bg-muted' : ''}`}
                                 />
                             </div>
+                            {editMode && <div>
+                                <Label htmlFor="shortDescription" className="text-xs mb-1">Short description</Label>
+                                <Input id="shortDescription" maxLength={180} value={localProduct.shortDescription || ""} onChange={(e) => handleInputChange("shortDescription", e.target.value)} />
+                            </div>}
                             <div className="grid grid-cols-3 gap-4">
                                 <div>
                                     <Label htmlFor="price" className="text-xs mb-1">Price (₦)</Label>
@@ -566,6 +618,19 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                     />
                                 </div>
                             </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div><Label className="text-xs mb-1">Cost price</Label><Input type="number" min="0" value={localProduct.costPrice ?? ""} readOnly={!editMode} onChange={(e) => handleInputChange("costPrice", e.target.value === "" ? null : Number(e.target.value))} /></div>
+                                <div><Label className="text-xs mb-1">Compare-at price</Label><Input type="number" min="0" value={localProduct.compareAtPrice ?? ""} readOnly={!editMode} onChange={(e) => handleInputChange("compareAtPrice", e.target.value === "" ? null : Number(e.target.value))} /></div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div><Label className="text-xs mb-1">Unit</Label><Input value={localProduct.unit || ""} readOnly={!editMode} onChange={(e) => handleInputChange("unit", e.target.value)} /></div>
+                                <div><Label className="text-xs mb-1">Barcode</Label><Input value={localProduct.barcode || ""} readOnly={!editMode} onChange={(e) => handleInputChange("barcode", e.target.value)} /></div>
+                                <div><Label className="text-xs mb-1">Collection</Label><Input value={localProduct.collection || ""} readOnly={!editMode} onChange={(e) => handleInputChange("collection", e.target.value)} /></div>
+                                <div><Label className="text-xs mb-1">Size chart URL</Label><Input value={localProduct.sizeChartUrl || ""} readOnly={!editMode} onChange={(e) => handleInputChange("sizeChartUrl", e.target.value)} /></div>
+                                <div><Label className="text-xs mb-1">Minimum order quantity</Label><Input type="number" min="1" value={localProduct.minOrderQuantity ?? ""} readOnly={!editMode} onChange={(e) => handleInputChange("minOrderQuantity", e.target.value === "" ? null : Number(e.target.value))} /></div>
+                                <div><Label className="text-xs mb-1">Maximum order quantity</Label><Input type="number" min="1" value={localProduct.maxOrderQuantity ?? ""} readOnly={!editMode} onChange={(e) => handleInputChange("maxOrderQuantity", e.target.value === "" ? null : Number(e.target.value))} /></div>
+                                <div><Label className="text-xs mb-1">Store location</Label><Input value={localProduct.location || ""} readOnly={!editMode} onChange={(e) => handleInputChange("location", e.target.value)} /></div>
+                            </div>
                             <div>
                                 <Label htmlFor="status" className="text-xs mb-1">Status</Label>
                                 <Select
@@ -593,28 +658,37 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                             </div>
 
                             {/* Variants Accordion */}
-                            {localProduct.variants && localProduct.variants.length > 0 && (
+                            {localProduct.product_type === "variant" && (
                                 <Accordion type="single" collapsible className="w-full">
                                     <AccordionItem value="variants">
                                         <AccordionTrigger className="text-sm font-medium">Variants</AccordionTrigger>
                                         <AccordionContent>
-                                            {localProduct.variants.map((variant) => (
-                                                <div key={variant.id} className="flex items-center justify-between py-2 border-b last:border-b-0">
-                                                    <div className="flex items-center space-x-4">
-                                                        <span
-                                                            className="w-6 h-6 rounded-full inline-block"
-                                                            style={{ backgroundColor: variant.color }}
-                                                        />
-                                                        <span>{variant.size}</span>
-                                                        <span>₦{variant.price.toLocaleString()}</span>
-                                                        <span>{variant.quantity}</span>
-                                                    </div>
+                                            {(localProduct.variants || []).map((variant, index) => (
+                                                <div key={variant.id || index} className="grid grid-cols-2 md:grid-cols-[repeat(3,minmax(0,1fr))_auto] gap-2 py-2 border-b last:border-b-0">
+                                                    <Input aria-label="Variant name" value={variant.name || ""} readOnly={!editMode} placeholder="Name" onChange={(e) => updateVariant(index, "name", e.target.value)} />
+                                                    <Input aria-label="Variant size" value={variant.size} readOnly={!editMode} placeholder="Size" onChange={(e) => updateVariant(index, "size", e.target.value)} />
+                                                    <Input aria-label="Variant color" value={variant.color} readOnly={!editMode} placeholder="Color" onChange={(e) => updateVariant(index, "color", e.target.value)} />
+                                                    <Input aria-label="Variant SKU" value={variant.sku || ""} readOnly={!editMode} placeholder="SKU" onChange={(e) => updateVariant(index, "sku", e.target.value)} />
+                                                    <Input aria-label="Variant price" type="number" min="0" value={variant.price} readOnly={!editMode} placeholder="Price" onChange={(e) => updateVariant(index, "price", e.target.value)} />
+                                                    <Input aria-label="Variant quantity" type="number" min="0" value={variant.quantity} readOnly={!editMode} placeholder="Quantity" onChange={(e) => updateVariant(index, "quantity", e.target.value)} />
+                                                    {editMode && <Button type="button" variant="ghost" size="icon" aria-label="Remove variant" onClick={() => setLocalProduct({ ...localProduct, variants: (localProduct.variants || []).filter((_, variantIndex) => variantIndex !== index) })}><X className="h-4 w-4" /></Button>}
                                                 </div>
                                             ))}
+                                            {editMode && <Button type="button" variant="outline" size="sm" onClick={() => setLocalProduct({ ...localProduct, variants: [...(localProduct.variants || []), { id: `new-${Date.now()}`, name: "", size: "", color: "", sku: "", price: localProduct.sales, quantity: 0 }] })}><Plus className="h-4 w-4 mr-1" /> Add variant</Button>}
                                         </AccordionContent>
                                     </AccordionItem>
                                 </Accordion>
                             )}
+
+                            {localProduct.product_type === "bundle" && <section className="space-y-2 rounded-md border p-3">
+                                <h3 className="text-sm font-medium">Bundle contents</h3>
+                                {(localProduct.bundleItems || []).map((item) => <div key={item.productId} className="grid grid-cols-[1fr_90px_auto] items-center gap-2">
+                                    <span className="text-sm">{item.productName} <span className="text-muted-foreground">{item.sku}</span></span>
+                                    <Input type="number" min="1" value={item.quantity} readOnly={!editMode} aria-label={`Quantity of ${item.productName}`} onChange={(e) => setLocalProduct({ ...localProduct, bundleItems: (localProduct.bundleItems || []).map((entry) => entry.productId === item.productId ? { ...entry, quantity: Number(e.target.value) || 1 } : entry) })} />
+                                    {editMode && <Button type="button" variant="ghost" size="icon" aria-label={`Remove ${item.productName}`} onClick={() => setLocalProduct({ ...localProduct, bundleItems: (localProduct.bundleItems || []).filter((entry) => entry.productId !== item.productId) })}><X className="h-4 w-4" /></Button>}
+                                </div>)}
+                                {editMode && <div className="flex gap-2"><Select value={bundleProductToAdd} onValueChange={setBundleProductToAdd}><SelectTrigger><SelectValue placeholder="Add a product" /></SelectTrigger><SelectContent>{availableProducts.filter((candidate) => candidate.id !== localProduct.id && (candidate.productType || candidate.product_type) !== "bundle" && !localProduct.bundleItems?.some((item) => item.productId === candidate.id)).map((candidate) => <SelectItem key={candidate.id} value={candidate.id}>{candidate.productName}</SelectItem>)}</SelectContent></Select><Button type="button" variant="outline" onClick={addBundleProduct} disabled={!bundleProductToAdd}><Plus className="h-4 w-4" /></Button></div>}
+                            </section>}
                         </div>
                     </div>
                 ) : (

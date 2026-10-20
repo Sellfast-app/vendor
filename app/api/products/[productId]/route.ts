@@ -185,15 +185,17 @@ export async function PATCH(
 
     // Add optional fields if they exist
     const optionalFields = [
-      'name', 'price', 'quantity', 'description', 
-      'est_prod_days_from', 'est_prod_days_to', 'weight'
+      'name', 'price', 'quantity', 'description', 'short_description',
+      'cost_price', 'compare_at_price', 'est_prod_days_from', 'est_prod_days_to',
+      'weight', 'unit', 'barcode', 'collection', 'size_chart_url',
+      'min_order_quantity', 'max_order_quantity', 'location', 'variants',
+      'bundle_items', 'existing_images'
     ];
 
     optionalFields.forEach(field => {
       const value = formData.get(field);
-      if (value !== null && value !== '') {
+      if (value !== null) {
         externalFormData.append(field, value as string);
-        console.log(`✅ Added ${field}:`, value);
       }
     });
 

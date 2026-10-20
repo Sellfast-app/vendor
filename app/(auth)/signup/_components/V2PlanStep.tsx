@@ -17,34 +17,25 @@
  * Daash plan screen (ref #32).
  */
 
-import { BadgeCheck, Calculator, Check, LockKeyhole, Sparkles, Tag, WalletCards } from 'lucide-react';
+import { BadgeCheck, Calculator, Check, LockKeyhole, Tag, WalletCards } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  V2_BILLING_INTERVALS,
   V2BillingInterval,
   V2BusinessType,
   V2_MARKUP_LISTING_PAD,
   V2_MARKUP_TRANSACTION_FEES,
-  V2_PLAN_TIERS,
   V2PlanModel,
-  V2PlanTier,
+  V2SubscriptionPricing,
 } from '@/lib/v2';
 
-const INTERVAL_LABELS: Record<V2BillingInterval, string> = {
-  quarterly: 'Quarterly',
-  biannually: 'Bi-annually',
-  yearly: 'Yearly',
-};
-
-const INTERVAL_SUFFIX: Record<V2BillingInterval, string> = {
-  quarterly: 'Billed quarterly (every 3 months)',
-  biannually: 'Billed bi-annually (every 6 months)',
-  yearly: 'Billed yearly (every 12 months)',
-};
+const BILLING_OPTIONS: { value: V2BillingInterval; label: string; description: string }[] = [
+  { value: 'quarterly', label: '3 months', description: 'Quarterly billing' },
+  { value: 'biannually', label: '6 months', description: 'Biannual billing' },
+  { value: 'yearly', label: '12 months', description: 'Annual billing' },
+];
 
 const BUSINESS_MODEL_COPY: Record<V2BusinessType, string> = {
   retail: 'Retail & Wholesale can use Subscription or Markup.',
@@ -56,20 +47,22 @@ interface V2PlanStepProps {
   businessType: V2BusinessType;
   planModel: V2PlanModel | null;
   billingInterval: V2BillingInterval;
-  planTier: V2PlanTier['id'] | null;
+  subscriptionPricing: V2SubscriptionPricing | null;
+  pricingLoading: boolean;
+  pricingError: string | null;
   onPlanModelChange: (value: V2PlanModel) => void;
   onBillingIntervalChange: (value: V2BillingInterval) => void;
-  onPlanTierChange: (value: V2PlanTier['id']) => void;
 }
 
 export default function V2PlanStep({
   businessType,
   planModel,
   billingInterval,
-  planTier,
+  subscriptionPricing,
+  pricingLoading,
+  pricingError,
   onPlanModelChange,
   onBillingIntervalChange,
-  onPlanTierChange,
 }: V2PlanStepProps) {
   const isTicketing = businessType === 'ticketing';
   const txnFee = V2_MARKUP_TRANSACTION_FEES[businessType];
@@ -173,86 +166,73 @@ export default function V2PlanStep({
             </RadioGroup>
           </div>
 
-          {/* Subscription tiers */}
+          {/* Subscription duration */}
           {effectiveModel === 'subscription' && (
             <div className="space-y-4">
               <div className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">
-                Subscription vendors pay upfront for access. Swiftree does not add markup to the
-                vendor&apos;s listed product price under this model.
+                There is no free trial. Subscription is paid upfront before your store is activated.
+                Swiftree does not add markup to your listed product prices under this model.
               </div>
-              <Tabs
+              {pricingError ? (
+                <p role="alert" className="text-xs text-destructive">{pricingError}</p>
+              ) : !pricingLoading && !subscriptionPricing ? (
+                <p role="status" className="text-xs text-muted-foreground">
+                  Subscription pricing has not been configured for this currency. Choose Markup to continue.
+                </p>
+              ) : !pricingLoading && subscriptionPricing && !subscriptionPricing.payment_ready ? (
+                <p role="status" className="text-xs text-muted-foreground">
+                  Subscription checkout is not ready for this currency. Choose Markup to continue.
+                </p>
+              ) : null}
+              <RadioGroup
                 value={billingInterval}
                 onValueChange={(value) => onBillingIntervalChange(value as V2BillingInterval)}
+                aria-label="Subscription duration"
+                className="grid gap-3 sm:grid-cols-3"
+                disabled={pricingLoading || !subscriptionPricing?.payment_ready}
               >
-                <TabsList className="grid w-full grid-cols-3">
-                  {V2_BILLING_INTERVALS.map((interval) => (
-                    <TabsTrigger key={interval} value={interval} className="text-xs">
-                      {INTERVAL_LABELS[interval]}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-              </Tabs>
-
-              <RadioGroup
-                value={planTier ?? ''}
-                onValueChange={(value) => onPlanTierChange(value as V2PlanTier['id'])}
-                className="grid gap-3"
-              >
-                {V2_PLAN_TIERS.map((tier) => {
-                  const selected = planTier === tier.id;
+                {BILLING_OPTIONS.map((option) => {
+                  const selected = billingInterval === option.value;
                   return (
                     <Label
-                      key={tier.id}
-                      htmlFor={`v2-tier-${tier.id}`}
-                      className={`relative flex cursor-pointer flex-col gap-3 rounded-lg border-2 p-4 font-normal transition-all duration-200 ${
+                      key={option.value}
+                      htmlFor={`v2-period-${option.value}`}
+                      className={`flex cursor-pointer items-start gap-3 rounded-lg border-2 p-4 font-normal transition-colors ${
                         selected
                           ? 'border-primary bg-primary/10'
                           : 'border-gray-200 bg-white hover:border-gray-300 dark:border-[#1F1F1F] dark:bg-background'
-                      }`}
+                      } ${pricingLoading || !subscriptionPricing?.payment_ready ? 'cursor-not-allowed opacity-60' : ''}`}
                     >
-                      {tier.recommended && (
-                        <Badge className="absolute -top-2.5 right-4">RECOMMENDED</Badge>
-                      )}
-                      <span className="flex items-start justify-between gap-3">
-                        <span className="flex items-center gap-3">
-                          <RadioGroupItem value={tier.id} id={`v2-tier-${tier.id}`} />
-                          <span className="space-y-1">
-                            <span className="flex items-center gap-2">
-                              <span className="text-sm font-semibold text-foreground">
-                                {tier.name}
-                              </span>
-                              {tier.recommended && (
-                                <Sparkles className="h-3.5 w-3.5 text-primary" />
-                              )}
-                            </span>
-                            <span className="block text-xs text-muted-foreground">
-                              {tier.description}
-                            </span>
-                          </span>
-                        </span>
-                        <span className="shrink-0 text-right">
-                          <span className="block text-base font-bold text-primary">
-                            ₦{tier.price[billingInterval].toLocaleString()}
-                          </span>
-                          <span className="block text-[10px] text-muted-foreground">
-                            {INTERVAL_SUFFIX[billingInterval]}
-                          </span>
+                      <RadioGroupItem value={option.value} id={`v2-period-${option.value}`} className="mt-0.5" />
+                      <span className="space-y-1">
+                        <span className="block text-sm font-semibold text-foreground">{option.label}</span>
+                        <span className="block text-xs text-muted-foreground">{option.description}</span>
+                        <span className="block text-sm font-semibold tabular-nums text-primary">
+                          {pricingLoading
+                            ? 'Loading price…'
+                            : subscriptionPricing
+                              ? new Intl.NumberFormat(undefined, {
+                                  style: 'currency',
+                                  currency: subscriptionPricing.currency,
+                                  maximumFractionDigits: 2,
+                                }).format(subscriptionPricing.intervals[option.value].amount)
+                              : 'Unavailable'}
                         </span>
                       </span>
-                      {selected && (
-                        <span className="grid gap-1.5 border-t pt-3">
-                          {tier.features.map((feature) => (
-                            <span key={feature} className="flex items-center gap-2 text-xs">
-                              <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
-                              {feature}
-                            </span>
-                          ))}
-                        </span>
-                      )}
                     </Label>
                   );
                 })}
               </RadioGroup>
+              {subscriptionPricing?.payment_ready && (
+                <p className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-foreground">
+                  This plan renews automatically every {subscriptionPricing.intervals[billingInterval].months} months at{' '}
+                  {new Intl.NumberFormat(undefined, {
+                    style: 'currency',
+                    currency: subscriptionPricing.currency,
+                    maximumFractionDigits: 2,
+                  }).format(subscriptionPricing.intervals[billingInterval].amount)}. The first payment is due now.
+                </p>
+              )}
             </div>
           )}
 
@@ -317,11 +297,9 @@ export default function V2PlanStep({
  */
 export const isV2PlanStepValid = (
   businessType: V2BusinessType,
-  planModel: V2PlanModel | null,
-  planTier: V2PlanTier['id'] | null
+  planModel: V2PlanModel | null
 ): boolean => {
   if (businessType === 'ticketing') return true;
   if (!planModel) return false;
-  if (planModel === 'subscription' && !planTier) return false;
   return true;
 };
