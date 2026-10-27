@@ -1,5 +1,6 @@
 "use client";
 import ProductMarkupPreview from '@/components/product-markup-preview';
+import { getCurrencySymbol } from '@/lib/v2-currency';
 
 import ImageIcon from '@/components/svgIcons/Image';
 import { Button } from '@/components/ui/button';
@@ -116,6 +117,7 @@ interface AddFoodModalProps {
     onFoodAdded?: () => void;
     onFoodUpdated?: () => void;
     editFoodItem?: EditableFoodItem | null;
+    currency?: string;
 }
 
 interface UploadedImage {
@@ -127,7 +129,8 @@ interface UploadedImage {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdated, editFoodItem }: AddFoodModalProps) {
+export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdated, editFoodItem, currency = 'NGN' }: AddFoodModalProps) {
+    const currencySymbol = getCurrencySymbol(currency);
     // ── Basic fields ──────────────────────────────────────────────────────────
     const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
     const [existingImages, setExistingImages] = useState<string[]>([]);
@@ -742,7 +745,7 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                                                         {type} price<span className="text-destructive">*</span>
                                                     </Label>
                                                     <div className="flex items-center border rounded-md bg-background overflow-hidden">
-                                                        <span className="px-3 py-2 text-sm text-muted-foreground border-r">₦</span>
+                                                        <span className="px-3 py-2 text-sm text-muted-foreground border-r">{currencySymbol}</span>
                                                         <input
                                                             type="number"
                                                             min={0}
@@ -858,14 +861,14 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
 
                             {/* Type-specific sections — state lifted up via onChange props */}
                             {productType === 'simple' && (
-                                <PortionSetup portions={portions} onChange={setPortions} />
+                                <PortionSetup portions={portions} onChange={setPortions} currency={currency} />
                             )}
                             {productType === 'customizable' && (
-                                <CustomizationOptions savedGroups={savedGroups} onChange={setSavedGroups} />
+                                <CustomizationOptions savedGroups={savedGroups} onChange={setSavedGroups} currency={currency} />
                             )}
                             {productType === 'bundle' && (
                                 <BundleConfiguration slots={bundleSlots} onSlotsChange={setBundleSlots}    addOnGroups={bundleAddOnGroups}
-                                onAddOnGroupsChange={setBundleAddOnGroups}/>
+                                onAddOnGroupsChange={setBundleAddOnGroups} currency={currency}/>
                             )}
                         </div>
 

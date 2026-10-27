@@ -7,13 +7,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ChevronDown, ChevronUp, CirclePlus, Trash2 } from 'lucide-react';
 import React, { useState } from 'react';
 import { SavedGroup } from './AddFoodModal';
+import { formatStoreCurrency, getCurrencySymbol } from '@/lib/v2-currency';
 
 interface CustomizationOptionsProps {
     savedGroups: SavedGroup[];
     onChange: (groups: SavedGroup[]) => void;
+    currency?: string;
 }
 
-export default function CustomizationOptions({ savedGroups, onChange }: CustomizationOptionsProps) {
+export default function CustomizationOptions({ savedGroups, onChange, currency = 'NGN' }: CustomizationOptionsProps) {
+    const currencySymbol = getCurrencySymbol(currency);
     const [isOpen, setIsOpen] = useState(true);
     const [groupName, setGroupName] = useState('');
     const [selection, setSelection] = useState<'single' | 'multiple'>('single');
@@ -100,7 +103,7 @@ export default function CustomizationOptions({ savedGroups, onChange }: Customiz
                             <div>
                                 <Label className="text-xs font-light mb-1">Add-on Price<span className="text-destructive">*</span></Label>
                                 <div className="flex items-center border rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-ring">
-                                    <span className="px-2 text-sm text-[#A0A0A0] select-none">₦</span>
+                                    <span className="px-2 text-sm text-[#A0A0A0] select-none">{currencySymbol}</span>
                                     <input type="number" min={0} step="0.01" value={optionPrice} onChange={(e) => setOptionPrice(e.target.value)} placeholder="0.00" className="flex-1 py-2 pr-3 text-sm outline-none bg-transparent" />
                                 </div>
                             </div>
@@ -126,7 +129,7 @@ export default function CustomizationOptions({ savedGroups, onChange }: Customiz
                                         <div key={opt.id} className="flex items-center justify-between py-2 border-b border-[#F0F0F0] last:border-0 pl-1">
                                             <span className="text-sm">{opt.name}</span>
                                             <div className="flex items-center gap-3">
-                                                <span className="text-sm font-medium">₦{parseFloat(opt.price || '0').toLocaleString('en-NG', { minimumFractionDigits: 2 })}</span>
+                                                <span className="text-sm font-medium">{formatStoreCurrency(parseFloat(opt.price || '0'), currency)}</span>
                                                 <button type="button" onClick={() => handleRemoveOption(group.id, opt.id)} className="text-red-400 hover:text-red-600 transition-colors">
                                                     <Trash2 className="w-3.5 h-3.5" />
                                                 </button>

@@ -21,6 +21,7 @@ import { isFoodBusinessType } from "@/lib/store";
 import { Badge } from "@/components/ui/badge";
 import { Boxes, MessageCircle, Plus, ShoppingBag, Ticket } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getStoreCurrency } from "@/lib/v2-currency";
 
 interface OverviewMetric {
   id: string;
@@ -35,6 +36,7 @@ interface OverviewMetric {
 function ProductsPage() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [businessType, setBusinessType] = useState<string>("");
+  const [currency, setCurrency] = useState("NGN");
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -50,6 +52,7 @@ function ProductsPage() {
         }
 
         setBusinessType(storeDetails.business_type || "");
+        setCurrency(getStoreCurrency(storeDetails));
       } catch (error) {
         console.error('Error fetching store data:', error);
         setBusinessType("Retail & Wholesale Store");
@@ -221,7 +224,7 @@ function ProductsPage() {
         </div>
         <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
           <CardContent>
-            {isRestaurant ? <FoodTable /> : <ProductsTable />}
+            {isRestaurant ? <FoodTable currency={currency} /> : <ProductsTable currency={currency} />}
           </CardContent>
         </Card>
       </div>

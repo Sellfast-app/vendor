@@ -35,6 +35,7 @@ import { Label } from "@/components/ui/label";
 import AddFoodModal, { EditableFoodItem } from "./AddFoodModal";
 import Loading from "@/components/Loading";
 import { toast } from "sonner";
+interface FoodTableProps { currency?: string }
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -121,7 +122,7 @@ const mapStatusFromApi = (status: string): string => {
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
-export default function FoodTable() {
+export default function FoodTable({ currency = "NGN" }: FoodTableProps) {
   const [currentPage, setCurrentPage] = useState(0);
   const pageSize = 6;
   const [searchTerm, setSearchTerm] = useState("");
@@ -600,6 +601,7 @@ export default function FoodTable() {
         onFoodAdded={handleFoodAdded}
         onFoodUpdated={handleFoodUpdated}
         editFoodItem={selectedFoodItem}
+        currency={currency}
       />
       <ActionModal
         isOpen={isDeleteModalOpen}

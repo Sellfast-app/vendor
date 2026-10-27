@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ChevronDown, ChevronUp, CirclePlus, Pencil, Trash2, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { BundleSlot } from './AddFoodModal';
+import { formatStoreCurrency, getCurrencySymbol } from '@/lib/v2-currency';
 
 interface BundleAddOnOption {
     id: string;
@@ -29,15 +30,16 @@ interface BundleConfigurationProps {
     onSlotsChange: (slots: BundleSlot[]) => void;
     addOnGroups: BundleAddOnGroup[];
     onAddOnGroupsChange: (groups: BundleAddOnGroup[] | ((prev: BundleAddOnGroup[]) => BundleAddOnGroup[])) => void;
+    currency?: string;
 }
 
-function BundleSlotRow({ slot, onRemove, onEdit }: { slot: BundleSlot; onRemove: (id: string) => void; onEdit: (id: string) => void }) {
+function BundleSlotRow({ slot, onRemove, onEdit, currency }: { slot: BundleSlot; onRemove: (id: string) => void; onEdit: (id: string) => void; currency: string }) {
     return (
         <div className="flex items-center justify-between py-2 px-1 border-b border-[#F0F0F0] last:border-0">
             <div className="flex flex-col gap-0.5">
                 <span className="text-sm font-medium">{slot.name}</span>
                 <span className="text-xs text-[#A0A0A0]">
-                    {slot.category} &nbsp;·&nbsp; {slot.maxItems} Items &nbsp;·&nbsp; ₦{parseFloat(slot.price || '0').toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+                    {slot.category} &nbsp;·&nbsp; {slot.maxItems} Items &nbsp;·&nbsp; {formatStoreCurrency(parseFloat(slot.price || '0'), currency)}
                 </span>
             </div>
             <div className="flex items-center gap-2">
@@ -48,10 +50,11 @@ function BundleSlotRow({ slot, onRemove, onEdit }: { slot: BundleSlot; onRemove:
     );
 }
 
-function AddOnGroupCard({ group, onChange, onRemove, onAddOption, onRemoveOption }: {
+function AddOnGroupCard({ group, onChange, onRemove, onAddOption, onRemoveOption, currency }: {
     group: BundleAddOnGroup; onChange: (id: string, field: keyof BundleAddOnGroup, value: unknown) => void;
-    onRemove: (id: string) => void; onAddOption: (groupId: string) => void; onRemoveOption: (groupId: string, optionId: string) => void;
+    onRemove: (id: string) => void; onAddOption: (groupId: string) => void; onRemoveOption: (groupId: string, optionId: string) => void; currency: string;
 }) {
+    const currencySymbol = getCurrencySymbol(currency);
     return (
         <div className="border border-dashed border-primary rounded-lg p-4 mb-4">
             <div className="flex items-center justify-between mb-3">
@@ -92,7 +95,7 @@ function AddOnGroupCard({ group, onChange, onRemove, onAddOption, onRemoveOption
                     <Input value={group.draftOptionName} onChange={(e) => onChange(group.id, 'draftOptionName', e.target.value)} placeholder="e.g. Extra Chicken" className="mb-2" />
                     <Label className="text-xs font-light mb-1">Add-on Price<span className="text-destructive">*</span></Label>
                     <div className="flex items-center gap-1 border rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-ring">
-                        <span className="px-2 text-sm text-[#A0A0A0] select-none">₦</span>
+                        <span className="px-2 text-sm text-[#A0A0A0] select-none">{currencySymbol}</span>
                         <input type="number" min={0} step="0.01" value={group.draftOptionPrice} onChange={(e) => onChange(group.id, 'draftOptionPrice', e.target.value)} placeholder="0.00" className="flex-1 py-2 pr-3 text-sm outline-none bg-transparent" />
                     </div>
                 </div>
@@ -103,7 +106,7 @@ function AddOnGroupCard({ group, onChange, onRemove, onAddOption, onRemoveOption
                             <div key={opt.id} className="flex items-center justify-between py-1.5 border-b border-[#F0F0F0] last:border-0">
                                 <span className="text-sm">{opt.name}</span>
                                 <div className="flex items-center gap-3">
-                                    <span className="text-sm font-medium">₦{parseFloat(opt.price || '0').toLocaleString('en-NG', { minimumFractionDigits: 2 })}</span>
+                                    <span className="text-sm font-medium">{formatStoreCurrency(parseFloat(opt.price || '0'), currency)}</span>
                                     <button type="button" onClick={() => onRemoveOption(group.id, opt.id)} className="text-red-400 hover:text-red-600 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
                                 </div>
                             </div>
@@ -115,7 +118,8 @@ function AddOnGroupCard({ group, onChange, onRemove, onAddOption, onRemoveOption
     );
 }
 
-export default function BundleConfiguration({ slots, onSlotsChange ,  addOnGroups,onAddOnGroupsChange }: BundleConfigurationProps) {
+export default function BundleConfiguration({ slots, onSlotsChange ,  addOnGroups,onAddOnGroupsChange, currency = 'NGN' }: BundleConfigurationProps) {
+    const currencySymbol = getCurrencySymbol(currency);
     const [bundleName, setBundleName] = useState('');
     const [bundlePrice, setBundlePrice] = useState('');
     const [bundleCategory, setBundleCategory] = useState('');
@@ -195,7 +199,7 @@ export default function BundleConfiguration({ slots, onSlotsChange ,  addOnGroup
                             <div>
                                 <Label className="text-xs font-light mb-1">Bundle Price<span className="text-destructive">*</span></Label>
                                 <div className="flex items-center border rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-ring">
-                                    <span className="px-2 text-sm text-[#A0A0A0] select-none">₦</span>
+                                    <span className="px-2 text-sm text-[#A0A0A0] select-none">{currencySymbol}</span>
                                     <input type="number" min={0} step="0.01" value={bundlePrice} onChange={(e) => setBundlePrice(e.target.value)} placeholder="0.00" className="flex-1 py-2 pr-3 text-sm outline-none bg-transparent" />
                                 </div>
                             </div>
@@ -235,7 +239,7 @@ export default function BundleConfiguration({ slots, onSlotsChange ,  addOnGroup
                         {slots.length > 0 && (
                             <div className="mt-4 border border-[#F0F0F0] rounded-lg px-3 pt-1 pb-0">
                                 {slots.map((slot) => (
-                                    <BundleSlotRow key={slot.id} slot={slot} onRemove={handleRemoveSlot} onEdit={handleEditSlot} />
+                                    <BundleSlotRow key={slot.id} slot={slot} onRemove={handleRemoveSlot} onEdit={handleEditSlot} currency={currency} />
                                 ))}
                             </div>
                         )}
@@ -256,7 +260,7 @@ export default function BundleConfiguration({ slots, onSlotsChange ,  addOnGroup
                     <div className="pb-4">
                         <div className="mt-4">
                             {addOnGroups.map((group) => (
-                                <AddOnGroupCard key={group.id} group={group} onChange={handleGroupChange} onRemove={handleRemoveGroup} onAddOption={handleAddOption} onRemoveOption={handleRemoveOption} />
+                                <AddOnGroupCard key={group.id} group={group} onChange={handleGroupChange} onRemove={handleRemoveGroup} onAddOption={handleAddOption} onRemoveOption={handleRemoveOption} currency={currency} />
                             ))}
                         </div>
                         <Button type="button" variant="outline" size="sm" className="text-xs flex items-center gap-1.5" onClick={handleAddGroup}>

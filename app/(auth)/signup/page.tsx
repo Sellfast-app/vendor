@@ -1215,6 +1215,7 @@ export default function MultiStepSignupPage() {
           <div className="space-y-6">
             <V2PlanStep
               businessType={v2BusinessType ?? 'retail'}
+              currency={V2_COUNTRY_INFO[v2Country ?? 'NG'].currency}
               planModel={v2PlanModel}
               billingInterval={v2BillingInterval}
               subscriptionPricing={subscriptionPricing}

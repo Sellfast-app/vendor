@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import ProductMarkupPreview from "@/components/product-markup-preview";
+import { getCurrencySymbol } from "@/lib/v2-currency";
 
 type ProductKind = "regular" | "variants" | "bundle";
 type RetailProduct = {
@@ -60,6 +61,7 @@ interface AddProductModalProps {
   onClose: () => void;
   onAddProduct: (product: CreatedRetailProduct) => void;
   availableProducts?: RetailProduct[];
+  currency?: string;
 }
 
 const PRODUCT_TYPES: { id: ProductKind; title: string; description: string; icon: typeof Archive }[] = [
@@ -79,7 +81,8 @@ const newVariant = (): VariantDraft => ({
   id: crypto.randomUUID(), name: "", size: "", color: "", sku: "", price: "", quantity: "",
 });
 
-export default function AddProductModal({ isOpen, onClose, onAddProduct, availableProducts = [] }: AddProductModalProps) {
+export default function AddProductModal({ isOpen, onClose, onAddProduct, availableProducts = [], currency = "NGN" }: AddProductModalProps) {
+  const currencySymbol = getCurrencySymbol(currency);
   const [kind, setKind] = useState<ProductKind>("regular");
   const [name, setName] = useState("");
   const [location, setLocation] = useState("");
@@ -309,9 +312,9 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
   </>);
 
   const pricing = section(kind === "bundle" ? "Bundle pricing" : "Product pricing", <>
-    {field("Selling price", <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">₦</span><Input className="pl-8" type="number" min="0" value={price} onChange={event => setPrice(event.target.value)} placeholder="Enter amount" /></div>)}
-    {field("Cost price", <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">₦</span><Input className="pl-8" type="number" min="0" value={costPrice} onChange={event => setCostPrice(event.target.value)} placeholder="Enter cost" /></div>, true)}
-    {field("Compare at price", <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">₦</span><Input className="pl-8" type="number" min="0" value={compareAtPrice} onChange={event => setCompareAtPrice(event.target.value)} placeholder="Enter reference price" /></div>, true)}
+    {field(`Selling price (${currency})`, <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">{currencySymbol}</span><Input className="pl-8" type="number" min="0" value={price} onChange={event => setPrice(event.target.value)} placeholder="Enter amount" /></div>)}
+    {field(`Cost price (${currency})`, <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">{currencySymbol}</span><Input className="pl-8" type="number" min="0" value={costPrice} onChange={event => setCostPrice(event.target.value)} placeholder="Enter cost" /></div>, true)}
+    {field(`Compare at price (${currency})`, <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">{currencySymbol}</span><Input className="pl-8" type="number" min="0" value={compareAtPrice} onChange={event => setCompareAtPrice(event.target.value)} placeholder="Enter reference price" /></div>, true)}
     <div className="sm:col-span-2"><ProductMarkupPreview basePrice={price} /></div>
   </>);
 

@@ -8,20 +8,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ChevronDown, ChevronUp, CirclePlus, Pencil, Trash2 } from 'lucide-react';
 import React, { useState } from 'react';
 import { PortionSize } from './AddFoodModal';
+import { formatStoreCurrency, getCurrencySymbol } from '@/lib/v2-currency';
 
 interface PortionSetupProps {
     portions: PortionSize[];
     onChange: (portions: PortionSize[]) => void;
+    currency?: string;
 }
 
-function formatPortionRow(p: PortionSize) {
+function formatPortionRow(p: PortionSize, currency: string) {
     const timeRange = `${p.prepTimeStart || 0} - ${p.prepTimeEnd || 0} mins`;
     const servings = `${p.servings || 0} servings/${p.servingUnit || 'plate'}`;
-    const price = `₦${parseFloat(p.price || '0').toLocaleString('en-NG', { minimumFractionDigits: 0 })}`;
+    const price = formatStoreCurrency(parseFloat(p.price || '0'), currency);
     return { timeRange, servings, price };
 }
 
-export default function PortionSetup({ portions, onChange }: PortionSetupProps) {
+export default function PortionSetup({ portions, onChange, currency = 'NGN' }: PortionSetupProps) {
+    const currencySymbol = getCurrencySymbol(currency);
     const [isOpen, setIsOpen] = useState(true);
     const [portionName, setPortionName] = useState('');
     const [portionPrice, setPortionPrice] = useState('');
@@ -73,7 +76,7 @@ export default function PortionSetup({ portions, onChange }: PortionSetupProps) 
                         <div>
                             <Label className="text-xs font-light mb-1">Portion Price<span className="text-destructive">*</span></Label>
                             <div className="flex items-center border rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-ring">
-                                <span className="px-2 text-sm text-[#A0A0A0] select-none">₦</span>
+                                <span className="px-2 text-sm text-[#A0A0A0] select-none">{currencySymbol}</span>
                                 <input type="number" min={0} step="0.01" value={portionPrice} onChange={(e) => setPortionPrice(e.target.value)} placeholder="0.00" className="flex-1 py-2 pr-3 text-sm outline-none bg-transparent" />
                             </div>
                             <ProductMarkupPreview basePrice={portionPrice} />
@@ -125,7 +128,7 @@ export default function PortionSetup({ portions, onChange }: PortionSetupProps) 
                     {portions.length > 0 && (
                         <div className="space-y-0">
                             {portions.map((p) => {
-                                const { timeRange, servings: srv, price } = formatPortionRow(p);
+                                const { timeRange, servings: srv, price } = formatPortionRow(p, currency);
                                 return (
                                     <div key={p.id} className="flex items-center justify-between py-2 border-b border-[#F0F0F0] last:border-0">
                                         <div className="flex flex-col gap-0.5 min-w-0">

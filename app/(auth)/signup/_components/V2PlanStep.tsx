@@ -5,9 +5,8 @@
  *
  * Two models per the V2 PRD:
  * - Subscription: quarterly/bi-annual/yearly billing, no product markup.
- * - Markup: ₦0 upfront, +₦500 auto-added to each listing price, platform
- *   transaction fee (3% retail / 5% food / 5% ticketing) split to the
- *   Swiftree master wallet at checkout.
+ * - Markup: no upfront subscription; a locally configured amount is added to
+ *   each listing and the customer-facing platform fee depends on business type.
  *
  * Ticketing vendors must use the markup model (mandatory per PRD).
  *
@@ -25,7 +24,6 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   V2BillingInterval,
   V2BusinessType,
-  V2_MARKUP_LISTING_PAD,
   V2_MARKUP_TRANSACTION_FEES,
   V2PlanModel,
   V2SubscriptionPricing,
@@ -45,6 +43,7 @@ const BUSINESS_MODEL_COPY: Record<V2BusinessType, string> = {
 
 interface V2PlanStepProps {
   businessType: V2BusinessType;
+  currency: string;
   planModel: V2PlanModel | null;
   billingInterval: V2BillingInterval;
   subscriptionPricing: V2SubscriptionPricing | null;
@@ -56,6 +55,7 @@ interface V2PlanStepProps {
 
 export default function V2PlanStep({
   businessType,
+  currency,
   planModel,
   billingInterval,
   subscriptionPricing,
@@ -67,6 +67,9 @@ export default function V2PlanStep({
   const isTicketing = businessType === 'ticketing';
   const txnFee = V2_MARKUP_TRANSACTION_FEES[businessType];
   const effectiveModel: V2PlanModel | null = isTicketing ? 'markup' : planModel;
+  const formatCurrency = (amount: number) => new Intl.NumberFormat(undefined, {
+    style: 'currency', currency, maximumFractionDigits: 2,
+  }).format(amount);
 
   return (
     <div className="space-y-6">
@@ -84,7 +87,7 @@ export default function V2PlanStep({
         </div>
         <div className="flex items-start gap-2">
           <Tag className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-          <span>Markup: ₦0 upfront with ₦500 added to each product or ticket.</span>
+          <span>Markup: no upfront subscription; a country-specific amount is added to each product or ticket.</span>
         </div>
         <div className="flex items-start gap-2">
           <Calculator className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
@@ -102,13 +105,13 @@ export default function V2PlanStep({
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-xs text-muted-foreground">
-              Ticketing businesses run on the markup model: ₦0 upfront subscription. Instead,
-              ₦{V2_MARKUP_LISTING_PAD.toLocaleString()} is added to each ticket listing and a{' '}
-              {txnFee}% transaction fee applies per sale. Everything else stays free.
+              Ticketing businesses use the markup model: no upfront subscription. A locally
+              configured amount is added to each ticket listing, and a {txnFee}% platform fee
+              is added to the customer&apos;s checkout total when applicable.
             </p>
             <ul className="space-y-1.5 text-xs">
               <li className="flex items-center gap-2">
-                <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> ₦0 upfront — no
+                <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> No upfront subscription — no
                 subscription bill
               </li>
               <li className="flex items-center gap-2">
@@ -158,7 +161,7 @@ export default function V2PlanStep({
                     <span className="text-xs text-muted-foreground">
                       {model === 'subscription'
                         ? 'Pay quarterly, bi-annually or yearly. No markup on your prices.'
-                        : `₦0 upfront. +₦${V2_MARKUP_LISTING_PAD.toLocaleString()} per listing and ${txnFee}% per sale.`}
+                        : `No upfront subscription. A locally configured markup is added per listing; the ${txnFee}% platform fee is charged to the customer when applicable.`}
                     </span>
                   </Label>
                 );
@@ -249,17 +252,16 @@ export default function V2PlanStep({
                 <div className="space-y-4">
                   <ul className="space-y-1.5 text-xs">
                     <li className="flex items-center gap-2">
-                      <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> ₦0 upfront
+                      <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> No upfront
                       subscription — start selling immediately
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> ₦
-                      {V2_MARKUP_LISTING_PAD.toLocaleString()} auto-added to each product listing
-                      price or ticket price
+                      <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> A country-specific
+                      markup is added to each product or ticket price
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> {txnFee}%
-                      transaction fee per sale, split automatically at checkout
+                      platform fee is added to the customer&apos;s checkout total when applicable
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> Buyer payments
@@ -268,12 +270,11 @@ export default function V2PlanStep({
                   </ul>
 
                   <div className="rounded-lg border bg-background p-3 text-xs">
-                    <p className="mb-2 font-medium">Example split</p>
+                    <p className="mb-2 font-medium">Fee example ({currency})</p>
                     {[
-                      ['Vendor base price', '₦10,000'],
-                      ['Buyer pays', `₦${(10000 + V2_MARKUP_LISTING_PAD).toLocaleString()}`],
-                      ['Swiftree receives', `₦${(V2_MARKUP_LISTING_PAD + 10000 * (txnFee / 100)).toLocaleString()}`],
-                      ['Vendor settlement before logistics', `₦${(10000 - 10000 * (txnFee / 100)).toLocaleString()}`],
+                      ['Vendor item price', formatCurrency(10000)],
+                      ['Customer platform fee', formatCurrency(10000 * (txnFee / 100))],
+                      ['Vendor item earnings', formatCurrency(10000)],
                     ].map(([label, value]) => (
                       <div key={label} className="flex items-center justify-between py-1">
                         <span className="text-muted-foreground">{label}</span>

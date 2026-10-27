@@ -37,6 +37,9 @@ import { Label } from "@/components/ui/label";
 import ProductDetailsModal from "./ProductDetailsModal";
 import Loading from "@/components/Loading";
 import { toast } from "sonner";
+import { formatStoreCurrency } from "@/lib/v2-currency";
+
+interface ProductsTableProps { currency?: string }
 
 interface Product {
   id: string;
@@ -139,7 +142,7 @@ const mapStatusToApi = (status: string): string => {
   return statusMap[status] || 'ready';
 };
 
-export default function ProductTable() {
+export default function ProductTable({ currency = "NGN" }: ProductsTableProps) {
   const [currentPage, setCurrentPage] = useState(0);
   const pageSize = 6;
   const [searchTerm, setSearchTerm] = useState("");
@@ -574,7 +577,7 @@ export default function ProductTable() {
                 <TableCell>{product.productName}</TableCell>
                 <TableCell>{product.stock}</TableCell>
                 <TableCell>{product.remanent}</TableCell>
-                <TableCell>₦{product.sales.toLocaleString()}</TableCell>
+                <TableCell>{formatStoreCurrency(product.sales, currency)}</TableCell>
                 <TableCell>
                   <span className={`flex items-center px-2 py-1 text-black rounded text-sm ${getStatusClass(product.status)}`}>
                     <span className={`w-2 h-2 rounded-full mr-2 ${product.status === "Ready Stock" ? "bg-[#53DC19]" :
@@ -662,6 +665,7 @@ export default function ProductTable() {
         onClose={() => setIsProductModalOpen(false)}
         onAddProduct={handleAddProduct}
         availableProducts={products}
+        currency={currency}
       />
       <ProductDetailsModal
         isOpen={isDetailsModalOpen}
