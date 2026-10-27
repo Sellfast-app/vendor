@@ -15,7 +15,7 @@
 export const V2_BUSINESS_TYPES = ['retail', 'ticketing', 'food'] as const;
 export type V2BusinessType = (typeof V2_BUSINESS_TYPES)[number];
 
-export const V2_COUNTRIES = ['NG', 'UK', 'KE', 'GH', 'ZA'] as const;
+export const V2_COUNTRIES = ['NG', 'KE', 'GH', 'ZA'] as const;
 export type V2Country = (typeof V2_COUNTRIES)[number];
 
 export type V2PlanModel = 'subscription' | 'markup';
@@ -51,7 +51,6 @@ export interface V2CountryInfo {
 
 export const V2_COUNTRY_INFO: Record<V2Country, V2CountryInfo> = {
   NG: { code: 'NG', name: 'Nigeria', flag: '🇳🇬', currency: 'NGN', currencySymbol: '₦', dialCode: '+234' },
-  UK: { code: 'UK', name: 'United Kingdom', flag: '🇬🇧', currency: 'GBP', currencySymbol: '£', dialCode: '+44' },
   KE: { code: 'KE', name: 'Kenya', flag: '🇰🇪', currency: 'KES', currencySymbol: 'KSh', dialCode: '+254' },
   GH: { code: 'GH', name: 'Ghana', flag: '🇬🇭', currency: 'GHS', currencySymbol: '₵', dialCode: '+233' },
   ZA: { code: 'ZA', name: 'South Africa', flag: '🇿🇦', currency: 'ZAR', currencySymbol: 'R', dialCode: '+27' },

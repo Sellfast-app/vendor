@@ -17,10 +17,9 @@ import { Globe2, MapPinned, Navigation, WalletCards } from "lucide-react";
 
 const markets = [
   ["Nigeria", "NGN", "Lagos, Abuja, Port Harcourt", "Active"],
-  ["United Kingdom", "GBP", "London, Manchester", "Available"],
   ["Kenya", "KES", "Nairobi, Mombasa", "Available"],
   ["Ghana", "GHS", "Accra, Kumasi", "Available"],
-  ["Rwanda", "RWF", "Kigali", "Available"],
+  ["South Africa", "ZAR", "Johannesburg, Cape Town", "Available"],
 ];
 
 const localizedRules = [
@@ -121,10 +120,9 @@ export default function LocalizationSettings() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="nigeria">Nigeria</SelectItem>
-                  <SelectItem value="uk">United Kingdom</SelectItem>
                   <SelectItem value="kenya">Kenya</SelectItem>
                   <SelectItem value="ghana">Ghana</SelectItem>
-                  <SelectItem value="rwanda">Rwanda</SelectItem>
+                  <SelectItem value="south-africa">South Africa</SelectItem>
                 </SelectContent>
               </Select>
             </div>
