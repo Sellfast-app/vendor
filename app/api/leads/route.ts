@@ -47,40 +47,24 @@ export async function GET(request: NextRequest) {
       search: searchParams.get("search") || "",
     });
 
-    const attempts = [
+    const response = await fetch(
       `${API_BASE_URL}/api/stores/${encodeURIComponent(storeId)}/leads?${queryParams}`,
-      `${API_BASE_URL}/api/leads/store/${encodeURIComponent(storeId)}?${queryParams}`,
-      `${API_BASE_URL}/api/leads?storeId=${encodeURIComponent(storeId)}&${queryParams}`,
-    ];
-
-    let lastStatus = 502;
-    let lastMessage = "Unable to fetch leads";
-
-    for (const url of attempts) {
-      const response = await fetch(url, {
+      {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         method: "GET",
-      });
-
-      const responseText = await response.text();
-      if (!response.ok) {
-        lastStatus = response.status;
-        lastMessage = responseText || lastMessage;
-        if (response.status === 404) continue;
-        break;
       }
-
-      const data = responseText ? JSON.parse(responseText) : { status: "success", data: { items: [] } };
-      return NextResponse.json(data, { status: response.status });
-    }
-
-    return NextResponse.json(
-      { status: "error", message: lastMessage, data: { items: [] } },
-      { status: lastStatus }
     );
+    const responseText = await response.text();
+    let data: unknown;
+    try {
+      data = responseText ? JSON.parse(responseText) : { status: "success", data: { items: [] } };
+    } catch {
+      data = { status: "error", message: "Unexpected response from leads service", data: { items: [] } };
+    }
+    return NextResponse.json(data, { status: response.status });
   } catch (error) {
     console.error("Leads API error:", error);
     return NextResponse.json(

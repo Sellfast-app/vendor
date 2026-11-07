@@ -34,8 +34,11 @@ type LeadsResponse = {
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const filteredLeads = useMemo(() => {
@@ -48,7 +51,7 @@ export default function LeadsPage() {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ page: "1", pageSize: "50" });
+      const params = new URLSearchParams({ page: String(page), pageSize: "50" });
       if (search.trim()) params.set("search", search.trim());
 
       const response = await fetch(`/api/leads?${params.toString()}`, {
@@ -66,8 +69,11 @@ export default function LeadsPage() {
           ? result.data.items
           : [];
       setLeads(data);
+      const responseTotal = !Array.isArray(result.data) ? result.data?.total : undefined;
+      setTotal(typeof responseTotal === "number" ? responseTotal : data.length);
     } catch (err) {
       setLeads([]);
+      setTotal(0);
       setError(err instanceof Error ? err.message : "Unable to load leads");
     } finally {
       setLoading(false);
@@ -75,35 +81,61 @@ export default function LeadsPage() {
   }
 
   useEffect(() => {
-    void fetchLeads();
+    const timer = window.setTimeout(() => void fetchLeads(), search.trim() ? 250 : 0);
+    return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [search, page]);
 
-  function exportLeads() {
-    if (filteredLeads.length === 0) {
-      toast.error("No leads to export");
-      return;
+  useEffect(() => { setPage(1); }, [search]);
+
+  async function exportLeads() {
+    setExporting(true);
+    try {
+      const allLeads: Lead[] = [];
+      let pageToLoad = 1;
+      let expectedTotal = total;
+      do {
+        const params = new URLSearchParams({ page: String(pageToLoad), pageSize: "100" });
+        if (search.trim()) params.set("search", search.trim());
+        const response = await fetch(`/api/leads?${params.toString()}`, { cache: "no-store" });
+        const result = await response.json() as LeadsResponse;
+        if (!response.ok) throw new Error(result.message || "Unable to export leads");
+        const pageData = Array.isArray(result.data) ? result.data : result.data?.items || [];
+        allLeads.push(...pageData);
+        if (!Array.isArray(result.data) && typeof result.data?.total === "number") expectedTotal = result.data.total;
+        pageToLoad += 1;
+      } while (allLeads.length < expectedTotal && allLeads.length > 0);
+
+      if (!allLeads.length) {
+        toast.error("No leads to export");
+        return;
+      }
+
+      const csv = [
+        ["Email", "Source", "Status", "Created"],
+        ...allLeads.map((lead) => [
+          lead.email,
+          lead.source || "storefront",
+          lead.status || "new",
+          formatDate(lead.created_at || lead.createdAt),
+        ]),
+      ]
+        .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+        .join("\n");
+
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "storefront-leads.csv";
+      anchor.click();
+      URL.revokeObjectURL(url);
+      toast.success(`Exported ${allLeads.length} leads`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to export leads");
+    } finally {
+      setExporting(false);
     }
-
-    const csv = [
-      ["Email", "Source", "Status", "Created"],
-      ...filteredLeads.map((lead) => [
-        lead.email,
-        lead.source || "storefront",
-        lead.status || "new",
-        formatDate(lead.created_at || lead.createdAt),
-      ]),
-    ]
-      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
-      .join("\n");
-
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "storefront-leads.csv";
-    anchor.click();
-    URL.revokeObjectURL(url);
   }
 
   return (
@@ -123,9 +155,9 @@ export default function LeadsPage() {
             <RefreshCw className="h-4 w-4" />
             <span className="ml-2">Refresh</span>
           </Button>
-          <Button onClick={exportLeads}>
+          <Button onClick={() => void exportLeads()} disabled={exporting || loading}>
             <Download className="h-4 w-4" />
-            <span className="ml-2">Export</span>
+            <span className="ml-2">{exporting ? "Exporting..." : "Export"}</span>
           </Button>
         </div>
       </div>
@@ -135,7 +167,7 @@ export default function LeadsPage() {
           <CardContent className="flex items-center justify-between p-5">
             <div>
               <p className="text-sm text-muted-foreground">Total leads</p>
-              <p className="mt-2 text-2xl font-semibold">{leads.length}</p>
+              <p className="mt-2 text-2xl font-semibold">{total}</p>
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <UsersRound className="h-5 w-5" />
@@ -147,7 +179,7 @@ export default function LeadsPage() {
             <div>
               <p className="text-sm font-medium">Lead source</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Storefront form submissions are sent to the backend and appear here once the leads endpoint is live.
+                Consent-based email subscriptions collected from this store&apos;s storefront.
               </p>
             </div>
           </CardContent>
@@ -160,7 +192,7 @@ export default function LeadsPage() {
             <div>
               <h2 className="text-sm font-semibold">Captured emails</h2>
               <p className="text-xs text-muted-foreground">
-                {error ? "Backend leads endpoint is not available yet." : "Latest storefront leads."}
+                {error ? "Unable to load storefront leads." : "Latest storefront leads."}
               </p>
             </div>
             <div className="relative">
@@ -230,6 +262,13 @@ export default function LeadsPage() {
               )}
             </TableBody>
           </Table>
+          <div className="flex items-center justify-between border-t px-4 py-3 text-xs text-muted-foreground">
+            <span>{total ? `${(page - 1) * 50 + 1}-${Math.min(page * 50, total)} of ${total}` : "0 leads"}</span>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" disabled={page <= 1 || loading} onClick={() => setPage(current => Math.max(1, current - 1))}>Previous</Button>
+              <Button size="sm" variant="outline" disabled={page * 50 >= total || loading} onClick={() => setPage(current => current + 1)}>Next</Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
