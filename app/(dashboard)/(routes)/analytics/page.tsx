@@ -28,7 +28,8 @@ const channelDefinitions = [
   { id: "web_chat", label: "Web chat widget", icon: MonitorSmartphone },
 ] as const;
 
-type Channel = { sales_channel: string; orders: number | string; revenue: number | string; average_order_value: number | string };
+type Channel = { sales_channel: string; orders: number | string; paid_orders?: number | string; free_orders?: number | string; revenue: number | string; average_order_value: number | string };
+type SalesSource = { sales_source: string; orders: number | string; paid_orders: number | string; revenue: number | string };
 type DailyPoint = { date: string; orders: number | string; revenue: number | string };
 type Country = { country: string; orders: number | string };
 type ChannelActivity = {
@@ -36,6 +37,8 @@ type ChannelActivity = {
   linkInBioClicks: number | string;
   webChatSessions: number | string;
   webChatMessages: number | string;
+  checkoutStarted?: number | string;
+  checkoutSubmitted?: number | string;
 };
 type AnalyticsData = {
   totals: {
@@ -45,12 +48,16 @@ type AnalyticsData = {
     pending_orders: number | string;
     out_for_delivery: number | string;
     average_order_value: number | string;
+    settled_orders?: number | string;
+    paid_orders?: number | string;
+    free_orders?: number | string;
   };
   channels: Channel[];
+  sources?: SalesSource[];
   daily: DailyPoint[];
   countries: Country[];
   channelActivity?: ChannelActivity;
-  abandonedCheckout: { available: boolean; reason?: string; started?: number | string; abandoned?: number | string; submitted?: number | string; minimumAgeMinutes?: number };
+  abandonedCheckout: { available: boolean; reason?: string; started?: number | string; abandoned?: number | string; submitted?: number | string; minimumAgeMinutes?: number; byChannel?: Record<string, { started: number; abandoned: number; submitted: number; supported?: boolean }> };
 };
 
 type AnalyticsResponse = { status: string; message?: string; data?: { v2Analytics?: AnalyticsData } };
@@ -107,8 +114,8 @@ export default function AnalyticsPage() {
   const error = errorsByRange[selectedRange] || "";
   const totals = data?.totals;
   const metrics = [
-    { title: "Revenue", value: money(totals?.revenue), icon1: <ProductsIcon />, description: selectedRangeLabel },
-    { title: "Orders", value: number(totals?.orders).toLocaleString(), icon1: <LowStock />, description: `${number(totals?.delivered_orders)} delivered` },
+    { title: "Settled revenue", value: money(totals?.revenue), icon1: <ProductsIcon />, description: `${number(totals?.paid_orders)} paid orders · ${selectedRangeLabel}` },
+    { title: "Orders placed", value: number(totals?.orders).toLocaleString(), icon1: <LowStock />, description: `${number(totals?.settled_orders)} settled · ${number(totals?.delivered_orders)} delivered` },
     { title: "Out for delivery", value: number(totals?.out_for_delivery).toLocaleString(), icon1: <OutOfStock />, description: selectedRangeLabel },
     { title: "Average order value", value: money(totals?.average_order_value), icon1: <PendingDispatch />, description: "Successful payments" },
   ];
@@ -148,6 +155,7 @@ export default function AnalyticsPage() {
                 ["Link clicks", data?.channelActivity?.linkInBioClicks],
                 ["Web Chat sessions", data?.channelActivity?.webChatSessions],
                 ["Web Chat messages", data?.channelActivity?.webChatMessages],
+                ["Orders from Link-in-Bio", data?.sources?.find((source) => source.sales_source === "linkinbio")?.orders],
               ].map(([label, value]) => <div key={String(label)}><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-lg font-semibold tabular-nums">{number(value as number | string | undefined).toLocaleString()}</p></div>)}
             </>}
           </CardContent>
@@ -170,14 +178,14 @@ export default function AnalyticsPage() {
             {loadingRanges[channelRange] && !channelData ? channelDefinitions.map((channel) => <div key={channel.id} className="space-y-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-3 w-full" /></div>) : channelDefinitions.map(({ id, label, icon: Icon }) => {
               const channel = channelData?.channels.find((item) => item.sales_channel === id);
               const orderCount = number(channel?.orders);
-              return <div key={id}><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><Icon className="h-4 w-4 text-primary" /><span className="text-sm font-medium">{label}</span></div><span className="text-sm tabular-nums">{orderCount} orders</span></div><Progress className="mt-2" value={(orderCount / maxChannelOrders) * 100} /><div className="mt-2 flex justify-between gap-3 text-xs text-muted-foreground"><span>Revenue {money(channel?.revenue)}</span><span>AOV {money(channel?.average_order_value)}</span></div></div>;
+              return <div key={id}><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><Icon className="h-4 w-4 text-primary" /><span className="text-sm font-medium">{label}</span></div><span className="text-sm tabular-nums">{orderCount} placed</span></div><Progress className="mt-2" value={(orderCount / maxChannelOrders) * 100} /><div className="mt-2 flex justify-between gap-3 text-xs text-muted-foreground"><span>{number(channel?.paid_orders)} paid · {number(channel?.free_orders)} free/covered</span><span>Settled revenue {money(channel?.revenue)}</span></div><div className="mt-1 text-xs text-muted-foreground">Paid-order AOV {money(channel?.average_order_value)}</div></div>;
             })}
           </CardContent>
         </Card>
 
         <Card className="shadow-none">
           <CardHeader className="border-b"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-medium uppercase text-primary">Checkout</p><h2 className="mt-1 text-sm font-semibold">Abandoned checkout flows</h2></div>{rangeSelect(abandonedRange, setAbandonedRange)}</div></CardHeader>
-          <CardContent className="flex min-h-36 items-center justify-center p-5 text-center">{loadingRanges[abandonedRange] && !abandonedData ? <Skeleton className="h-16 w-full" /> : abandonedData?.abandonedCheckout.available ? <div><p className="text-2xl font-semibold tabular-nums">{number(abandonedData.abandonedCheckout.abandoned).toLocaleString()} abandoned</p><p className="mt-2 text-xs text-muted-foreground">{number(abandonedData.abandonedCheckout.started).toLocaleString()} started · {number(abandonedData.abandonedCheckout.submitted).toLocaleString()} orders submitted</p><p className="mt-1 text-xs text-muted-foreground">Counted after {abandonedData.abandonedCheckout.minimumAgeMinutes} minutes without an order submission.</p></div> : <div><p className="text-sm font-medium">Checkout tracking is not connected</p><p className="mt-1 max-w-md text-xs text-muted-foreground">{abandonedData?.abandonedCheckout.reason || "Checkout starts and order submissions are not available for this period."}</p></div>}</CardContent>
+          <CardContent className="p-5">{loadingRanges[abandonedRange] && !abandonedData ? <Skeleton className="h-24 w-full" /> : abandonedData?.abandonedCheckout.available ? <div className="space-y-3">{channelDefinitions.map(({ id, label }) => { const flow = abandonedData.abandonedCheckout.byChannel?.[id]; return <div key={id} className="flex flex-wrap items-center justify-between gap-3 border-b pb-3 last:border-0 last:pb-0"><div><p className="text-sm font-medium">{label}</p>{flow?.supported === false && <p className="text-xs text-muted-foreground">Checkout is not available in this channel yet</p>}</div>{flow?.supported === false ? <span className="text-xs text-muted-foreground">Not tracked</span> : <p className="text-xs text-muted-foreground">{number(flow?.started)} started · {number(flow?.abandoned)} abandoned · {number(flow?.submitted)} submitted</p>}</div>; })}<p className="text-xs text-muted-foreground">A session is abandoned after {abandonedData.abandonedCheckout.minimumAgeMinutes} minutes without an order submission. Free and coupon-covered orders count as submitted.</p></div> : <div className="py-6 text-center"><p className="text-sm font-medium">Checkout tracking is not connected</p><p className="mt-1 text-xs text-muted-foreground">{abandonedData?.abandonedCheckout.reason || "Checkout starts and order submissions are not available for this period."}</p></div>}</CardContent>
         </Card>
 
         <Card className="shadow-none">
