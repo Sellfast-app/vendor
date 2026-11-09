@@ -1,5 +1,5 @@
-import FoodInventoryPage from "@/components/food-inventory";
+import FoodTaxonomyManager from "@/components/food-taxonomy-manager";
 
 export default function Page() {
-  return <FoodInventoryPage view="categories" />;
+  return <FoodTaxonomyManager kind="categories" />;
 }

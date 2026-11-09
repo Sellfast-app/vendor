@@ -15,7 +15,6 @@ import Analytics from "./svgIcons/Analytics";
 import Settings from "./svgIcons/Settings";
 import EventIcon from "./svgIcons/EventIcon";
 import Logout from "./svgIcons/Logout";
-import WalletIcon from "./svgIcons/WalletIcon";
 import StaffIcon from "./svgIcons/StaffIcon";
 import Emailcon from "./svgIcons/Emailcon";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
@@ -38,7 +37,6 @@ const adminRoutes: Route[] = [
   { icon: Products, label: "Products", href: "/products" },
   { icon: Orders, label: "Orders", href: "/orders" },
   { icon: Analytics, label: "Analytics", href: "/analytics" },
-  { icon: WalletIcon, label: "Wallet", href: "/wallet" },
   { icon: EventIcon, label: "Events", href: "/events" },
   { icon: Emailcon, label: "Leads", href: "/leads" },
   { icon: StaffIcon, label: "Staff", href: "/staff" },
@@ -81,7 +79,7 @@ export const SidebarRoutes = () => {
       
       if (result.status === 'success' && result.data?.storeDetails) {
         const storeDetails = result.data.storeDetails;
-        setIsFoodStore(isFoodBusinessType(storeDetails.business_type));
+        setIsFoodStore(isFoodBusinessType(storeDetails.metadata?.v2?.business_type || storeDetails.business_type));
         
         // Set store logo if available
         if (storeDetails.logo) {
@@ -194,7 +192,7 @@ export const SidebarRoutes = () => {
             href={route.href}
             data-tour={index === 0 ? "sidebar-nav" : undefined}
           />}
-          {route.label === "Products" && <InventoryNavigation />}
+          {route.label === "Products" && isFoodStore && <InventoryNavigation />}
           </div>
         ))}
       </div>

@@ -148,6 +148,8 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
     const [foodCategory, setFoodCategory] = useState('');
     const [foodCategoryCustom, setFoodCategoryCustom] = useState('');
     const [foodCategories, setFoodCategories] = useState<string[]>([]);
+    const [savedCategoryOptions, setSavedCategoryOptions] = useState<string[]>([]);
+    const [savedUnitOptions, setSavedUnitOptions] = useState<string[]>([]);
     const [dietaryLabel, setDietaryLabel] = useState('');
     const [dietaryLabelCustom, setDietaryLabelCustom] = useState('');
     const [dietaryLabels, setDietaryLabels] = useState<string[]>([]);
@@ -164,6 +166,23 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const isEditMode = !!editFoodItem;
+
+    useEffect(() => {
+        if (!isOpen) return;
+        let cancelled = false;
+        fetch('/api/food-taxonomy', { cache: 'no-store' })
+            .then(async response => {
+                const result = await response.json();
+                if (!response.ok || result.status !== 'success') throw new Error(result.message || 'Unable to load food categories and units');
+                if (cancelled) return;
+                setSavedCategoryOptions((result.data?.categories || []).map((entry: { name?: string }) => entry.name).filter((name: unknown): name is string => typeof name === 'string'));
+                setSavedUnitOptions((result.data?.units || []).map((entry: { name?: string }) => entry.name).filter((name: unknown): name is string => typeof name === 'string'));
+            })
+            .catch(error => {
+                if (!cancelled) setError(error instanceof Error ? error.message : 'Unable to load food categories and units');
+            });
+        return () => { cancelled = true; };
+    }, [isOpen]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -773,10 +792,7 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                                         <SelectValue placeholder="Select category" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value='Rice Dishes'>Rice Dishes</SelectItem>
-                                        <SelectItem value='Snacks'>Snacks</SelectItem>
-                                        <SelectItem value='Drinks'>Drinks</SelectItem>
-                                        <SelectItem value='Desserts'>Desserts</SelectItem>
+                                        {savedCategoryOptions.map(category => <SelectItem key={category} value={category}>{category}</SelectItem>)}
                                         <SelectItem value='custom'>Custom</SelectItem>
                                     </SelectContent>
                                 </Select>
@@ -861,7 +877,7 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
 
                             {/* Type-specific sections — state lifted up via onChange props */}
                             {productType === 'simple' && (
-                                <PortionSetup portions={portions} onChange={setPortions} currency={currency} />
+                                <PortionSetup portions={portions} onChange={setPortions} currency={currency} customUnits={savedUnitOptions} />
                             )}
                             {productType === 'customizable' && (
                                 <CustomizationOptions savedGroups={savedGroups} onChange={setSavedGroups} currency={currency} />

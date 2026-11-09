@@ -14,6 +14,7 @@ interface PortionSetupProps {
     portions: PortionSize[];
     onChange: (portions: PortionSize[]) => void;
     currency?: string;
+    customUnits?: string[];
 }
 
 function formatPortionRow(p: PortionSize, currency: string) {
@@ -23,7 +24,7 @@ function formatPortionRow(p: PortionSize, currency: string) {
     return { timeRange, servings, price };
 }
 
-export default function PortionSetup({ portions, onChange, currency = 'NGN' }: PortionSetupProps) {
+export default function PortionSetup({ portions, onChange, currency = 'NGN', customUnits = [] }: PortionSetupProps) {
     const currencySymbol = getCurrencySymbol(currency);
     const [isOpen, setIsOpen] = useState(true);
     const [portionName, setPortionName] = useState('');
@@ -114,6 +115,7 @@ export default function PortionSetup({ portions, onChange, currency = 'NGN' }: P
                                         <SelectItem value="box">Box</SelectItem>
                                         <SelectItem value="cup">Cup</SelectItem>
                                         <SelectItem value="portion">Portion</SelectItem>
+                                        {customUnits.filter(unit => !["plate", "bowl", "wrap", "pack", "box", "cup", "portion"].includes(unit.toLowerCase())).map(unit => <SelectItem key={unit} value={unit}>{unit}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                                 <input type="number" min={0} value={servings} onChange={(e) => setServings(e.target.value)} placeholder="0" className="flex-1 py-2 pr-3 text-sm outline-none bg-transparent" />

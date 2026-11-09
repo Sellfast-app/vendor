@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import FoodInventoryPage from "@/components/food-inventory";
 import React, { JSX, useState, useEffect } from "react";
 import { RiShare2Fill } from "react-icons/ri";
 import { Card, CardContent } from "@/components/ui/card";
@@ -38,6 +37,7 @@ function ProductsPage() {
   const [businessType, setBusinessType] = useState<string>("");
   const [currency, setCurrency] = useState("NGN");
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     const fetchStoreData = async () => {
@@ -51,11 +51,11 @@ function ProductsPage() {
           throw new Error(result.message || 'Store details were not returned');
         }
 
-        setBusinessType(storeDetails.business_type || "");
+        setBusinessType(storeDetails.metadata?.v2?.business_type || storeDetails.business_type || "");
         setCurrency(getStoreCurrency(storeDetails));
       } catch (error) {
         console.error('Error fetching store data:', error);
-        setBusinessType("Retail & Wholesale Store");
+        setLoadError(error instanceof Error ? error.message : "Could not load store details.");
       } finally {
         setIsLoading(false);
       }
@@ -152,7 +152,9 @@ function ProductsPage() {
     );
   }
 
-  if (isRestaurant) return <FoodInventoryPage view="items" />;
+  if (loadError) {
+    return <main className="mx-auto max-w-3xl px-4 py-12 sm:px-6"><h1 className="text-lg font-semibold">Products are unavailable</h1><p className="mt-2 text-sm text-muted-foreground">{loadError}</p><Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>Try again</Button></main>;
+  }
 
   return (
     <div className="min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6">
