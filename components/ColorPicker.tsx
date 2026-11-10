@@ -251,7 +251,7 @@ export function ColorPickerPopup({ isOpen, onClose, selectedColor, onColorChange
                                 type="text"
                                 value={hexValue}
                                 onChange={handleHexChange}
-                                className="flex-1 h-8 text-xs font-mono uppercase"
+                                className="flex-1 h-8 text-xs font-sans uppercase"
                                 maxLength={7}
                             />
                         </div>

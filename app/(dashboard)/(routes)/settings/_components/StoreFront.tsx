@@ -1572,7 +1572,7 @@ function StorefrontComponent() {
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-medium">{label}</span>
                       <span className="block text-xs text-muted-foreground">{description}</span>
-                      <span className="mt-1 block font-mono text-xs uppercase">{value}</span>
+                      <span className="mt-1 block font-sans text-xs uppercase">{value}</span>
                     </span>
                   </label>
                 );
