@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 
 type Branch = { id: string; name: string; currency: string };
 type CatalogType = "retail" | "food";
-type CatalogRow = { catalog_type: "retail" | "food"; product_ref: string; option_ref: string; label: string; base_price: number; unit_price: string; is_available: boolean; stock_quantity: string };
+type CatalogRow = { catalog_type: "retail" | "food"; product_ref: string; option_ref: string; product_name: string; option_name: string; base_price: number; unit_price: string; is_available: boolean; stock_quantity: string };
 type RecordValue = Record<string, unknown>;
 type ExistingOverride = { catalog_type: string; product_ref: string; option_ref: string; unit_price: number | string | null; is_available: boolean; stock_quantity: number | null };
 
@@ -46,26 +47,26 @@ export default function BranchCatalogSettings({ branches, catalogType }: { branc
           ? (catalogData.data && !Array.isArray(catalogData.data) ? catalogData.data.items || [] : [])
           : (Array.isArray(catalogData.data) ? catalogData.data : []);
         const next: CatalogRow[] = [];
-        const add = (productRef: string, optionRef: string, label: string, basePrice: number) => {
+        const add = (productRef: string, optionRef: string, productName: string, optionName: string, basePrice: number) => {
           const override = overrides.get(`${catalogType}:${productRef}:${optionRef}`);
-          next.push({ catalog_type: catalogType, product_ref: productRef, option_ref: optionRef, label, base_price: Number(basePrice || 0), unit_price: override?.unit_price == null ? "" : String(override.unit_price), is_available: override?.is_available ?? true, stock_quantity: override?.stock_quantity == null ? "" : String(override.stock_quantity) });
+          next.push({ catalog_type: catalogType, product_ref: productRef, option_ref: optionRef, product_name: productName, option_name: optionName, base_price: Number(basePrice || 0), unit_price: override?.unit_price == null ? "" : String(override.unit_price), is_available: override?.is_available ?? true, stock_quantity: override?.stock_quantity == null ? "" : String(override.stock_quantity) });
         };
         for (const product of products) {
           const id = valueString(catalogType === "retail" ? product.id : product.uid);
           const title = valueString(catalogType === "retail" ? product.product_name : product.name);
           if (catalogType === "retail") {
-            add(id, "", title, Number(product.product_price || 0));
+            add(id, "", title, "Standard product", Number(product.product_price || 0));
             const variants: RecordValue[] = Array.isArray(product.variants) ? product.variants as RecordValue[] : typeof product.variants === "string" ? JSON.parse(product.variants || "[]") as RecordValue[] : [];
-            for (const variant of variants) add(id, retailOptionRef(variant), `${title} · ${[variant.size, variant.color].map(valueString).filter(Boolean).join(" / ") || valueString(variant.sku) || "Variant"}`, Number(variant.price ?? product.product_price ?? 0));
+            for (const variant of variants) add(id, retailOptionRef(variant), title, `Variant · ${[variant.size, variant.color].map(valueString).filter(Boolean).join(" / ") || valueString(variant.sku) || "Option"}`, Number(variant.price ?? product.product_price ?? 0));
           } else {
             const portions = Array.isArray(product.portion) ? product.portion as RecordValue[] : [];
             const bundles = Array.isArray(product.bundleConfig) ? product.bundleConfig as RecordValue[] : [];
             const servings = Array.isArray(product.servingTypePricing) ? product.servingTypePricing as RecordValue[] : [];
             const groups = Array.isArray(product.addOnGroup) ? product.addOnGroup as RecordValue[] : [];
-            for (const option of portions) add(id, foodRef("portion", valueString(option.uid)), `${title} · ${valueString(option.name)}`, Number(option.price || 0));
-            for (const option of bundles) add(id, foodRef("bundle", valueString(option.uid)), `${title} · ${valueString(option.name)} bundle`, Number(option.price || 0));
-            for (const option of servings) add(id, foodRef("serving", valueString(option.servingType)), `${title} · ${valueString(option.servingType)}`, Number(option.price || 0));
-            for (const group of groups) for (const option of Array.isArray(group.addOnOptions) ? group.addOnOptions as RecordValue[] : []) add(id, foodRef("addon", valueString(option.uid)), `${title} · ${valueString(group.name) || "Add-on"} · ${valueString(option.name)}`, Number(option.price || 0));
+            for (const option of portions) add(id, foodRef("portion", valueString(option.uid)), title, `Portion · ${valueString(option.name)}`, Number(option.price || 0));
+            for (const option of bundles) add(id, foodRef("bundle", valueString(option.uid)), title, `Bundle · ${valueString(option.name)}`, Number(option.price || 0));
+            for (const option of servings) add(id, foodRef("serving", valueString(option.servingType)), title, `Serving · ${valueString(option.servingType)}`, Number(option.price || 0));
+            for (const group of groups) for (const option of Array.isArray(group.addOnOptions) ? group.addOnOptions as RecordValue[] : []) add(id, foodRef("addon", valueString(option.uid)), title, `Add-on · ${valueString(group.name) || "Group"} / ${valueString(option.name)}`, Number(option.price || 0));
           }
         }
         if (!cancelled) setRows(next);
@@ -90,15 +91,20 @@ export default function BranchCatalogSettings({ branches, catalogType }: { branc
   };
 
   if (!branches.length || !catalogType) return null;
+  const formatPrice = (price: number) => {
+    try { return new Intl.NumberFormat(undefined, { style: "currency", currency: branch?.currency || "NGN", maximumFractionDigits: 2 }).format(price); }
+    catch { return `${branch?.currency || ""} ${price.toLocaleString()}`; }
+  };
+
   return <section className="space-y-4 rounded-lg border p-5">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div><h3 className="text-sm font-semibold">Branch catalog</h3><p className="text-xs text-muted-foreground">Set this branch&apos;s {catalogType} prices, availability and stock. Blank values use the product defaults.</p></div>
+      <div><h3 className="text-sm font-semibold">Branch-specific products</h3><p className="text-xs text-muted-foreground">Choose a branch to set which items it sells and whether its prices or stock differ from the store.</p></div>
       <div className="flex flex-wrap gap-2">
         <select aria-label="Branch" className="h-9 rounded-md border bg-background px-3 text-sm" value={branchId} onChange={event => setBranchId(event.target.value)}>{branches.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
-        <Button size="sm" disabled={saving || loading || !branch} onClick={save}>{saving ? "Saving..." : "Save catalog"}</Button>
+        <Button size="sm" disabled={saving || loading || !branch} onClick={save}>{saving ? "Saving..." : "Save branch changes"}</Button>
       </div>
     </div>
-    {branch && <p className="text-xs text-muted-foreground">Prices use this branch&apos;s {branch.currency} currency. Leave a price blank to use the product&apos;s standard price.</p>}
-    {loading ? <div className="h-24 animate-pulse rounded bg-muted" /> : !rows.length ? <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">No products found for this catalog.</p> : <div className="max-h-[480px] overflow-auto rounded-md border"><table className="w-full min-w-[650px] text-left text-sm"><thead className="sticky top-0 bg-muted"><tr><th className="p-3">Product option</th><th className="p-3">Base price</th><th className="p-3">Branch price</th><th className="p-3">Stock</th><th className="p-3">Available</th></tr></thead><tbody className="divide-y">{rows.map((row, index) => <tr key={`${row.product_ref}:${row.option_ref}`}><td className="p-3 font-medium">{row.label}</td><td className="p-3">{row.base_price.toLocaleString()}</td><td className="p-3"><input aria-label={`${row.label} branch price`} type="number" min="0" step="0.01" className="h-8 w-28 rounded border bg-background px-2" value={row.unit_price} onChange={event => update(index, { unit_price: event.target.value })} placeholder="Default" /></td><td className="p-3"><input aria-label={`${row.label} branch stock`} type="number" min="0" step="1" className="h-8 w-24 rounded border bg-background px-2" value={row.stock_quantity} onChange={event => update(index, { stock_quantity: event.target.value })} placeholder="Default" /></td><td className="p-3"><input aria-label={`${row.label} available`} type="checkbox" checked={row.is_available} onChange={event => update(index, { is_available: event.target.checked })} className="h-4 w-4 accent-primary" /></td></tr>)}</tbody></table></div>}
+    {branch && <p className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">Changes apply only to <strong>{branch.name}</strong>. Keep branch price or stock empty to use the store value. Turn off &quot;Sell here&quot; to hide an item or option from this branch.</p>}
+    {loading ? <div className="h-24 animate-pulse rounded bg-muted" /> : !rows.length ? <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">No {catalogType} products found. Add products to your store catalog first.</p> : <div className="max-h-[480px] overflow-auto rounded-md border"><table className="w-full min-w-[900px] text-left text-sm"><thead className="sticky top-0 bg-muted"><tr><th className="p-3">Product</th><th className="p-3">Product option</th><th className="p-3">Store price</th><th className="p-3">Branch price</th><th className="p-3">Branch stock</th><th className="p-3">Sell here</th></tr></thead><tbody className="divide-y">{rows.map((row, index) => <tr key={`${row.product_ref}:${row.option_ref}`}><td className="p-3 font-medium">{row.product_name}</td><td className="p-3 text-muted-foreground">{row.option_name}</td><td className="p-3">{formatPrice(row.base_price)}</td><td className="p-3"><input aria-label={`${row.product_name} ${row.option_name} branch price`} type="number" min="0" step="0.01" className="h-8 w-32 rounded border bg-background px-2" value={row.unit_price} onChange={event => update(index, { unit_price: event.target.value })} placeholder="Use store price" /></td><td className="p-3"><input aria-label={`${row.product_name} ${row.option_name} branch stock`} type="number" min="0" step="1" className="h-8 w-28 rounded border bg-background px-2" value={row.stock_quantity} onChange={event => update(index, { stock_quantity: event.target.value })} placeholder="Use store stock" /></td><td className="p-3"><Switch aria-label={`Sell ${row.product_name} ${row.option_name} at this branch`} checked={row.is_available} onCheckedChange={value => update(index, { is_available: value })} /></td></tr>)}</tbody></table></div>}
   </section>;
 }
