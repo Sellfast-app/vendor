@@ -13,29 +13,34 @@ interface BankData {
   accountNumber: string;
   accountHolder: string;
   bankCode: string;
+  nameEnquiryBankCode?: string;
 }
 
 interface Bank {
   code: string;
   name: string;
+  nameEnquiryBankCode?: string;
 }
 
 interface AddBankModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddBank: (bankData: BankData) => void;
+  provider?: 'paystack' | 'seerbit';
 }
 
 export default function AddBankModal({ 
   isOpen, 
   onClose, 
-  onAddBank 
+  onAddBank,
+  provider = 'paystack',
 }: AddBankModalProps) {
   const [formData, setFormData] = useState<BankData>({
     bankName: '',
     accountNumber: '',
     accountHolder: '',
-    bankCode: ''
+    bankCode: '',
+    nameEnquiryBankCode: '',
   });
 
   const [banks, setBanks] = useState<Bank[]>([]);
@@ -49,22 +54,25 @@ export default function AddBankModal({
     if (isOpen) {
       fetchBanks();
     }
-  }, [isOpen]);
+  }, [isOpen, provider]);
 
   const fetchBanks = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/payments/banks');
+      const response = await fetch(provider === 'seerbit'
+        ? '/api/v2/payment-methods/seerbit/banks'
+        : '/api/payments/banks?provider=paystack');
       const data = await response.json();
 
       if (data.status === 'success' && data.data) {
-        setBanks(data.data);
+        setBanks(data.data.map((bank: Record<string, string>) => provider === 'seerbit'
+          ? { code: bank.bank_code, name: bank.name, nameEnquiryBankCode: bank.name_enquiry_bank_code }
+          : { code: bank.code, name: bank.name }));
       } else {
-        toast.error('Failed to load banks');
+        toast.error(data.message || `Failed to load ${provider === 'seerbit' ? 'SeerBit' : 'Paystack'} banks`);
       }
     } catch (error) {
-      console.error('Error fetching banks:', error);
-      toast.error('Failed to load banks');
+      toast.error(error instanceof Error ? error.message : `Failed to load ${provider === 'seerbit' ? 'SeerBit' : 'Paystack'} banks`);
     } finally {
       setIsLoading(false);
     }
@@ -75,10 +83,13 @@ export default function AddBankModal({
 
     // Only allow numbers for account number and limit to 10 digits
     if (field === 'accountNumber') {
-      formattedValue = value.replace(/\D/g, '').slice(0, 10);
+      formattedValue = value.replace(/\D/g, '').slice(0, provider === 'seerbit' ? 20 : 10);
     }
 
     setFormData(prev => ({ ...prev, [field]: formattedValue }));
+    if (field === 'accountNumber') {
+      setFormData(prev => ({ ...prev, accountHolder: '' }));
+    }
     
     // Clear error for this field when user types
     if (errors[field]) {
@@ -92,7 +103,9 @@ export default function AddBankModal({
       setFormData(prev => ({
         ...prev,
         bankName,
-        bankCode: selectedBank.code
+        bankCode: selectedBank.code,
+        nameEnquiryBankCode: selectedBank.nameEnquiryBankCode || '',
+        accountHolder: '',
       }));
     }
   };
@@ -106,18 +119,26 @@ export default function AddBankModal({
       return;
     }
 
-    if (formData.accountNumber.length !== 10) {
+    if (provider === 'paystack' && formData.accountNumber.length !== 10) {
       setErrors({
         accountNumber: 'Account number must be 10 digits'
       });
       return;
     }
+    if (provider === 'seerbit' && (formData.accountNumber.length < 4 || !formData.nameEnquiryBankCode)) {
+      setErrors({ accountNumber: 'Enter a valid account number and select a bank' });
+      return;
+    }
 
     try {
       setIsVerifying(true);
-      const response = await fetch(
-        `/api/payments/resolve-account?account_number=${formData.accountNumber}&bank_code=${formData.bankCode}`
-      );
+      const response = provider === 'seerbit'
+        ? await fetch('/api/v2/payment-methods/seerbit/resolve-account', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name_enquiry_bank_code: formData.nameEnquiryBankCode, account_number: formData.accountNumber }),
+          })
+        : await fetch(`/api/payments/resolve-account?account_number=${formData.accountNumber}&bank_code=${formData.bankCode}&provider=paystack`);
       
       const data = await response.json();
 
@@ -126,13 +147,12 @@ export default function AddBankModal({
           ...prev,
           accountHolder: data.data.account_name
         }));
-        toast.success('Account verified successfully!');
+        toast.success('Account verified successfully');
       } else {
         toast.error(data.message || 'Failed to verify account');
       }
     } catch (error) {
-      console.error('Error verifying account:', error);
-      toast.error('Failed to verify account');
+      toast.error(error instanceof Error ? error.message : 'Failed to verify account');
     } finally {
       setIsVerifying(false);
     }
@@ -156,36 +176,42 @@ export default function AddBankModal({
         }
       });
 
-      if (!storeId || !storeName) {
+      if (provider === 'paystack' && (!storeId || !storeName)) {
         toast.error('Store information not found. Please login again.');
         return false;
       }
 
-      const response = await fetch('/api/payments/subaccount', {
+      const response = await fetch(provider === 'seerbit' ? '/api/v2/payment-methods/seerbit/sub-account' : '/api/payments/subaccount', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          store_id: storeId,
-          business_name: storeName,
-          settlement_bank: formData.bankCode,
-          account_number: formData.accountNumber
-        })
+        body: JSON.stringify(provider === 'seerbit'
+          ? {
+              bank_code: formData.bankCode,
+              name_enquiry_bank_code: formData.nameEnquiryBankCode,
+              bank_name: formData.bankName,
+              account_number: formData.accountNumber,
+            }
+          : {
+              store_id: storeId,
+              business_name: storeName,
+              settlement_bank: formData.bankCode,
+              account_number: formData.accountNumber,
+            })
       });
 
       const data = await response.json();
 
       if (data.status === 'success') {
-        toast.success('Business subaccount created successfully!');
+        toast.success(provider === 'seerbit' ? 'SeerBit settlement account added' : 'Business subaccount created successfully');
         return true;
       } else {
         toast.error(data.message || 'Failed to create business subaccount');
         return false;
       }
     } catch (error) {
-      console.error('Error creating business subaccount:', error);
-      toast.error('Failed to create business subaccount');
+      toast.error(error instanceof Error ? error.message : 'Failed to create settlement account');
       return false;
     }
   };
@@ -199,8 +225,10 @@ export default function AddBankModal({
 
     if (!formData.accountNumber) {
       newErrors.accountNumber = 'Account number is required';
-    } else if (formData.accountNumber.length !== 10) {
+    } else if (provider === 'paystack' && formData.accountNumber.length !== 10) {
       newErrors.accountNumber = 'Account number must be 10 digits';
+    } else if (provider === 'seerbit' && (formData.accountNumber.length < 4 || !formData.nameEnquiryBankCode)) {
+      newErrors.accountNumber = 'Enter a valid account number';
     }
 
     if (!formData.accountHolder.trim()) {
@@ -239,22 +267,25 @@ export default function AddBankModal({
       bankName: '',
       accountNumber: '',
       accountHolder: '',
-      bankCode: ''
+      bankCode: '',
+      nameEnquiryBankCode: '',
     });
     setErrors({});
     onClose();
   };
 
-  const canVerify = formData.bankCode && formData.accountNumber.length === 10;
+  const canVerify = formData.bankCode && (provider === 'paystack'
+    ? formData.accountNumber.length === 10
+    : formData.accountNumber.length >= 4 && Boolean(formData.nameEnquiryBankCode));
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogOverlay className="backdrop-blur-xs bg-[#06140033] dark:bg-black/50" />
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle className="text-sm font-semibold">Add Bank Account</DialogTitle>
+          <DialogTitle className="text-sm font-semibold">Add {provider === 'seerbit' ? 'SeerBit' : 'Paystack'} Bank Account</DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
-            Add your bank account for payouts and withdrawals
+            Verify the bank account that will receive your {provider === 'seerbit' ? 'SeerBit' : 'Paystack'} settlements
           </DialogDescription>
         </DialogHeader>
 
@@ -294,11 +325,11 @@ export default function AddBankModal({
               <Input
                 id="accountNumber"
                 type="text"
-                placeholder="Enter 10-digit account number"
+                placeholder={provider === 'paystack' ? 'Enter 10-digit account number' : 'Enter account number'}
                 value={formData.accountNumber}
                 onChange={(e) => handleInputChange('accountNumber', e.target.value)}
                 className={errors.accountNumber ? 'border-red-500' : ''}
-                maxLength={10}
+                maxLength={provider === 'paystack' ? 10 : 20}
               />
               <Button
                 type="button"
@@ -343,7 +374,7 @@ export default function AddBankModal({
             disabled={!formData.accountHolder || isCreatingSubaccount}
             className="bg-green-500 hover:bg-green-600 text-white"
           >
-            {isCreatingSubaccount ? 'Creating...' : 'Add Bank Account'}
+            {isCreatingSubaccount ? 'Adding...' : 'Add Bank Account'}
           </Button>
         </div>
       </DialogContent>

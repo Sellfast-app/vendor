@@ -4,9 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { CheckCircle2, CircleAlert, CreditCard, LoaderCircle, ShieldCheck } from "lucide-react";
@@ -24,8 +21,6 @@ type Provider = {
 };
 
 type SettlementAccount = { account_name?: string; account_last4?: string; bank_name?: string; status?: string };
-type SeerbitBank = { name: string; bank_code: string; name_enquiry_bank_code: string };
-
 export default function PaymentMethods() {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
@@ -35,14 +30,8 @@ export default function PaymentMethods() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [account, setAccount] = useState<SettlementAccount | null>(null);
-  const [accountBusy, setAccountBusy] = useState(false);
-  const [accountName, setAccountName] = useState("");
-  const [accountVerified, setAccountVerified] = useState(false);
   const [paystackBankModalOpen, setPaystackBankModalOpen] = useState(false);
-  const [seerbitBanks, setSeerbitBanks] = useState<SeerbitBank[]>([]);
-  const [seerbitBanksLoading, setSeerbitBanksLoading] = useState(false);
-  const [seerbitBanksError, setSeerbitBanksError] = useState("");
-  const [accountForm, setAccountForm] = useState({ bank_code: "", name_enquiry_bank_code: "", bank_name: "", account_number: "" });
+  const [seerbitBankModalOpen, setSeerbitBankModalOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -67,26 +56,6 @@ export default function PaymentMethods() {
         setAccount(accountResult.data?.account || null);
       } else {
         setAccount(null);
-      }
-      if (nextProviders.some((item) => item.id === "seerbit")) {
-        setSeerbitBanksLoading(true);
-        setSeerbitBanksError("");
-        try {
-          const banksResponse = await fetch("/api/v2/payment-methods/seerbit/banks", { cache: "no-store" });
-          const banksResult = await banksResponse.json();
-          if (!banksResponse.ok || banksResult.status !== "success" || !Array.isArray(banksResult.data)) {
-            throw new Error(banksResult.message || "Could not load SeerBit banks");
-          }
-          setSeerbitBanks(banksResult.data);
-        } catch (cause) {
-          setSeerbitBanks([]);
-          setSeerbitBanksError(cause instanceof Error ? cause.message : "Could not load SeerBit banks");
-        } finally {
-          setSeerbitBanksLoading(false);
-        }
-      } else {
-        setSeerbitBanks([]);
-        setSeerbitBanksError("");
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not load payment methods");
@@ -126,70 +95,6 @@ export default function PaymentMethods() {
     }
   };
 
-  const resolveAccount = async () => {
-    setAccountBusy(true);
-    setError("");
-    try {
-      const response = await fetch("/api/v2/payment-methods/seerbit/resolve-account", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name_enquiry_bank_code: accountForm.name_enquiry_bank_code, account_number: accountForm.account_number }),
-      });
-      const result = await response.json();
-      if (!response.ok || result.status !== "success" || !result.data?.account_name) throw new Error(result.message || "Could not verify this account");
-      setAccountName(result.data.account_name);
-      setAccountVerified(true);
-      toast.success("Bank account verified");
-    } catch (cause) {
-      setAccountVerified(false);
-      setAccountName("");
-      const message = cause instanceof Error ? cause.message : "Could not verify this account";
-      setError(message);
-      toast.error(message);
-    } finally {
-      setAccountBusy(false);
-    }
-  };
-
-  const selectSeerbitBank = (bankCode: string) => {
-    const bank = seerbitBanks.find((entry) => entry.bank_code === bankCode);
-    setAccountVerified(false);
-    setAccountName("");
-    setAccountForm((current) => ({
-      ...current,
-      bank_code: bank?.bank_code || "",
-      name_enquiry_bank_code: bank?.name_enquiry_bank_code || "",
-      bank_name: bank?.name || "",
-    }));
-  };
-
-  const saveSettlementAccount = async () => {
-    if (!accountVerified) return;
-    setAccountBusy(true);
-    setError("");
-    try {
-      const response = await fetch("/api/v2/payment-methods/seerbit/sub-account", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(accountForm),
-      });
-      const result = await response.json();
-      if (!response.ok || result.status !== "success") throw new Error(result.message || "Could not add SeerBit settlement account");
-      setAccount(result.data?.account || null);
-      setAccountName("");
-      setAccountVerified(false);
-      setAccountForm({ bank_code: "", name_enquiry_bank_code: "", bank_name: "", account_number: "" });
-      toast.success("SeerBit settlement account added");
-      await load();
-    } catch (cause) {
-      const message = cause instanceof Error ? cause.message : "Could not add SeerBit settlement account";
-      setError(message);
-      toast.error(message);
-    } finally {
-      setAccountBusy(false);
-    }
-  };
-
   return <div className="space-y-6">
     <Card className="shadow-none">
       <CardHeader className="flex flex-col gap-3 border-b sm:flex-row sm:items-center sm:justify-between">
@@ -205,6 +110,7 @@ export default function PaymentMethods() {
               <div className="flex items-start justify-between gap-4"><div className="flex gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary"><CreditCard className="h-4 w-4" /></div><div><div className="flex flex-wrap items-center gap-2"><p className="text-sm font-medium">{provider.name}</p>{provider.required && <Badge variant="outline">Required in {country}</Badge>}</div><p className="mt-1 text-xs text-muted-foreground">Customer checkout currency: {provider.currency}</p></div></div><Switch checked={chosen} disabled={provider.required || loading} onCheckedChange={(value) => toggle(provider, value)} aria-label={`${provider.name} enabled`} /></div>
               <div className="mt-4 flex items-center gap-2 text-xs">{provider.available ? <><ShieldCheck className="h-4 w-4 text-emerald-600" /><span className="text-emerald-700">Ready for checkout</span></> : <><CircleAlert className="h-4 w-4 text-amber-600" /><span className="text-amber-700">Settlement setup required before checkout</span></>}</div>
               {provider.id === "paystack" && !provider.settlement_account_configured && <Button className="mt-3" size="sm" variant="outline" onClick={() => setPaystackBankModalOpen(true)}>Add Paystack bank account</Button>}
+              {provider.id === "seerbit" && !provider.settlement_account_configured && <Button className="mt-3" size="sm" variant="outline" onClick={() => setSeerbitBankModalOpen(true)}>Add SeerBit bank account</Button>}
             </div>;
           })}</div>
         </>}
@@ -215,18 +121,11 @@ export default function PaymentMethods() {
     {providers.some((provider) => provider.id === "seerbit") && <Card className="shadow-none">
       <CardHeader className="border-b"><h3 className="text-sm font-semibold">SeerBit settlement account</h3><p className="text-xs text-muted-foreground">A verified vendor settlement account is required before SeerBit can accept customer payments.</p></CardHeader>
       <CardContent className="space-y-4 p-5">
-        {account?.status === "active" ? <div className="flex items-start gap-3 rounded-md border border-emerald-200 bg-emerald-50 p-4"><CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-700" /><div><p className="text-sm font-medium text-emerald-900">Account connected</p><p className="mt-1 text-xs text-emerald-800">{account.account_name} · {account.bank_name} · ending {account.account_last4}</p></div></div> : <>
-          <p className="text-xs text-muted-foreground">Choose your bank, then verify the account number. Swiftree will use the SeerBit bank codes returned for that bank.</p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2"><Label htmlFor="seerbit-bank">Bank</Label><Select value={accountForm.bank_code} onValueChange={selectSeerbitBank} disabled={seerbitBanksLoading || seerbitBanks.length === 0}><SelectTrigger id="seerbit-bank"><SelectValue placeholder={seerbitBanksLoading ? "Loading banks..." : "Select bank"} /></SelectTrigger><SelectContent>{seerbitBanks.map((bank) => <SelectItem key={`${bank.bank_code}:${bank.name_enquiry_bank_code}`} value={bank.bank_code}>{bank.name}</SelectItem>)}</SelectContent></Select>{seerbitBanksError && <p role="alert" className="text-xs text-destructive">{seerbitBanksError}</p>}</div>
-            <div className="space-y-2"><Label htmlFor="seerbit-account-number">Account number</Label><Input id="seerbit-account-number" inputMode="numeric" value={accountForm.account_number} onChange={(event) => { setAccountVerified(false); setAccountName(""); setAccountForm((current) => ({ ...current, account_number: event.target.value.replace(/\D/g, "") })); }} /></div>
-          </div>
-          {accountName && <p className="rounded-md bg-muted p-3 text-sm">Verified account name: <strong>{accountName}</strong></p>}
-          <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={resolveAccount} disabled={accountBusy || !accountForm.name_enquiry_bank_code || !accountForm.account_number}>{accountBusy ? "Verifying..." : "Verify account"}</Button>{accountVerified && <Button onClick={saveSettlementAccount} disabled={accountBusy || !accountForm.bank_code || !accountForm.bank_name}>{accountBusy ? "Adding..." : "Add settlement account"}</Button>}</div>
-        </>}
+        {account?.status === "active" ? <div className="flex items-start gap-3 rounded-md border border-emerald-200 bg-emerald-50 p-4"><CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-700" /><div><p className="text-sm font-medium text-emerald-900">Account connected</p><p className="mt-1 text-xs text-emerald-800">{account.account_name} · {account.bank_name} · ending {account.account_last4}</p></div></div> : <p className="text-sm text-muted-foreground">Add and verify the bank account where SeerBit settlements should be sent.</p>}
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       </CardContent>
     </Card>}
     <AddBankModal isOpen={paystackBankModalOpen} onClose={() => setPaystackBankModalOpen(false)} onAddBank={() => { setPaystackBankModalOpen(false); void load(); }} />
+    <AddBankModal provider="seerbit" isOpen={seerbitBankModalOpen} onClose={() => setSeerbitBankModalOpen(false)} onAddBank={() => { setSeerbitBankModalOpen(false); void load(); }} />
   </div>;
 }
