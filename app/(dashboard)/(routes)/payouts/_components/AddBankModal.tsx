@@ -16,7 +16,6 @@ interface BankData {
 }
 
 interface Bank {
-  id: number;
   code: string;
   name: string;
 }
@@ -162,13 +161,6 @@ export default function AddBankModal({
         return false;
       }
 
-      console.log('Creating subaccount with:', {
-        store_id: storeId,
-        business_name: storeName,
-        settlement_bank: formData.bankCode,
-        account_number: formData.accountNumber
-      });
-
       const response = await fetch('/api/payments/subaccount', {
         method: 'POST',
         headers: {
@@ -282,7 +274,7 @@ export default function AddBankModal({
               </SelectTrigger>
               <SelectContent>
                 {banks.map((bank) => (
-                  <SelectItem key={bank.id} value={bank.name}>
+                    <SelectItem key={bank.code} value={bank.name}>
                     {bank.name}
                   </SelectItem>
                 ))}

@@ -25,7 +25,7 @@ import AddPickupLocationModal, {
   type PickupLocation,
 } from "./AddPickupLocationModal";
 import BranchCatalogSettings from "./BranchCatalogSettings";
-import { V2_COUNTRY_INFO, type V2Country } from "@/lib/v2";
+import { isV2FoodBusiness, isV2RetailBusiness, V2_COUNTRY_INFO, type V2Country } from "@/lib/v2";
 
 const EditIcon = ({ className }: { className?: string }) => (
   <svg
@@ -95,6 +95,7 @@ export default function LogisticsSettings() {
   const [manualRates, setManualRates] = useState<ManualRate[]>([]);
   const [pickupLocations, setPickupLocations] = useState<PickupLocation[]>([]);
   const [storeCountry, setStoreCountry] = useState<string | undefined>();
+  const [catalogType, setCatalogType] = useState<"retail" | "food" | null>(null);
   const [enabledModes, setEnabledModes] = useState<string[]>([]);
   const [isLoadingModes, setIsLoadingModes] = useState(true);
   const [savingMode, setSavingMode] = useState<string | null>(null);
@@ -105,11 +106,27 @@ export default function LogisticsSettings() {
       try {
         const response = await fetch("/api/store", { cache: "no-store" });
         const result = await response.json();
-        const country = result.data?.storeDetails?.metadata?.v2?.country;
+        const storeDetails = result.data?.storeDetails;
+        const metadata = storeDetails?.metadata || {};
+        const businessType = metadata.v2?.business_type || storeDetails?.business_type;
+        const foodStore = isV2FoodBusiness(businessType);
+        const storeCatalog = isV2RetailBusiness(businessType) ? "retail" : foodStore ? "food" : null;
+        setCatalogType(storeCatalog);
+        const country = metadata.v2?.country;
         if (typeof country === "string") setStoreCountry(country.toUpperCase());
-        const modes = result.data?.storeDetails?.enabled_fulfillment_modes;
-        if (Array.isArray(modes)) setEnabledModes(modes.filter((mode): mode is string => typeof mode === "string"));
-        const rates = result.data?.storeDetails?.metadata?.manual_shipping_rates;
+        const storedModes = storeDetails?.enabled_fulfillment_modes;
+        const modes = Array.isArray(storedModes) ? storedModes.filter((mode): mode is string => typeof mode === "string") : [];
+        const validModes = foodStore ? modes : modes.filter((mode) => mode !== "relay");
+        setEnabledModes(validModes);
+        if (validModes.length !== modes.length) {
+          const cleanupResponse = await fetch("/api/store", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ enabled_fulfillment_modes: validModes }),
+          });
+          if (!cleanupResponse.ok) throw new Error("Unable to remove unsupported Relay delivery setting");
+        }
+        const rates = metadata.manual_shipping_rates;
 
         if (Array.isArray(rates)) {
           setManualRates(rates.flatMap((rate): ManualRate[] => {
@@ -163,6 +180,7 @@ export default function LogisticsSettings() {
 
   const toggleFulfillmentMode = async (mode: string, checked: boolean) => {
     if (savingMode) return;
+    if (mode === "relay" && catalogType !== "food") return;
     const nextModes = checked
       ? [...new Set([...enabledModes, mode])]
       : enabledModes.filter((enabledMode) => enabledMode !== mode);
@@ -285,7 +303,7 @@ export default function LogisticsSettings() {
           </div>
         </CardHeader>
         <CardContent className="grid gap-4 p-5 xl:grid-cols-2">
-          {logisticsModes.map((mode) => (
+          {logisticsModes.filter((mode) => mode.mode !== "relay" || catalogType === "food").map((mode) => (
             <div key={mode.title} className="rounded-xl border p-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex gap-3">
@@ -471,7 +489,7 @@ export default function LogisticsSettings() {
           </CardContent>
         </Card>
 
-        <BranchCatalogSettings branches={pickupLocations.map(({ id, name, currency }) => ({ id, name, currency }))} />
+        <BranchCatalogSettings branches={pickupLocations.map(({ id, name, currency }) => ({ id, name, currency }))} catalogType={catalogType} />
       </div>
 
       <AddManualRateModal

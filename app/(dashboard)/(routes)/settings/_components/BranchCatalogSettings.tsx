@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
 type Branch = { id: string; name: string; currency: string };
+type CatalogType = "retail" | "food";
 type CatalogRow = { catalog_type: "retail" | "food"; product_ref: string; option_ref: string; label: string; base_price: number; unit_price: string; is_available: boolean; stock_quantity: string };
 type RecordValue = Record<string, unknown>;
 type ExistingOverride = { catalog_type: string; product_ref: string; option_ref: string; unit_price: number | string | null; is_available: boolean; stock_quantity: number | null };
@@ -16,9 +17,8 @@ const retailOptionRef = (variant: RecordValue) => {
 };
 const foodRef = (kind: string, uid: string) => `${kind}:${uid.trim().toLowerCase()}`;
 
-export default function BranchCatalogSettings({ branches }: { branches: Branch[] }) {
+export default function BranchCatalogSettings({ branches, catalogType }: { branches: Branch[]; catalogType: CatalogType | null }) {
   const [branchId, setBranchId] = useState("");
-  const [catalog, setCatalog] = useState<"retail" | "food">("retail");
   const [rows, setRows] = useState<CatalogRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -27,13 +27,13 @@ export default function BranchCatalogSettings({ branches }: { branches: Branch[]
   useEffect(() => { if (!branchId && branches[0]) setBranchId(branches[0].id); }, [branches, branchId]);
 
   useEffect(() => {
-    if (!branchId) { setRows([]); return; }
+    if (!branchId || !catalogType) { setRows([]); return; }
     let cancelled = false;
     const load = async () => {
       setLoading(true);
       try {
         const [catalogResponse, overrideResponse] = await Promise.all([
-          fetch(catalog === "retail" ? "/api/products?pageSize=100&_t=" + Date.now() : "/api/products/food?pageSize=100&_t=" + Date.now(), { cache: "no-store" }),
+          fetch(catalogType === "retail" ? "/api/products?pageSize=100&_t=" + Date.now() : "/api/products/food?pageSize=100&_t=" + Date.now(), { cache: "no-store" }),
           fetch(`/api/branches/${encodeURIComponent(branchId)}/overrides`, { cache: "no-store" }),
         ]);
         const [catalogDataRaw, overrideDataRaw] = await Promise.all([catalogResponse.json(), overrideResponse.json()]);
@@ -42,18 +42,18 @@ export default function BranchCatalogSettings({ branches }: { branches: Branch[]
         if (!catalogResponse.ok) throw new Error(catalogData.message || "Unable to load catalog");
         if (!overrideResponse.ok) throw new Error(overrideData.message || "Unable to load branch prices");
         const overrides = new Map<string, ExistingOverride>((overrideData.data || []).map((entry) => [`${entry.catalog_type}:${entry.product_ref}:${entry.option_ref}`, entry]));
-        const products: RecordValue[] = catalog === "retail"
+        const products: RecordValue[] = catalogType === "retail"
           ? (catalogData.data && !Array.isArray(catalogData.data) ? catalogData.data.items || [] : [])
           : (Array.isArray(catalogData.data) ? catalogData.data : []);
         const next: CatalogRow[] = [];
         const add = (productRef: string, optionRef: string, label: string, basePrice: number) => {
-          const override = overrides.get(`${catalog}:${productRef}:${optionRef}`);
-          next.push({ catalog_type: catalog, product_ref: productRef, option_ref: optionRef, label, base_price: Number(basePrice || 0), unit_price: override?.unit_price == null ? "" : String(override.unit_price), is_available: override?.is_available ?? true, stock_quantity: override?.stock_quantity == null ? "" : String(override.stock_quantity) });
+          const override = overrides.get(`${catalogType}:${productRef}:${optionRef}`);
+          next.push({ catalog_type: catalogType, product_ref: productRef, option_ref: optionRef, label, base_price: Number(basePrice || 0), unit_price: override?.unit_price == null ? "" : String(override.unit_price), is_available: override?.is_available ?? true, stock_quantity: override?.stock_quantity == null ? "" : String(override.stock_quantity) });
         };
         for (const product of products) {
-          const id = valueString(catalog === "retail" ? product.id : product.uid);
-          const title = valueString(catalog === "retail" ? product.product_name : product.name);
-          if (catalog === "retail") {
+          const id = valueString(catalogType === "retail" ? product.id : product.uid);
+          const title = valueString(catalogType === "retail" ? product.product_name : product.name);
+          if (catalogType === "retail") {
             add(id, "", title, Number(product.product_price || 0));
             const variants: RecordValue[] = Array.isArray(product.variants) ? product.variants as RecordValue[] : typeof product.variants === "string" ? JSON.parse(product.variants || "[]") as RecordValue[] : [];
             for (const variant of variants) add(id, retailOptionRef(variant), `${title} · ${[variant.size, variant.color].map(valueString).filter(Boolean).join(" / ") || valueString(variant.sku) || "Variant"}`, Number(variant.price ?? product.product_price ?? 0));
@@ -75,7 +75,7 @@ export default function BranchCatalogSettings({ branches }: { branches: Branch[]
     };
     void load();
     return () => { cancelled = true; };
-  }, [branchId, catalog]);
+  }, [branchId, catalogType]);
 
   const update = (index: number, change: Partial<CatalogRow>) => setRows(current => current.map((row, rowIndex) => rowIndex === index ? { ...row, ...change } : row));
   const save = async () => {
@@ -89,13 +89,12 @@ export default function BranchCatalogSettings({ branches }: { branches: Branch[]
     finally { setSaving(false); }
   };
 
-  if (!branches.length) return null;
+  if (!branches.length || !catalogType) return null;
   return <section className="space-y-4 rounded-lg border p-5">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div><h3 className="text-sm font-semibold">Branch catalog</h3><p className="text-xs text-muted-foreground">Set branch-specific prices, availability and stock.</p></div>
+      <div><h3 className="text-sm font-semibold">Branch catalog</h3><p className="text-xs text-muted-foreground">Set this branch&apos;s {catalogType} prices, availability and stock. Blank values use the product defaults.</p></div>
       <div className="flex flex-wrap gap-2">
         <select aria-label="Branch" className="h-9 rounded-md border bg-background px-3 text-sm" value={branchId} onChange={event => setBranchId(event.target.value)}>{branches.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
-        <select aria-label="Catalog type" className="h-9 rounded-md border bg-background px-3 text-sm" value={catalog} onChange={event => setCatalog(event.target.value as "retail" | "food")}><option value="retail">Retail</option><option value="food">Food</option></select>
         <Button size="sm" disabled={saving || loading || !branch} onClick={save}>{saving ? "Saving..." : "Save catalog"}</Button>
       </div>
     </div>

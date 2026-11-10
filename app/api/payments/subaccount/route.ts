@@ -7,8 +7,6 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     
-    console.log('🔧 Creating business subaccount with:', body)
-    
     const {
       store_id,
       business_name,
@@ -45,13 +43,6 @@ export async function POST(request: NextRequest) {
       'Authorization': `Bearer ${authToken}`
     }
 
-    console.log('🚀 Sending to Swiftree API:', {
-      store_id,
-      business_name,
-      settlement_bank,
-      account_number
-    })
-
     const response = await fetch(
       `${API_BASE_URL}/api/payments/subaccount`,
       {
@@ -66,11 +57,8 @@ export async function POST(request: NextRequest) {
       }
     )
 
-    console.log('📨 Swiftree API response status:', response.status)
-
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('❌ Swiftree subaccount creation error:', errorText)
       
       let errorData
       try {
@@ -89,12 +77,10 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await response.json()
-    console.log('✅ Business subaccount created successfully:', data)
-    
     return NextResponse.json(data)
     
   } catch (error) {
-    console.error('💥 Error creating business subaccount:', error)
+    console.error('Subaccount creation request failed')
     return NextResponse.json(
       {
         status: 'error',

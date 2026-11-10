@@ -18,6 +18,7 @@ import PaymentMethods from "./PaymentMethods";
 import LogisticsSettings from "./LogisticsSettings";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { isV2FoodBusiness } from "@/lib/v2";
 
 interface BrandColor {
   primary: string;
@@ -391,10 +392,9 @@ function StorefrontComponent() {
           setSavedAnnouncement(resolvedAnnouncement);
 
           // ── Detect food vendor ──────────────────────────────────────────
-          const businessType: string = storeDetails.business_type || '';
-          const isFood = businessType === 'Restaurant/Food Service';
+          const businessType: string = metadata.v2?.business_type || storeDetails.business_type || '';
+          const isFood = isV2FoodBusiness(businessType);
           setIsFoodVendor(isFood);
-          console.log('🍔 Is food vendor:', isFood);
 
           let countryCode = "+234";
           if (metadata.phone) {
@@ -409,7 +409,8 @@ function StorefrontComponent() {
           else if (formattedPhone.startsWith('+1')) formattedPhone = formattedPhone.slice(2);
           else if (formattedPhone.startsWith('+254')) formattedPhone = formattedPhone.slice(4);
 
-          const enabledModes = storeDetails.enabled_fulfillment_modes || [];
+          const storedModes = storeDetails.enabled_fulfillment_modes || [];
+          const enabledModes = isFood ? storedModes : storedModes.filter((mode: string) => mode !== 'relay');
           const storeAvailability = Array.isArray(storeDetails.availability)
             ? storeDetails.availability.filter(
                 (entry: unknown): entry is StoreAvailabilityEntry => {
@@ -432,7 +433,7 @@ function StorefrontComponent() {
             sendbox: enabledModes.includes('sendbox'),
             vendor: enabledModes.includes('vendor'),
             gig: enabledModes.includes('gig'),
-            relay: enabledModes.includes('relay'), // ← NEW
+            relay: isFood && enabledModes.includes('relay'),
           });
 
           console.log('✅ Loaded delivery methods:', enabledModes);
@@ -844,11 +845,12 @@ function StorefrontComponent() {
       sendbox: enabledModes.includes('sendbox'),
       vendor: enabledModes.includes('vendor'),
       gig: enabledModes.includes('gig'),
-      relay: enabledModes.includes('relay'), // ← NEW
+      relay: isFoodVendor && enabledModes.includes('relay'),
     });
   };
 
   const handleDeliveryMethodChange = (method: 'pickup' | 'sendbox' | 'vendor' | 'gig' | 'relay') => {
+    if (method === 'relay' && !isFoodVendor) return;
     setDeliveryMethods(prev => {
       const newState = { ...prev };
       if (method === 'sendbox' && !prev.sendbox) {
@@ -887,7 +889,7 @@ function StorefrontComponent() {
       if (deliveryMethods.sendbox) enabledModes.push('sendbox');
       if (deliveryMethods.vendor) enabledModes.push('vendor');
       if (deliveryMethods.gig) enabledModes.push('gig');
-      if (deliveryMethods.relay) enabledModes.push('relay'); // ← NEW
+      if (isFoodVendor && deliveryMethods.relay) enabledModes.push('relay');
 
       toast.loading('Updating delivery methods...');
       const response = await fetch('/api/store', {
