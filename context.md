@@ -291,6 +291,32 @@ not rewritten. Saved malformed data is not silently overwritten.
   existing user account and the invited email to accept; account creation for
   an unregistered invitee still needs a backend-defined flow. Invite mail links
   require `VENDOR_DASHBOARD_URL` (or `FRONTEND_URL`) to point to this app.
-- Payment provider checkout, refunds, subscription settlement, wallet ledger
-  posting and withdrawals are not changed by this work and remain paused pending
-  payment custody/provider confirmations.
+- Payment provider checkout, refunds and subscription settlement are separate
+  provider flows. Swiftree does not present a vendor wallet or withdrawal UI;
+  vendor proceeds are sent through configured provider split settlement.
+
+## V2 vendor UI follow-up (2026-11-10)
+
+- Store type is fixed at onboarding and is not editable in StoreFront Settings.
+  The main store city is profile information; physical branches and branch
+  catalog/pricing are managed under StoreFront Settings > Logistics > Branch
+  pickup locations.
+- Localization UI must not imply enabled IP geolocation or cross-country
+  currency routing unless backed by the corresponding API. Show the store's
+  actual country/currency and branch records instead of mock market switches.
+- Delivery mode switches save `enabled_fulfillment_modes` immediately through
+  the store update API. Manual shipping rates are saved as
+  `metadata.manual_shipping_rates`; keep the form open until the save succeeds
+  and roll back optimistic UI state on failure.
+- Ticket orders and Events are separate from general retail/food orders and
+  should appear in navigation only for ticketing stores. The generic Orders
+  route must not advertise ticket orders for other business types.
+- Retail variants can have an optional image. The create form appends shared
+  product images first, then variant image files to `files`; each variant's
+  `image_file_index` points to its file in that ordered list. The backend must
+  persist this association and return the variant image URL/index for editing
+  and storefront display. Until the API honors that contract, variant images
+  are only submitted with the request and cannot be considered end-to-end.
+- POS is a navigation destination only for now. There is no in-person POS
+  order endpoint in this frontend integration; do not show sample transactions
+  or claim POS checkout is operational.

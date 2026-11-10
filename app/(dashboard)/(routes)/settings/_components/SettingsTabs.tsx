@@ -33,7 +33,10 @@ function SettingsTabs() {
                     <StoreFront/>
                 </TabsContent>
                 <TabsContent value="localization" className='mt-4'>
-                    <LocalizationSettings/>
+                    <LocalizationSettings onManageBranches={() => {
+                        setTab('store')
+                        window.setTimeout(() => document.getElementById('branch-pickup-locations')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
+                    }}/>
                 </TabsContent>
                 <TabsContent value="finance" className='mt-4'>
                     <Finance/>

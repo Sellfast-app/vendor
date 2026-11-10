@@ -13,7 +13,7 @@
  * Daash "What brings you to Daash" (refs #29-31).
  */
 
-import { Check, Globe2, LayoutDashboard, WalletCards } from 'lucide-react';
+import { Check, CreditCard, Globe2, LayoutDashboard } from 'lucide-react';
 import { Store, Ticket, UtensilsCrossed } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -70,7 +70,7 @@ export default function V2BusinessTypeStep({
           <span>Choose the country where your business operates. Currency is set from that country.</span>
         </div>
         <div className="flex items-start gap-2">
-          <WalletCards className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <CreditCard className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
           <span>Your selection determines currency and eligible revenue models.</span>
         </div>
       </div>

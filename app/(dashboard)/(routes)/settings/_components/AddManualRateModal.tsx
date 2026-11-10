@@ -19,7 +19,8 @@ export interface ManualRate {
   rate: number;
 }
 
-export const formatNaira = (value: number) => `₦${value.toLocaleString("en-NG")}`;
+export const formatNaira = (value: number, currency = "NGN") =>
+  new Intl.NumberFormat(undefined, { style: "currency", currency, maximumFractionDigits: 0 }).format(value);
 
 interface AddManualRateModalProps {
   isOpen: boolean;
@@ -27,6 +28,8 @@ interface AddManualRateModalProps {
   onAddRate: (rate: ManualRate) => void | Promise<void>;
   onUpdateRate: (rate: ManualRate) => void | Promise<void>;
   editingRate: ManualRate | null;
+  isSaving?: boolean;
+  currency?: string;
 }
 
 export default function AddManualRateModal({
@@ -35,10 +38,13 @@ export default function AddManualRateModal({
   onAddRate,
   onUpdateRate,
   editingRate,
+  isSaving = false,
+  currency = "NGN",
 }: AddManualRateModalProps) {
   const [location, setLocation] = useState("");
   const [rate, setRate] = useState("");
   const [errors, setErrors] = useState<{ location?: string; rate?: string }>({});
+  const [submitError, setSubmitError] = useState("");
 
   useEffect(() => {
     if (!isOpen) return;
@@ -51,6 +57,7 @@ export default function AddManualRateModal({
       setRate("");
     }
     setErrors({});
+    setSubmitError("");
   }, [isOpen, editingRate]);
 
   const handleRateChange = (value: string) => {
@@ -61,8 +68,14 @@ export default function AddManualRateModal({
 
   const numericRate = Number(rate);
   const isValidRate = rate !== "" && Number.isFinite(numericRate) && numericRate > 0;
+  const currencySymbol = new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency,
+    currencyDisplay: "narrowSymbol",
+  }).formatToParts(0).find((part) => part.type === "currency")?.value || currency;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (isSaving) return;
     const nextErrors: { location?: string; rate?: string } = {};
 
     if (!location.trim()) nextErrors.location = "Location is required";
@@ -74,24 +87,30 @@ export default function AddManualRateModal({
       return;
     }
 
-    if (editingRate) {
-      onUpdateRate({
+    const manualRate = editingRate
+      ? {
         ...editingRate,
         location: location.trim(),
         rate: numericRate,
-      });
-    } else {
-      onAddRate({
+      }
+      : {
         id: `manual-rate-${Date.now()}`,
         location: location.trim(),
         rate: numericRate,
-      });
+      };
+
+    try {
+      setSubmitError("");
+      if (editingRate) await onUpdateRate(manualRate);
+      else await onAddRate(manualRate);
+      onClose();
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "Unable to save manual rate");
     }
-    onClose();
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open && !isSaving) onClose(); }}>
       <DialogOverlay className="backdrop-blur-xs bg-[#06140033] dark:bg-black/50" />
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
@@ -105,6 +124,7 @@ export default function AddManualRateModal({
         </DialogHeader>
 
         <div className="mt-4 space-y-5">
+          {submitError && <p role="alert" className="text-xs text-red-600">{submitError}</p>}
           <div className="space-y-2">
             <Label htmlFor="manual-rate-location" className="text-xs">
               Location <span className="text-red-500">*</span>
@@ -131,7 +151,7 @@ export default function AddManualRateModal({
             </Label>
             <div className="relative">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                ₦
+                {currencySymbol}
               </span>
               <Input
                 id="manual-rate-amount"
@@ -148,7 +168,7 @@ export default function AddManualRateModal({
           {isValidRate && (
             <div className="rounded-lg border bg-[#F7FFF9] p-4 dark:bg-primary/5">
               <p className="text-sm font-medium text-primary">
-                Buyer sees: Manual shipping — {formatNaira(numericRate)}
+                Buyer sees: Manual shipping — {formatNaira(numericRate, currency)}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
                 This rate applies at checkout for the selected location.
@@ -158,14 +178,15 @@ export default function AddManualRateModal({
         </div>
 
         <div className="mt-6 flex justify-end gap-3">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} disabled={isSaving}>
             Cancel
           </Button>
           <Button
             onClick={handleSubmit}
+            disabled={isSaving}
             className="bg-green-500 text-white hover:bg-green-600"
           >
-            {editingRate ? "Save Changes" : "Add Rate"}
+            {isSaving ? "Saving..." : editingRate ? "Save Changes" : "Add Rate"}
           </Button>
         </div>
       </DialogContent>

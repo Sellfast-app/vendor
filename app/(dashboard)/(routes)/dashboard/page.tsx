@@ -27,7 +27,7 @@ import {
   Store,
   Truck,
   Users,
-  WalletCards,
+  CreditCard,
 } from "lucide-react";
 import SalesRevenueChart from "./_components/SalesRevenueChart";
 import BestSellingProducts from "./_components/BestSellingProducts";
@@ -150,13 +150,13 @@ const tourSteps: TourStep[] = [
     target: "quick-actions",
     title: "Quick actions",
     description:
-      "One-tap shortcuts to the things you do most: add items, open wallet and manage settings.",
+      "One-tap shortcuts to the things you do most: add items and manage settings.",
   },
   {
     target: "sidebar-nav",
     title: "Navigate anywhere",
     description:
-      "Products, orders, analytics, wallet and more live here. You're all set — welcome aboard!",
+      "Products, orders, analytics and more live here. You're all set — welcome aboard!",
   },
 ];
 
@@ -286,10 +286,10 @@ function DashboardPage() {
 
   const setupTasks = [
     {
-      title: "Create your wallet to receive payments",
-      description: "Connect bank details and choose storefront payment providers.",
-      href: "/wallet",
-      icon: WalletCards,
+      title: "Configure payment methods",
+      description: "Choose which providers process payments on your storefront.",
+      href: "/settings",
+      icon: CreditCard,
       complete: true,
     },
     {
@@ -356,7 +356,7 @@ function DashboardPage() {
       action: handleOpenAddModal,
       disabled: storeTypeStatus !== "ready",
     },
-    { label: "Open wallet", icon: WalletCards, href: "/wallet" },
+    { label: "Payment methods", icon: CreditCard, href: "/settings" },
     { label: "Payment methods", icon: BadgeCheck, href: "/settings" },
     { label: "Store settings", icon: Settings, href: "/settings" },
   ];
@@ -401,15 +401,15 @@ function DashboardPage() {
                 <div>
                   <h2 className="text-sm font-semibold">Complete your onboarding</h2>
                   <p className="text-xs text-muted-foreground">
-                    Complete the next steps to launch your website, wallet and sales channels.
+                    Complete the next steps to launch your website and sales channels.
                   </p>
                 </div>
                 <span className="shrink-0 text-xs font-semibold text-primary">{setupProgress}%</span>
               </div>
               <Progress value={setupProgress} className="h-2" />
             </div>
-            <Link href="/wallet">
-              <Button className="w-full lg:w-auto">Next Step: Set up wallet</Button>
+            <Link href="/settings">
+              <Button className="w-full lg:w-auto">Next Step: Payment methods</Button>
             </Link>
           </div>
         </CardContent>
@@ -472,16 +472,11 @@ function DashboardPage() {
                   : snapshotMetrics.map((metric) => <SnapshotCard key={metric.title} {...metric} />)}
               </div>
 
-              <div className="grid gap-5 border-t pt-5 lg:grid-cols-4">
+              <div className="grid gap-5 border-t pt-5 lg:grid-cols-3">
                 <OverviewValue
                   label="Total sales"
                   value={formatCurrency(overview?.total_revenue)}
                   icon={<Banknote className="h-5 w-5" />}
-                />
-                <OverviewValue
-                  label="Settled wallet"
-                  value={formatCurrency(overview?.total_revenue)}
-                  icon={<WalletCards className="h-5 w-5" />}
                 />
                 <OverviewValue
                   label="Pending orders"

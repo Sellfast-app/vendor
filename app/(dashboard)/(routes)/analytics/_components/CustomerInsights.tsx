@@ -47,7 +47,7 @@ const CustomerSegmentsChart = () => {
                             Customer Segments
                         </CardTitle>
                         <p className="text-xs text-gray-500 mt-1">
-                            An overview of your withdraw count and refund count.
+                            An overview of your customer orders and refunds.
                         </p>
                     </div>
                     <div className="flex gap-2">

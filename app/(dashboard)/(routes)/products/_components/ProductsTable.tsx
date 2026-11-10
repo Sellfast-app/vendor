@@ -44,7 +44,7 @@ interface ProductsTableProps { currency?: string }
 interface Product {
   id: string;
   store_id: string;
-  variants: Array<{ id?: string; name?: string; size?: string | number; color?: string; sku?: string; price?: number | string; quantity?: number | string }>;
+  variants: Array<{ id?: string; name?: string; size?: string | number; color?: string; sku?: string; price?: number | string; quantity?: number | string; image?: string; image_url?: string; image_file_index?: number }>;
   created_at: string;
   updated_at: string;
   product_sku: string;
@@ -80,7 +80,7 @@ interface FrontendProduct {
   status: string;
   createdAt: string;
   thumbnail: string | string[];
-  variants?: { id: string; name?: string; size: string | number; color: string; sku?: string; price: number; quantity: number }[];
+  variants?: { id: string; name?: string; size: string | number; color: string; sku?: string; price: number; quantity: number; image?: string }[];
   bundleItems?: { productId: string; productName: string; sku: string; quantity: number }[];
   product_type?: string;
   productType?: string;
@@ -119,6 +119,7 @@ const transformProduct = (product: Product): FrontendProduct => ({
     sku: String(variant.sku || ""),
     price: Number(variant.price || product.product_price),
     quantity: Number(variant.quantity || 0),
+    image: String(variant.image_url || variant.image || product.product_images?.[Number(variant.image_file_index)] || ""),
   })) : [],
   productType: product.product_type,
   product_type: product.product_type,

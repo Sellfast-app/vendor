@@ -14,7 +14,7 @@ export function ThemeProvider({ children, ...props }: CustomThemeProviderProps) 
   const pathname = usePathname();
 
   useEffect(() => {
-    const isDashboardRoute = ['/dashboard', '/products', '/orders', '/analytics', '/wallet', '/settings'].some(route => pathname.startsWith(route));
+    const isDashboardRoute = ['/dashboard', '/products', '/orders', '/analytics', '/pos', '/settings'].some(route => pathname.startsWith(route));
 
     const syncTheme = () => {
       if (!isDashboardRoute) {

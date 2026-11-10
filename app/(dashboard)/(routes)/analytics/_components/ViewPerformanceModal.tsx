@@ -153,7 +153,7 @@ export default function ViewPerformanceModal({ isOpen, onClose }: ViewPerformanc
               <div className="flex justify-between items-start mb-4">
               <div>
                 <h3 className="text-sm font-semibold">Customer Segments</h3>
-                <p className="text-xs text-gray-500 mt-1">An overview of your withdraw count and refund count.</p>
+                <p className="text-xs text-gray-500 mt-1">An overview of your orders and refunds.</p>
               </div>
               <div className="flex bg-gray-100 dark:bg-background rounded-lg p-1">
                 {periods.map((period) => (

@@ -22,13 +22,13 @@ function PreferencesComponent() {
     {
       id: "email",
       title: "Email Notifications",
-      description: "Get notified on orders, payouts from storefront and dashboard via email",
+      description: "Get notified about orders and payment status from your storefront and dashboard via email",
       enabled: false,
     },
     {
       id: "sms",
       title: "SMS Notifications",
-      description: "Get notified on orders, payouts, alert, deliveries from storefront and dashboard via SMS",
+      description: "Get notified about orders, alerts and deliveries from your storefront and dashboard via SMS",
       enabled: false,
     },
     {

@@ -24,6 +24,8 @@ import AddManualRateModal, {
 import AddPickupLocationModal, {
   type PickupLocation,
 } from "./AddPickupLocationModal";
+import BranchCatalogSettings from "./BranchCatalogSettings";
+import { V2_COUNTRY_INFO, type V2Country } from "@/lib/v2";
 
 const EditIcon = ({ className }: { className?: string }) => (
   <svg
@@ -45,36 +47,43 @@ const logisticsModes = [
     title: "GIG Logistics",
     description: "Nationwide automated dispatch with tracking links.",
     icon: Truck,
-    active: true,
-    status: "Connected",
+    mode: "gig",
+    supported: true,
   },
   {
     title: "Sendbox",
     description: "Automated quote, pickup and shipment creation.",
     icon: PackageCheck,
-    active: true,
-    status: "Connected",
+    mode: "sendbox",
+    supported: true,
   },
   {
     title: "Bolt Delivery",
     description: "Instant city dispatch for supported local orders.",
     icon: Bike,
-    active: false,
-    status: "Available",
+    mode: "bolt",
+    supported: false,
   },
   {
     title: "Manual shipping",
     description: "Vendor-defined flat rates by city, state or region.",
     icon: Boxes,
-    active: true,
-    status: "Manual",
+    mode: "vendor",
+    supported: true,
   },
   {
     title: "Branch pickup",
     description: "Let buyers collect from an eligible nearby branch.",
     icon: Building2,
-    active: false,
-    status: "Setup needed",
+    mode: "pickup",
+    supported: true,
+  },
+  {
+    title: "Relay",
+    description: "On-demand local delivery for supported food orders.",
+    icon: Bike,
+    mode: "relay",
+    supported: true,
   },
 ];
 
@@ -85,28 +94,44 @@ export default function LogisticsSettings() {
   const [editingLocation, setEditingLocation] = useState<PickupLocation | null>(null);
   const [manualRates, setManualRates] = useState<ManualRate[]>([]);
   const [pickupLocations, setPickupLocations] = useState<PickupLocation[]>([]);
+  const [storeCountry, setStoreCountry] = useState<string | undefined>();
+  const [enabledModes, setEnabledModes] = useState<string[]>([]);
+  const [isLoadingModes, setIsLoadingModes] = useState(true);
+  const [savingMode, setSavingMode] = useState<string | null>(null);
+  const [isSavingRates, setIsSavingRates] = useState(false);
 
   useEffect(() => {
     const loadManualRates = async () => {
       try {
         const response = await fetch("/api/store", { cache: "no-store" });
         const result = await response.json();
+        const country = result.data?.storeDetails?.metadata?.v2?.country;
+        if (typeof country === "string") setStoreCountry(country.toUpperCase());
+        const modes = result.data?.storeDetails?.enabled_fulfillment_modes;
+        if (Array.isArray(modes)) setEnabledModes(modes.filter((mode): mode is string => typeof mode === "string"));
         const rates = result.data?.storeDetails?.metadata?.manual_shipping_rates;
 
         if (Array.isArray(rates)) {
-          setManualRates(
-            rates.filter(
-              (rate): rate is ManualRate =>
-                typeof rate?.id === "string" &&
-                typeof rate?.location === "string" &&
-                typeof rate?.rate === "number" &&
-                Number.isFinite(rate.rate) &&
-                rate.rate > 0
-            )
-          );
+          setManualRates(rates.flatMap((rate): ManualRate[] => {
+            const amount = Number(rate?.rate);
+            return typeof rate?.id === "string" && typeof rate?.location === "string" && Number.isFinite(amount) && amount > 0
+              ? [{ id: rate.id, location: rate.location, rate: amount }]
+              : [];
+          }));
         }
+        const branchesResponse = await fetch("/api/branches", { cache: "no-store" });
+        const branchesResult = await branchesResponse.json();
+        if (!branchesResponse.ok) throw new Error(branchesResult.message || "Unable to load branches");
+        setPickupLocations(Array.isArray(branchesResult.data) ? branchesResult.data.map((branch: Record<string, unknown>) => ({
+          id: String(branch.id), name: String(branch.name), address: String(branch.address), city: String(branch.city),
+          state: String(branch.region), country: String(branch.country), currency: String(branch.currency),
+          is_default_online: Boolean(branch.is_default_online),
+        })) : []);
       } catch (error) {
         console.error("Failed to load manual shipping rates:", error);
+        toast.error(error instanceof Error ? error.message : "Failed to load logistics settings");
+      } finally {
+        setIsLoadingModes(false);
       }
     };
 
@@ -114,18 +139,59 @@ export default function LogisticsSettings() {
   }, []);
 
   const persistManualRates = async (rates: ManualRate[]) => {
-    const response = await fetch("/api/store", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ metadata: { manual_shipping_rates: rates } }),
-    });
-
-    const result = await response.json();
-    if (!response.ok) {
-      throw new Error(result.error || result.message || "Failed to save manual shipping rates");
-    }
+    const previousRates = manualRates;
     setManualRates(rates);
+    setIsSavingRates(true);
+    try {
+      const response = await fetch("/api/store", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ metadata: { manual_shipping_rates: rates } }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || result.message || "Failed to save manual shipping rates");
+      }
+    } catch (error) {
+      setManualRates(previousRates);
+      throw error;
+    } finally {
+      setIsSavingRates(false);
+    }
   };
+
+  const toggleFulfillmentMode = async (mode: string, checked: boolean) => {
+    if (savingMode) return;
+    const nextModes = checked
+      ? [...new Set([...enabledModes, mode])]
+      : enabledModes.filter((enabledMode) => enabledMode !== mode);
+    if (nextModes.length === 0) {
+      toast.error("At least one delivery method must remain enabled");
+      return;
+    }
+
+    const previousModes = enabledModes;
+    setEnabledModes(nextModes);
+    setSavingMode(mode);
+    try {
+      const response = await fetch("/api/store", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled_fulfillment_modes: nextModes }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || result.message || "Failed to save delivery method");
+      toast.success("Delivery methods updated");
+    } catch (error) {
+      setEnabledModes(previousModes);
+      toast.error(error instanceof Error ? error.message : "Failed to save delivery method");
+    } finally {
+      setSavingMode(null);
+    }
+  };
+
+  const persistPickupLocations = (locations: PickupLocation[]) => setPickupLocations(locations);
 
   const openAddRateModal = () => {
     setEditingRate(null);
@@ -148,23 +214,15 @@ export default function LogisticsSettings() {
   };
 
   const handleAddRate = async (rate: ManualRate) => {
-    try {
-      await persistManualRates([...manualRates, rate]);
-      toast.success(`Manual rate for ${rate.location} added`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to save manual rate");
-    }
+    await persistManualRates([...manualRates, rate]);
+    toast.success(`Manual rate for ${rate.location} added`);
   };
 
   const handleUpdateRate = async (rate: ManualRate) => {
-    try {
-      await persistManualRates(
-        manualRates.map((item) => (item.id === rate.id ? rate : item))
-      );
-      toast.success(`Manual rate for ${rate.location} updated`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to update manual rate");
-    }
+    await persistManualRates(
+      manualRates.map((item) => (item.id === rate.id ? rate : item))
+    );
+    toast.success(`Manual rate for ${rate.location} updated`);
   };
 
   const handleRemoveRate = async (id: string) => {
@@ -176,23 +234,38 @@ export default function LogisticsSettings() {
     }
   };
 
-  const handleAddLocation = (location: PickupLocation) => {
-    setPickupLocations((current) => [...current, location]);
+  const currency = storeCountry && storeCountry in V2_COUNTRY_INFO
+    ? V2_COUNTRY_INFO[storeCountry as V2Country].currency
+    : "NGN";
+
+  const handleAddLocation = async (location: PickupLocation) => {
+    const response = await fetch("/api/branches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: location.name, address: location.address, city: location.city, region: location.state, country: location.country, currency: location.currency, is_default_online: location.is_default_online }) });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.message || "Failed to add branch");
+    await persistPickupLocations([...pickupLocations, { ...location, id: result.data.id, is_default_online: result.data.is_default_online }]);
     toast.success(`${location.name} added`);
   };
 
-  const handleUpdateLocation = (location: PickupLocation) => {
-    setPickupLocations((current) =>
-      current.map((item) => (item.id === location.id ? location : item))
-    );
+  const handleUpdateLocation = async (location: PickupLocation) => {
+    const response = await fetch(`/api/branches/${encodeURIComponent(location.id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: location.name, address: location.address, city: location.city, region: location.state, country: location.country, currency: location.currency, is_default_online: location.is_default_online }) });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.message || "Failed to update branch");
+    await persistPickupLocations(pickupLocations.map((item) => item.id === location.id ? { ...location, is_default_online: result.data.is_default_online } : { ...item, is_default_online: location.is_default_online ? false : item.is_default_online }));
     toast.success(`${location.name} updated`);
   };
 
-  const handleRemoveLocation = (id: string) => {
-    setPickupLocations((current) =>
-      current.filter((location) => location.id !== id)
-    );
-    toast.success("Pickup location removed");
+  const handleRemoveLocation = async (id: string) => {
+    try {
+      const response = await fetch(`/api/branches/${encodeURIComponent(id)}`, { method: "DELETE" });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || "Failed to remove branch");
+      const remaining = pickupLocations.filter((location) => location.id !== id);
+      if (!remaining.some((location) => location.is_default_online) && remaining[0]) remaining[0].is_default_online = true;
+      await persistPickupLocations(remaining);
+      toast.success("Pickup location removed");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to remove pickup location");
+    }
   };
 
   return (
@@ -206,11 +279,9 @@ export default function LogisticsSettings() {
               </p>
               <h2 className="mt-2 text-lg font-semibold">Logistics modes</h2>
               <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                Configure the delivery options that appear on website, web chat
-                and WhatsApp checkout.
+                Choose the delivery options available at checkout. Changes save automatically.
               </p>
             </div>
-            <Button>Save logistics setup</Button>
           </div>
         </CardHeader>
         <CardContent className="grid gap-4 p-5 xl:grid-cols-2">
@@ -223,16 +294,14 @@ export default function LogisticsSettings() {
                   </div>
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-medium">{mode.title}</p>
+                <p className="text-sm font-medium">{mode.title}</p>
                       <Badge
                         variant="outline"
-                        className={
-                          mode.active
-                            ? "border-primary/20 bg-primary/10 text-primary"
-                            : "border-amber-200 bg-amber-50 text-amber-700"
-                        }
+                        className={enabledModes.includes(mode.mode)
+                          ? "border-primary/20 bg-primary/10 text-primary"
+                          : "border-amber-200 bg-amber-50 text-amber-700"}
                       >
-                        {mode.status}
+                        {!mode.supported ? "Coming soon" : enabledModes.includes(mode.mode) ? "Enabled" : "Available"}
                       </Badge>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
@@ -240,7 +309,12 @@ export default function LogisticsSettings() {
                     </p>
                   </div>
                 </div>
-                <Switch defaultChecked={mode.active} />
+                <Switch
+                  checked={enabledModes.includes(mode.mode)}
+                  onCheckedChange={(checked) => toggleFulfillmentMode(mode.mode, checked)}
+                  disabled={!mode.supported || isLoadingModes || savingMode !== null}
+                  aria-label={`${mode.title} ${enabledModes.includes(mode.mode) ? "enabled" : "disabled"}`}
+                />
               </div>
             </div>
           ))}
@@ -258,13 +332,13 @@ export default function LogisticsSettings() {
                   used.
                 </p>
               </div>
-              <Button size="sm" onClick={openAddRateModal}>
+              <Button size="sm" onClick={openAddRateModal} disabled={isSavingRates}>
                 <Plus className="h-4 w-4" />
                 Add manual rate
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="p-5">
+          <CardContent id="branch-pickup-locations" className="p-5">
             {manualRates.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-8 text-center">
                 <Boxes className="h-8 w-8 text-muted-foreground/60" />
@@ -288,14 +362,14 @@ export default function LogisticsSettings() {
                         <p className="truncate text-sm font-medium">
                           {rate.location}
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          Buyer sees: Manual shipping — {formatNaira(rate.rate)}
+                      <p className="text-xs text-muted-foreground">
+                          Buyer sees: Manual shipping — {formatNaira(rate.rate, currency)}
                         </p>
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
                       <span className="text-sm font-semibold text-primary">
-                        {formatNaira(rate.rate)}
+                        {formatNaira(rate.rate, currency)}
                       </span>
                       <Button
                         variant="ghost"
@@ -303,6 +377,7 @@ export default function LogisticsSettings() {
                         className="h-8 w-8 text-muted-foreground hover:text-primary"
                         onClick={() => openEditRateModal(rate)}
                         aria-label={`Edit manual rate for ${rate.location}`}
+                        disabled={isSavingRates}
                       >
                         <EditIcon className="h-4 w-4" />
                       </Button>
@@ -312,6 +387,7 @@ export default function LogisticsSettings() {
                         className="h-8 w-8 text-muted-foreground hover:text-red-600"
                         onClick={() => handleRemoveRate(rate.id)}
                         aria-label={`Remove manual rate for ${rate.location}`}
+                        disabled={isSavingRates}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -364,13 +440,11 @@ export default function LogisticsSettings() {
                         <p className="truncate text-sm font-medium">
                           {location.name}
                         </p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {location.address} · {location.state}
-                        </p>
+                        <p className="truncate text-xs text-muted-foreground">{location.address} · {location.city}, {location.state} · {location.currency}</p>
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
-                      <Badge variant="secondary">{location.mode}</Badge>
+                      <Badge variant="secondary">{location.is_default_online ? "Default" : "Branch"}</Badge>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -396,6 +470,8 @@ export default function LogisticsSettings() {
             )}
           </CardContent>
         </Card>
+
+        <BranchCatalogSettings branches={pickupLocations.map(({ id, name, currency }) => ({ id, name, currency }))} />
       </div>
 
       <AddManualRateModal
@@ -404,6 +480,8 @@ export default function LogisticsSettings() {
         onAddRate={handleAddRate}
         onUpdateRate={handleUpdateRate}
         editingRate={editingRate}
+        isSaving={isSavingRates}
+        currency={currency}
       />
       <AddPickupLocationModal
         isOpen={isLocationModalOpen}
@@ -411,6 +489,7 @@ export default function LogisticsSettings() {
         onAddLocation={handleAddLocation}
         onUpdateLocation={handleUpdateLocation}
         editingLocation={editingLocation}
+        storeCountry={storeCountry}
       />
     </div>
   );

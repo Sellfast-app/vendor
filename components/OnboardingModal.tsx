@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { X, CheckCircle2, Circle, Wallet, MapPin, ImageIcon, Package, CreditCard } from 'lucide-react';
+import { X, CheckCircle2, Circle, Landmark, MapPin, ImageIcon, Package, CreditCard } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogOverlay, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -67,23 +67,32 @@ async function checkTasksCompletion() {
 
   // First, detect if this is a food store
   let isFoodStore = false;
+  let isTicketStore = false;
+  let isV2Store = false;
   try {
     const storeResponse = await fetch('/api/store');
     const storeResult = await storeResponse.json();
     if (storeResult.status === 'success' && storeResult.data?.storeDetails) {
       const store = storeResult.data.storeDetails;
       const storeId = store.id || store.uid || store.store_id;
-      const businessType = store.business_type || '';
-      isFoodStore = businessType === 'Restaurant/Food Service';
-      console.log('🍽️ Store type:', businessType, '| Is food store:', isFoodStore);
+      const businessType = String(store.business_type || store.metadata?.v2?.business_type || '').toLowerCase();
+      isFoodStore = businessType.includes('food') || businessType.includes('restaurant');
+      isTicketStore = businessType.includes('ticket') || businessType.includes('event');
+      isV2Store = Boolean(store.metadata?.v2);
+      console.log('Store type:', businessType, '| Food:', isFoodStore, '| Ticketing:', isTicketStore, '| V2:', isV2Store);
 
       if (storeId) {
         try {
-          const paymentResponse = await fetch(`/api/payments/store/${storeId}/methods`);
+          const paymentResponse = await fetch(isV2Store ? '/api/v2/payment-methods' : `/api/payments/store/${storeId}/methods`, { cache: 'no-store' });
           const paymentResult = await paymentResponse.json();
-          const methods = Array.isArray(paymentResult.data) ? paymentResult.data : [];
-          tasks.paymentMethods = methods.length > 0 || tasks.bankAccount;
-          console.log('✅ Payment methods check:', methods.length);
+          const methods = isV2Store ? paymentResult.data?.methods || [] : Array.isArray(paymentResult.data) ? paymentResult.data : [];
+          if (isV2Store) {
+            tasks.paymentMethods = methods.some((method: { enabled?: boolean }) => method.enabled);
+            tasks.bankAccount = methods.some((method: { available?: boolean }) => method.available);
+          } else {
+            tasks.paymentMethods = methods.length > 0 || tasks.bankAccount;
+          }
+          console.log('Payment methods check:', methods.length);
         } catch (error) {
           console.log('ℹ️ Error checking payment methods:', error);
         }
@@ -128,8 +137,14 @@ async function checkTasksCompletion() {
   }
 
   try {
-    // 🔑 Check products - use different endpoint for food stores
-    if (isFoodStore) {
+    // Ticketing businesses complete this step by publishing an event, not a retail product.
+    if (isTicketStore) {
+      const eventsResponse = await fetch('/api/vendor/events', { cache: 'no-store' });
+      const eventsResult = await eventsResponse.json();
+      if (!eventsResponse.ok) throw new Error(eventsResult.message || 'Could not check published events');
+      const events = Array.isArray(eventsResult.data) ? eventsResult.data : [];
+      tasks.products = events.length > 0;
+    } else if (isFoodStore) {
       // Food vendors: check /api/products/food
       const foodResponse = await fetch('/api/products/food');
       const foodResult = await foodResponse.json();
@@ -187,11 +202,18 @@ async function checkTasksCompletion() {
   }
 
   try {
-    const subResponse = await fetch('/api/subscription/status');
+    const subResponse = await fetch(isV2Store ? '/api/billing' : '/api/subscription/status', { cache: 'no-store' });
     const subResult = await subResponse.json();
-    if (subResult.hasActiveSubscription === true) {
+    if (isV2Store) {
+      const billing = subResult.data;
+      tasks.subscription = subResponse.ok && (
+        billing?.plan_model === 'markup' ||
+        (billing?.plan_model === 'subscription' && billing?.plan_status === 'active' && ['active', 'non-renewing'].includes(billing?.subscription_status))
+      );
+      console.log('V2 billing plan setup detected:', tasks.subscription);
+    } else if (subResult.hasActiveSubscription === true) {
       tasks.subscription = true;
-      console.log('✅ Active subscription detected');
+      console.log('Active subscription detected');
     } else {
       console.log('❌ No active subscription');
     }
@@ -326,10 +348,10 @@ export const OnboardingModal = () => {
   const taskConfig = [
     {
       key: 'bankAccount' as const,
-      icon: Wallet,
-      title: 'Setup your bank information',
-      description: 'Start receiving payout by connecting your bank details',
-      route: '/wallet',
+      icon: Landmark,
+      title: 'Set up payment settlement',
+      description: 'Connect a settlement account so customer payments can be received.',
+      route: '/settings',
       iconColor: 'text-green-500',
       bgColor: 'bg-green-100 dark:bg-green-950',
       important: true,
@@ -379,7 +401,7 @@ export const OnboardingModal = () => {
       icon: CreditCard, // ← import this from lucide-react
       title: 'Subscribe to activate your store',
       description: 'Get full access to your storefront and start selling today.',
-      route: '/wallet',
+      route: '/settings',
       iconColor: 'text-yellow-500',
       bgColor: 'bg-yellow-100 dark:bg-yellow-950',
       important: true, // ← subscription is required

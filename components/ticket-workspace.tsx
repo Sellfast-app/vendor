@@ -32,6 +32,8 @@ type LiveTicketOrder = {
   total_amount: number | string;
   order_status: string;
   payment_status: string;
+  refund_status?: string | null;
+  refund_reason?: string | null;
   created_at: string;
   admissions: Array<{ id: string; ticket_type_id: string; ticket_name: string; status: string; checked_in_at: string | null }>;
 };
@@ -228,7 +230,7 @@ export function TicketWorkspace({ view = "orders" }: { view?: "orders" | "attend
               <td className="px-4 py-3"><p>{order.customer_first_name} {order.customer_last_name}</p><p className="text-xs text-muted-foreground">{order.customer_email}</p></td>
               <td className="px-4 py-3">{order.event_name}</td><td className="px-4 py-3">{order.admissions.length}</td>
               <td className="px-4 py-3">{new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 2 }).format(Number(order.total_amount))}</td>
-              <td className="px-4 py-3 capitalize">{order.payment_status}</td><td className="px-4 py-3 capitalize">{order.order_status}</td>
+              <td className="px-4 py-3"><span className="capitalize">{order.payment_status}</span>{order.refund_status && <p className="mt-1 text-xs text-amber-700">Refund: {order.refund_status.replaceAll("_", " ")}</p>}</td><td className="px-4 py-3 capitalize">{order.order_status}</td>
               <td className="px-4 py-3"><Button variant="ghost" onClick={() => setDetail(order)}>View</Button></td>
             </tr>)}</tbody>
           </table>
@@ -244,6 +246,7 @@ export function TicketWorkspace({ view = "orders" }: { view?: "orders" | "attend
           <p className="font-semibold">{detail.event_name}</p><p>{detail.customer_first_name} {detail.customer_last_name}</p>
           <p className="break-all">{detail.customer_email} · {detail.customer_whatsapp || "No WhatsApp number"}</p><p className="break-all text-xs text-muted-foreground">{detail.id}</p>
           <p>{new Date(detail.created_at).toLocaleString()} · {detail.order_status} · Payment {detail.payment_status}</p>
+          {detail.refund_status && <div role="status" className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-amber-950"><p className="font-medium">Refund review: {detail.refund_status.replaceAll("_", " ")}</p><p className="mt-1 text-xs">{detail.refund_reason || "This payment succeeded after the ticket reservation expired. The tickets remain invalid while the payment is reconciled."}</p></div>}
           <p>{new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 2 }).format(Number(detail.total_amount))}</p>
           <div className="divide-y">{detail.admissions.map(ticket => <div key={ticket.id} className="flex justify-between gap-3 py-3"><span>{ticket.ticket_name}</span><span className="capitalize">{ticket.status}{ticket.checked_in_at ? ` · ${new Date(ticket.checked_in_at).toLocaleString()}` : ""}</span></div>)}</div>
         </div>}

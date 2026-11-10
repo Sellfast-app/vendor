@@ -21,7 +21,6 @@ const permissionGroups = [
   { title: "Customers", permissions: ["customers.read", "customers.manage"] },
   { title: "Tickets", permissions: ["tickets.checkin"] },
   { title: "Analytics & reports", permissions: ["analytics.read"] },
-  { title: "Wallet & finance", permissions: ["wallet.read", "wallet.withdraw"] },
   { title: "Settings", permissions: ["settings.read", "settings.update"] },
   { title: "Notifications", permissions: ["notifications.read", "notifications.manage"] },
 ];

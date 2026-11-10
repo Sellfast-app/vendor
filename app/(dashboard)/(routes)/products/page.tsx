@@ -17,8 +17,7 @@ import ProductsTable from "./_components/ProductsTable";
 import FoodTable from "./_components/FoodTable";
 import { ExportModal } from "@/components/ExportModal";
 import { isFoodBusinessType } from "@/lib/store";
-import { Badge } from "@/components/ui/badge";
-import { Boxes, MessageCircle, Plus, ShoppingBag, Ticket } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getStoreCurrency } from "@/lib/v2-currency";
 
@@ -164,7 +163,7 @@ function ProductsPage() {
             {isRestaurant ? "Food catalog" : "Retail catalog"}
           </p>
           <h3 className="text-sm font-bold">
-            {isRestaurant ? "Food Items" : "Products"}
+            {isRestaurant ? "Menu" : "Products"}
           </h3>
           <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
             Manage items that can sell through website storefront, web chat and WhatsApp AI.
@@ -186,42 +185,6 @@ function ProductsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
           {overviewMetrics.map((metric) => (
             <OverviewMetric key={metric.id} metric={metric} />
-          ))}
-        </div>
-        <div className="grid gap-4 lg:grid-cols-3">
-          {[
-            {
-              icon: isRestaurant ? Boxes : ShoppingBag,
-              title: isRestaurant ? "Food item setup" : "Retail product setup",
-              description: isRestaurant
-                ? "Simple, customizable and bundle food products stay visible from one catalog."
-                : "Stock, variants, markup pricing and fulfillment rules stay visible from one catalog.",
-            },
-            {
-              icon: MessageCircle,
-              title: "AI sales assistant sync",
-              description: "Catalog availability is shown for WhatsApp and web chat selling.",
-            },
-            {
-              icon: Ticket,
-              title: "Pricing model",
-              description: "Markup-plan items can show buyer-facing fees without changing vendor base price.",
-            },
-          ].map((item) => (
-            <Card key={item.title} className="shadow-none">
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <item.icon className="h-5 w-5" />
-                  </div>
-                  <Badge variant="outline" className="border-primary/20 text-primary">
-                    Active
-                  </Badge>
-                </div>
-                <h4 className="mt-4 text-sm font-semibold">{item.title}</h4>
-                <p className="mt-2 text-xs text-muted-foreground">{item.description}</p>
-              </CardContent>
-            </Card>
           ))}
         </div>
         <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">

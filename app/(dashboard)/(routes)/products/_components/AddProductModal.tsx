@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import Image from "next/image";
 import { toast } from "sonner";
-import { Archive, Box, Check, ImagePlus, Loader2, PackagePlus, Plus, X } from "lucide-react";
+import { Archive, Box, Camera, Check, ImagePlus, Loader2, PackagePlus, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,6 +29,7 @@ type RetailProductVariant = {
   color: string;
   price: number;
   quantity: number;
+  image?: string;
 };
 type CreatedRetailProduct = {
   id: string;
@@ -53,6 +54,7 @@ type VariantDraft = {
   sku: string;
   price: string;
   quantity: string;
+  image: File | null;
 };
 type BundleEntry = { productId: string; quantity: string };
 
@@ -78,7 +80,7 @@ const statusFromApi: Record<string, string> = {
 };
 
 const newVariant = (): VariantDraft => ({
-  id: crypto.randomUUID(), name: "", size: "", color: "", sku: "", price: "", quantity: "",
+  id: crypto.randomUUID(), name: "", size: "", color: "", sku: "", price: "", quantity: "", image: null,
 });
 
 export default function AddProductModal({ isOpen, onClose, onAddProduct, availableProducts = [], currency = "NGN" }: AddProductModalProps) {
@@ -98,6 +100,9 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
   const [status, setStatus] = useState("ready");
   const [unit, setUnit] = useState("pc");
   const [barcode, setBarcode] = useState("");
+  const [isBarcodeScannerOpen, setIsBarcodeScannerOpen] = useState(false);
+  const [barcodeScannerError, setBarcodeScannerError] = useState("");
+  const barcodeVideoRef = useRef<HTMLVideoElement>(null);
   const [weight, setWeight] = useState("1");
   const [productionFrom, setProductionFrom] = useState("2");
   const [productionTo, setProductionTo] = useState("5");
@@ -111,6 +116,42 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
 
   const previews = useMemo(() => images.map(file => URL.createObjectURL(file)), [images]);
   useEffect(() => () => previews.forEach(URL.revokeObjectURL), [previews]);
+  const variantPreviews = useMemo(() => variants.flatMap(variant => variant.image
+    ? [{ id: variant.id, url: URL.createObjectURL(variant.image) }]
+    : []), [variants]);
+  useEffect(() => () => variantPreviews.forEach(preview => URL.revokeObjectURL(preview.url)), [variantPreviews]);
+
+  useEffect(() => {
+    if (!isBarcodeScannerOpen) return;
+    let disposed = false;
+    let controls: { stop: () => void } | undefined;
+    const startScanner = async () => {
+      try {
+        const { BrowserMultiFormatReader } = await import("@zxing/browser");
+        if (disposed || !barcodeVideoRef.current) return;
+        const reader = new BrowserMultiFormatReader();
+        controls = await reader.decodeFromConstraints(
+          { video: { facingMode: { ideal: "environment" } }, audio: false },
+          barcodeVideoRef.current,
+          (result, _error, session) => {
+            if (!result || disposed) return;
+            const value = result.getText().trim();
+            if (!value) return;
+            disposed = true;
+            session.stop();
+            setBarcode(value);
+            setIsBarcodeScannerOpen(false);
+            setBarcodeScannerError("");
+          },
+        );
+        if (disposed) controls.stop();
+      } catch {
+        if (!disposed) setBarcodeScannerError("Camera unavailable. Allow camera access over HTTPS, or enter the barcode manually.");
+      }
+    };
+    void startScanner();
+    return () => { disposed = true; controls?.stop(); };
+  }, [isBarcodeScannerOpen]);
 
   const bundleCandidates = availableProducts.filter(product => product.productType !== "bundle");
   const selectedProducts = bundleCandidates.filter(product => bundleEntries.some(entry => entry.productId === product.id));
@@ -124,16 +165,24 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
   useEffect(() => {
     if (!isOpen) return;
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !isSaving) onClose();
+      if (event.key === "Escape" && !isSaving) {
+        setIsBarcodeScannerOpen(false);
+        onClose();
+      }
     };
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
   }, [isOpen, isSaving, onClose]);
 
+  const handleClose = () => {
+    setIsBarcodeScannerOpen(false);
+    onClose();
+  };
+
   const reset = () => {
     setKind("regular"); setName(""); setLocation(""); setShortDescription(""); setDescription("");
     setCollection(""); setSizeChartEnabled(false); setSizeChartUrl(""); setPrice(""); setCostPrice("");
-    setCompareAtPrice(""); setStock(""); setStatus("ready"); setUnit("pc"); setBarcode("");
+    setCompareAtPrice(""); setStock(""); setStatus("ready"); setUnit("pc"); setBarcode(""); setIsBarcodeScannerOpen(false);
     setWeight("1"); setProductionFrom("2"); setProductionTo("5"); setOrderQuantityEnabled(false);
     setMinimumOrder("1"); setMaximumOrder(""); setVariants([newVariant()]); setBundleEntries([]); setImages([]);
   };
@@ -146,7 +195,7 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
     event.target.value = "";
   };
 
-  const updateVariant = (id: string, key: keyof VariantDraft, value: string) => {
+  const updateVariant = (id: string, key: keyof VariantDraft, value: string | File | null) => {
     setVariants(current => current.map(variant => variant.id === id ? { ...variant, [key]: value } : variant));
   };
 
@@ -197,19 +246,25 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
       formData.append("min_order_quantity", orderQuantityEnabled ? minimumOrder : "");
       formData.append("max_order_quantity", orderQuantityEnabled ? maximumOrder : "");
       formData.append("location", location);
-      formData.append("variants", JSON.stringify(kind === "variants" ? variants.map(variant => ({
-        size: variant.size || variant.name,
-        name: variant.name,
-        color: variant.color,
-        sku: variant.sku,
-        quantity: Number(variant.quantity),
-        ...(variant.price ? { price: Number(variant.price) } : {}),
-      })) : []));
+      const uploadFiles = [...images];
+      const variantPayload = kind === "variants" ? variants.map(variant => {
+        const imageFileIndex = variant.image ? uploadFiles.push(variant.image) - 1 : undefined;
+        return {
+          size: variant.size || variant.name,
+          name: variant.name,
+          color: variant.color,
+          sku: variant.sku,
+          quantity: Number(variant.quantity),
+          ...(variant.price ? { price: Number(variant.price) } : {}),
+          ...(imageFileIndex !== undefined ? { image_file_index: imageFileIndex } : {}),
+        };
+      }) : [];
+      formData.append("variants", JSON.stringify(variantPayload));
       formData.append("bundle_items", JSON.stringify(kind === "bundle" ? bundleEntries.map(entry => ({
         product_id: entry.productId,
         quantity: Number(entry.quantity),
       })) : []));
-      images.forEach((file, index) => formData.append("files", file, `product-image-${index}.${file.name.split(".").pop() || "jpg"}`));
+      uploadFiles.forEach((file, index) => formData.append("files", file, `product-image-${index}.${file.name.split(".").pop() || "jpg"}`));
 
       const response = await fetch("/api/products", { method: "POST", body: formData });
       const result = await response.json();
@@ -236,13 +291,14 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
           color: String(variant.color || ""),
           price: Number(variant.price || product.product_price || price),
           quantity: Number(variant.quantity || 0),
+          image: String(variant.image_url || variant.image || product.product_images?.[Number(variant.image_file_index ?? variantPayload[index]?.image_file_index)] || ""),
         })),
         weight: Number(product.product_weight || weight),
         productType: String(product.product_type || (kind === "bundle" ? "bundle" : kind === "variants" ? "variant" : "single")),
       });
       toast.success("Product created.");
       reset();
-      onClose();
+      handleClose();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to create product.");
     } finally {
@@ -321,9 +377,13 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
   const inventory = section(kind === "bundle" ? "Bundle inventory" : "Product inventory", <>
     {kind === "bundle" && <p className="text-xs text-muted-foreground sm:col-span-2">Bundle quantity cannot exceed available component stock. Current maximum: {bundleStockLimit}.</p>}
     {field("Stock quantity", <Input type="number" min="0" value={stock} onChange={event => setStock(event.target.value)} placeholder="Enter quantity" />)}
-    {field("Status", <Select value={status} onValueChange={setStatus}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ready">Ready stock</SelectItem><SelectItem value="made-to-order">Made to order</SelectItem><SelectItem value="out-of-stock">Out of stock</SelectItem></SelectContent></Select>, true)}
-    {field("Unit", <Select value={unit} onValueChange={setUnit}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{UNIT_OPTIONS.map(option => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent></Select>, true)}
-    {field("Barcode", <Input value={barcode} onChange={event => setBarcode(event.target.value)} placeholder="Scan or enter barcode" />, true)}
+    {field("Status", <Select value={status} onValueChange={setStatus}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent className="z-[80]"><SelectItem value="ready">Ready stock</SelectItem><SelectItem value="made-to-order">Made to order</SelectItem><SelectItem value="out-of-stock">Out of stock</SelectItem></SelectContent></Select>, true)}
+    {field("Unit", <Select value={unit} onValueChange={setUnit}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent className="z-[80]">{UNIT_OPTIONS.map(option => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent></Select>, true)}
+    {field("Barcode", <div className="space-y-2">
+      <div className="flex gap-2"><Input value={barcode} onChange={event => setBarcode(event.target.value)} placeholder="Enter barcode" /><Button type="button" variant="outline" size="icon" title="Scan barcode" aria-label="Scan barcode" onClick={() => { setBarcodeScannerError(""); setIsBarcodeScannerOpen(value => !value); }}><Camera className="h-4 w-4" /></Button></div>
+      {isBarcodeScannerOpen && <div className="space-y-2 rounded-md border p-2"><video ref={barcodeVideoRef} muted playsInline className="aspect-video max-h-48 w-full rounded bg-black object-cover" /><Button type="button" variant="outline" size="sm" onClick={() => setIsBarcodeScannerOpen(false)}>Stop scanning</Button></div>}
+      {barcodeScannerError && <p role="alert" className="text-xs text-destructive">{barcodeScannerError}</p>}
+    </div>, true)}
     {kind !== "bundle" && field("Weight (kg)", <Input type="number" min="0.1" step="0.1" value={weight} onChange={event => setWeight(event.target.value)} />)}
     {kind !== "bundle" && <>
       {field("Production days (from)", <Input type="number" min="0" value={productionFrom} onChange={event => setProductionFrom(event.target.value)} />)}
@@ -343,9 +403,10 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
     <section className="border-b">
       <h3 className="bg-muted/60 px-4 py-3 text-sm font-semibold">Product variations</h3>
       <div className="space-y-3 p-4">
-        <p className="text-xs text-muted-foreground">Add a row for each sellable combination. Stock and price can vary by option.</p>
-        {variants.map((variant, index) => (
-          <div key={variant.id} className="rounded-md border p-3">
+        <p className="text-xs text-muted-foreground">Add a row for each sellable combination. Stock, price and image can vary by option.</p>
+        {variants.map((variant, index) => {
+          const preview = variantPreviews.find(item => item.id === variant.id);
+          return <div key={variant.id} className="rounded-md border p-3">
             <div className="mb-3 flex items-center justify-between"><p className="text-sm font-medium">Variant {index + 1}</p>{variants.length > 1 && <Button type="button" variant="ghost" size="icon" aria-label="Remove variant" onClick={() => setVariants(current => current.filter(item => item.id !== variant.id))}><X className="h-4 w-4" /></Button>}</div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {field("Variant name", <Input value={variant.name} onChange={event => updateVariant(variant.id, "name", event.target.value)} placeholder="e.g. Black / Medium" />)}
@@ -354,9 +415,26 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
               {field("SKU", <Input value={variant.sku} onChange={event => updateVariant(variant.id, "sku", event.target.value)} placeholder="Variant SKU" />, true)}
               {field("Selling price", <Input type="number" min="0" value={variant.price} onChange={event => updateVariant(variant.id, "price", event.target.value)} placeholder={price || "Use product price"} />)}
               {field("Stock quantity", <Input type="number" min="0" value={variant.quantity} onChange={event => updateVariant(variant.id, "quantity", event.target.value)} placeholder="0" />)}
+              <div className="space-y-1.5">
+                <Label htmlFor={`variant-image-${variant.id}`} className="text-xs text-muted-foreground">Variant image (Optional)</Label>
+                <div className="flex items-center gap-3">
+                  {preview && <Image src={preview.url} alt={`${variant.name || `Variant ${index + 1}`} preview`} width={40} height={40} unoptimized className="h-10 w-10 rounded border object-cover" />}
+                  <Input id={`variant-image-${variant.id}`} type="file" accept="image/*" className="text-xs" onChange={event => {
+                    const file = event.target.files?.[0] || null;
+                    if (file && (!file.type.startsWith("image/") || file.size > 5 * 1024 * 1024)) {
+                      toast.error("Use an image file up to 5 MB.");
+                      event.target.value = "";
+                      return;
+                    }
+                    updateVariant(variant.id, "image", file);
+                    event.target.value = "";
+                  }} />
+                  {variant.image && <Button type="button" variant="ghost" size="icon" aria-label="Remove variant image" onClick={() => updateVariant(variant.id, "image", null)}><X className="h-4 w-4" /></Button>}
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          </div>;
+        })}
         <Button type="button" variant="outline" onClick={() => setVariants(current => [...current, newVariant()])}><Plus className="mr-2 h-4 w-4" />Add variation</Button>
       </div>
     </section>
@@ -385,11 +463,11 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
   );
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/45 p-2 sm:p-4" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget && !isSaving) onClose(); }}>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/45 p-2 sm:p-4" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget && !isSaving) handleClose(); }}>
       <div role="dialog" aria-modal="true" aria-labelledby="retail-product-title" className="flex max-h-[96vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg border bg-background shadow-xl">
         <header className="flex items-center justify-between border-b px-4 py-3 sm:px-6">
           <div><p className="text-xs text-muted-foreground">Products</p><h2 id="retail-product-title" className="text-lg font-semibold">Create product</h2></div>
-          <Button type="button" variant="ghost" size="icon" aria-label="Close" onClick={onClose} disabled={isSaving}><X className="h-5 w-5" /></Button>
+          <Button type="button" variant="ghost" size="icon" aria-label="Close" onClick={handleClose} disabled={isSaving}><X className="h-5 w-5" /></Button>
         </header>
         <main className="min-h-0 flex-1 overflow-y-auto">
           <div className="border-b p-4 sm:p-6">
@@ -414,7 +492,7 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
         </main>
         <footer className="flex items-center justify-between gap-3 border-t bg-background px-4 py-3 sm:px-6">
           <Button type="button" variant="ghost" onClick={reset} disabled={isSaving}>Clear fields</Button>
-          <div className="flex gap-2"><Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>Cancel</Button><Button type="button" onClick={handleSave} disabled={isSaving}>{isSaving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving</> : kind === "bundle" ? "Save bundle" : "Add product"}</Button></div>
+          <div className="flex gap-2"><Button type="button" variant="outline" onClick={handleClose} disabled={isSaving}>Cancel</Button><Button type="button" onClick={handleSave} disabled={isSaving}>{isSaving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving</> : kind === "bundle" ? "Save bundle" : "Add product"}</Button></div>
         </footer>
       </div>
     </div>

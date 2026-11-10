@@ -16,7 +16,7 @@
  * Daash plan screen (ref #32).
  */
 
-import { BadgeCheck, Calculator, Check, LockKeyhole, Tag, WalletCards } from 'lucide-react';
+import { BadgeCheck, Calculator, CalendarClock, Check, LockKeyhole, Tag } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -70,19 +70,23 @@ export default function V2PlanStep({
   const formatCurrency = (amount: number) => new Intl.NumberFormat(undefined, {
     style: 'currency', currency, maximumFractionDigits: 2,
   }).format(amount);
+  const formatPrice = (amount: number | undefined) =>
+    typeof amount === 'number' && Number.isFinite(amount)
+      ? new Intl.NumberFormat(undefined, { style: 'currency', currency: subscriptionPricing?.currency || currency, maximumFractionDigits: 2 }).format(amount)
+      : 'Unavailable';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-sans">
       <div className="flex flex-col">
-        <h1 className="text-2xl font-semibold text-primary">Choose your Swiftree plan</h1>
-        <p className="text-xs text-muted-foreground">
+        <h1 className="text-xl font-semibold text-primary">Choose your Swiftree plan</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           {BUSINESS_MODEL_COPY[businessType]} Monthly billing is not available.
         </p>
       </div>
 
-      <div className="grid gap-3 rounded-lg border border-primary/20 bg-primary/5 p-4 text-xs md:grid-cols-3">
+      <div className="grid gap-3 rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm md:grid-cols-3">
         <div className="flex items-start gap-2">
-          <WalletCards className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
           <span>Subscription: pay in advance quarterly, bi-annually or yearly.</span>
         </div>
         <div className="flex items-start gap-2">
@@ -100,7 +104,7 @@ export default function V2PlanStep({
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">
               <LockKeyhole className="h-5 w-5 text-primary" />
-              Markup Model — automatic for ticketing
+              Free / Markup — required for ticketing
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -115,8 +119,8 @@ export default function V2PlanStep({
                 subscription bill
               </li>
               <li className="flex items-center gap-2">
-                <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> Instant wallet
-                settlements on every ticket sale
+                <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> Provider split
+                settlement sends the vendor share to its configured settlement account
               </li>
               <li className="flex items-center gap-2">
                 <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> Sell via website, web
@@ -210,16 +214,10 @@ export default function V2PlanStep({
                       <span className="space-y-1">
                         <span className="block text-sm font-semibold text-foreground">{option.label}</span>
                         <span className="block text-xs text-muted-foreground">{option.description}</span>
-                        <span className="block text-sm font-semibold tabular-nums text-primary">
+                        <span className="block text-base font-semibold tabular-nums text-primary">
                           {pricingLoading
                             ? 'Loading price…'
-                            : subscriptionPricing
-                              ? new Intl.NumberFormat(undefined, {
-                                  style: 'currency',
-                                  currency: subscriptionPricing.currency,
-                                  maximumFractionDigits: 2,
-                                }).format(subscriptionPricing.intervals[option.value].amount)
-                              : 'Unavailable'}
+                            : formatPrice(subscriptionPricing?.intervals[option.value]?.amount)}
                         </span>
                       </span>
                     </Label>
@@ -229,11 +227,7 @@ export default function V2PlanStep({
               {subscriptionPricing?.payment_ready && (
                 <p className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-foreground">
                   This plan renews automatically every {subscriptionPricing.intervals[billingInterval].months} months at{' '}
-                  {new Intl.NumberFormat(undefined, {
-                    style: 'currency',
-                    currency: subscriptionPricing.currency,
-                    maximumFractionDigits: 2,
-                  }).format(subscriptionPricing.intervals[billingInterval].amount)}. The first payment is due now.
+                  {formatPrice(subscriptionPricing.intervals[billingInterval]?.amount)}. The first payment is due now.
                 </p>
               )}
             </div>
@@ -265,7 +259,7 @@ export default function V2PlanStep({
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> Buyer payments
-                      settle instantly to your Swiftree wallet
+                      settle through the selected provider&apos;s configured split settlement
                     </li>
                   </ul>
 

@@ -1,161 +1,112 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Globe2, MapPinned, Navigation, WalletCards } from "lucide-react";
+import { Building2, MapPin, Store } from "lucide-react";
+import { V2_COUNTRY_INFO, type V2Country } from "@/lib/v2";
 
-const markets = [
-  ["Nigeria", "NGN", "Lagos, Abuja, Port Harcourt", "Active"],
-  ["Kenya", "KES", "Nairobi, Mombasa", "Available"],
-  ["Ghana", "GHS", "Accra, Kumasi", "Available"],
-  ["South Africa", "ZAR", "Johannesburg, Cape Town", "Available"],
-];
+type BranchSummary = { id: string; name: string; city: string; state: string };
 
-const localizedRules = [
-  "Detect customer country from IP on storefront entry.",
-  "Show local currency labels before checkout.",
-  "Limit pickup branches to the selected customer state.",
-  "Keep vendor settlement in the configured wallet currency.",
-];
+export default function LocalizationSettings({ onManageBranches }: { onManageBranches: () => void }) {
+  const [country, setCountry] = useState("");
+  const [branches, setBranches] = useState<BranchSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-const customerPreview = [
-  { icon: Navigation, label: "Detected region", value: "Lagos, Nigeria" },
-  { icon: WalletCards, label: "Display currency", value: "NGN" },
-  { icon: MapPinned, label: "Pickup scope", value: "Lagos branches only" },
-];
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      try {
+        const [storeResponse, branchesResponse] = await Promise.all([
+          fetch("/api/store", { cache: "no-store" }),
+          fetch("/api/branches", { cache: "no-store" }),
+        ]);
+        const [storeResult, branchesResult] = await Promise.all([
+          storeResponse.json(),
+          branchesResponse.json(),
+        ]);
+        if (!storeResponse.ok) throw new Error(storeResult.message || "Could not load store details");
+        if (!branchesResponse.ok) throw new Error(branchesResult.message || "Could not load branches");
 
-export default function LocalizationSettings() {
+        const storeDetails = storeResult.data?.storeDetails;
+        const storeCountry = storeDetails?.metadata?.v2?.country;
+        const validCountry = typeof storeCountry === "string" && storeCountry in V2_COUNTRY_INFO
+          ? storeCountry as V2Country
+          : "";
+        if (active) {
+          setCountry(validCountry);
+          setBranches(Array.isArray(branchesResult.data) ? branchesResult.data.map((branch: Record<string, unknown>) => ({
+            id: String(branch.id),
+            name: String(branch.name),
+            city: String(branch.city),
+            state: String(branch.region),
+          })) : []);
+        }
+      } catch (loadError) {
+        if (active) setError(loadError instanceof Error ? loadError.message : "Could not load store locations");
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    void load();
+    return () => { active = false; };
+  }, []);
+
+  const countryInfo = country ? V2_COUNTRY_INFO[country as V2Country] : null;
+
   return (
     <div className="space-y-6">
       <Card className="shadow-none">
         <CardHeader className="border-b">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary">
-                Geolocation engine
-              </p>
-              <h2 className="mt-2 text-lg font-semibold">
-                Markets, currency and branches
-              </h2>
-              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                Control how the storefront adapts by customer country, state and
-                available fulfillment locations.
-              </p>
-            </div>
-            <Button>Save localization</Button>
-          </div>
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary">Store locations</p>
+          <h2 className="mt-2 text-lg font-semibold">Branches and currency</h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            Branch addresses and pickup locations are managed in StoreFront Settings. Each branch can also have its own catalog and pricing.
+          </p>
         </CardHeader>
-        <CardContent className="grid gap-4 p-5 xl:grid-cols-[0.85fr_1.15fr]">
-          <div className="rounded-xl border bg-[#061400] p-5 text-white">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-[#061400]">
-              <Globe2 className="h-5 w-5" />
+        <CardContent className="grid gap-6 p-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
+          <div className="space-y-4">
+            <div className="flex items-start gap-3 rounded-lg border p-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <Store className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">Store country and currency</p>
+                {loading ? <p className="mt-1 text-sm text-muted-foreground">Loading store settings...</p> : countryInfo ? (
+                  <p className="mt-1 text-sm text-muted-foreground">{countryInfo.name} · {countryInfo.currency}</p>
+                ) : (
+                  <p className="mt-1 text-sm text-muted-foreground">Country details are not available for this store.</p>
+                )}
+              </div>
             </div>
-            <h3 className="mt-5 text-lg font-semibold">Auto-localized storefront</h3>
-            <p className="mt-2 text-sm text-white/65">
-              Customers see localized currency and eligible pickup branches
-              while payments still route through enabled providers.
-            </p>
-            <div className="mt-6 space-y-3">
-              {localizedRules.map((rule) => (
-                <div key={rule} className="rounded-lg bg-white/10 p-3 text-sm">
-                  {rule}
-                </div>
-              ))}
+
+            <div className="rounded-lg border p-4">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-primary" />
+                <p className="text-sm font-medium">Configured branches</p>
+                {!loading && <span className="text-xs text-muted-foreground">({branches.length})</span>}
+              </div>
+              {error ? <p role="alert" className="mt-2 text-sm text-destructive">{error}</p> : loading ? (
+                <p className="mt-2 text-sm text-muted-foreground">Loading branches...</p>
+              ) : branches.length ? (
+                <ul className="mt-3 divide-y">
+                  {branches.map((branch) => (
+                    <li key={branch.id} className="flex items-start gap-2 py-2 first:pt-0 last:pb-0">
+                      <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="text-sm">{branch.name}<span className="text-muted-foreground"> · {branch.city}, {branch.state}</span></span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">No branches have been added yet.</p>
+              )}
             </div>
           </div>
 
-          <div className="space-y-4">
-            {markets.map(([country, currency, coverage, status]) => (
-              <div
-                key={country}
-                className="flex flex-col gap-3 rounded-xl border p-4 md:flex-row md:items-center md:justify-between"
-              >
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-medium">{country}</p>
-                    <Badge
-                      variant="outline"
-                      className={
-                        status === "Active"
-                          ? "border-primary/20 bg-primary/10 text-primary"
-                          : "border-amber-200 bg-amber-50 text-amber-700"
-                      }
-                    >
-                      {status}
-                    </Badge>
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {currency} . {coverage}
-                  </p>
-                </div>
-                <Switch defaultChecked={status === "Active"} />
-              </div>
-            ))}
-          </div>
+          <Button onClick={onManageBranches} className="w-full md:w-auto">Manage branches</Button>
         </CardContent>
       </Card>
-
-      <div className="grid gap-6 xl:grid-cols-3">
-        <Card className="shadow-none xl:col-span-2">
-          <CardHeader className="border-b">
-            <h3 className="text-sm font-semibold">Default storefront market</h3>
-          </CardHeader>
-          <CardContent className="grid gap-4 p-5 md:grid-cols-3">
-            <div className="space-y-2">
-              <Label>Country</Label>
-              <Select defaultValue="nigeria">
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="nigeria">Nigeria</SelectItem>
-                  <SelectItem value="kenya">Kenya</SelectItem>
-                  <SelectItem value="ghana">Ghana</SelectItem>
-                  <SelectItem value="south-africa">South Africa</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Currency</Label>
-              <Input defaultValue="NGN" />
-            </div>
-            <div className="space-y-2">
-              <Label>Fallback state</Label>
-              <Input defaultValue="Lagos" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-none">
-          <CardHeader className="border-b">
-            <h3 className="text-sm font-semibold">Customer view</h3>
-          </CardHeader>
-          <CardContent className="space-y-3 p-5">
-            {customerPreview.map((item) => (
-              <div key={item.label} className="flex items-center gap-3 rounded-lg border p-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <item.icon className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">{item.label}</p>
-                  <p className="text-sm font-medium">{item.value}</p>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }

@@ -7,27 +7,17 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Camera, Copy, ExternalLink, PlusIcon, Loader2, ImageIcon, CreditCard, ArrowDown, ArrowUp, Trash2 } from "lucide-react";
+import { Camera, Copy, ExternalLink, Loader2, ImageIcon, CreditCard, ArrowDown, ArrowUp, Trash2 } from "lucide-react";
 import EditIcon from "@/components/svgIcons/Edit";
 import SaveIcon from "@/components/svgIcons/SaveIcon";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import QrIcon from "@/components/svgIcons/QrIcon";
 import LinkIcon from "@/components/svgIcons/LinkIcon";
-import AddBankModal from "../../payouts/_components/AddBankModal";
 import PaymentMethods from "./PaymentMethods";
 import LogisticsSettings from "./LogisticsSettings";
-import Accessbank from "@/components/svgIcons/Accessbank";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-
-interface BankAccount {
-  id: string;
-  accountNumber: string;
-  bankName: string;
-  accountHolder: string;
-  icon: React.ReactNode;
-}
 
 interface BrandColor {
   primary: string;
@@ -210,7 +200,6 @@ function StorefrontComponent() {
   const [isEditingDeliveryMethod, setIsEditingDeliveryMethod] = useState(false);
   const [showDeleteSection, setShowDeleteSection] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
-  const [isAddBankModalOpen, setIsAddBankModalOpen] = useState(false);
   const [storefrontUrl, setStorefrontUrl] = useState("");
   const [webchatUrl, setWebchatUrl] = useState("");
   const [linkinbioUrl, setLinkinbioUrl] = useState("");
@@ -244,7 +233,6 @@ function StorefrontComponent() {
     banner_images: [],
   });
 
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [savedBrandColor, setSavedBrandColor] = useState<BrandColor>({
     primary: "#005B14",
     secondary: "#4FCA6A",
@@ -687,7 +675,6 @@ function StorefrontComponent() {
 
       const requestBody = {
         store_name: storefrontData.storeName,
-        business_type: storefrontData.storeType,
         store_description: storefrontData.bio,
         metadata: {
           ...storefrontData.metadata,
@@ -1046,29 +1033,6 @@ function StorefrontComponent() {
     copyToClipboard(urlToCopy);
   };
 
-  const handleAddBank = (bankData: { bankName: string; accountNumber: string; accountHolder: string }) => {
-    const getBankIcon = (bankName: string) => {
-      if (bankName === 'Access Bank') return <Accessbank />;
-      const colors: { [key: string]: string } = {
-        'GTBank': 'bg-orange-500', 'Zenith Bank': 'bg-red-600', 'UBA': 'bg-red-700',
-        'First Bank': 'bg-blue-800', 'Fidelity Bank': 'bg-purple-600', 'Sterling Bank': 'bg-blue-700',
-        'Union Bank': 'bg-blue-600', 'Wema Bank': 'bg-purple-700', 'Unity Bank': 'bg-green-600',
-        'Polaris Bank': 'bg-indigo-600', 'Stanbic IBTC': 'bg-blue-500', 'Ecobank': 'bg-red-500',
-        'FCMB': 'bg-yellow-600', 'Keystone Bank': 'bg-teal-600',
-      };
-      const abbreviation = bankName.split(' ').map(w => w[0]).join('').slice(0, 3).toUpperCase();
-      const color = colors[bankName] || 'bg-gray-500';
-      return <div className={`w-8 h-8 ${color} rounded-full flex items-center justify-center text-white text-xs font-bold`}>{abbreviation}</div>;
-    };
-    setBankAccounts([...bankAccounts, {
-      id: `bank-${bankAccounts.length + 1}`,
-      icon: getBankIcon(bankData.bankName),
-      accountNumber: bankData.accountNumber,
-      bankName: bankData.bankName,
-      accountHolder: bankData.accountHolder
-    }]);
-  };
-
   if (isLoading) {
     return (
       <div className="w-full space-y-6">
@@ -1184,33 +1148,9 @@ function StorefrontComponent() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="storeType" className="text-xs">Store Type *</Label>
-                <Select value={storefrontData.storeType} onValueChange={(value) => handleInputChange("storeType", value)} disabled={!isEditingStorefront}>
-                  <SelectTrigger className="w-full dark:bg-background"><SelectValue placeholder="Select store type" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Restaurant/Food Service">Restaurant/Food Service</SelectItem>
-                    <SelectItem value="Cafe">Cafe</SelectItem>
-                    <SelectItem value="Fashion">Fashion</SelectItem>
-                    <SelectItem value="Electronics">Electronics</SelectItem>
-                    <SelectItem value="Beauty & Cosmetics">Beauty & Cosmetics</SelectItem>
-                    <SelectItem value="Home & Garden">Home & Garden</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="location" className="text-xs">Location *</Label>
-                <Select value={storefrontData.location} onValueChange={(value) => handleInputChange("location", value)} disabled={!isEditingStorefront}>
-                  <SelectTrigger className="w-full dark:bg-background"><SelectValue placeholder="Select location" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Lagos">Lagos</SelectItem>
-                    <SelectItem value="Abuja">Abuja</SelectItem>
-                    <SelectItem value="Port Harcourt">Port Harcourt</SelectItem>
-                    <SelectItem value="Ibadan">Ibadan</SelectItem>
-                    <SelectItem value="Kano">Kano</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="location" className="text-xs">Main store city *</Label>
+                <Input id="location" value={storefrontData.location} onChange={(event) => handleInputChange("location", event.target.value)} disabled={!isEditingStorefront} className="dark:bg-background" placeholder="e.g. Lagos" />
+                <p className="text-xs text-muted-foreground">This is the city shown on your store profile. Add other branches under Logistics settings.</p>
               </div>
             </div>
 
@@ -1589,35 +1529,6 @@ function StorefrontComponent() {
         </CardContent>
       </Card>
 
-      {/* Bank Account Setup — unchanged */}
-      <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
-        <CardContent>
-          <div className="space-y-4 pt-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium">Bank Account Setup</h3>
-              <Button variant="outline" size="sm" onClick={() => setIsAddBankModalOpen(true)}>
-                <span className="hidden sm:inline">Add Bank Account</span> <PlusIcon />
-              </Button>
-            </div>
-            <div className="space-y-3">
-              {bankAccounts.map((account) => (
-                <div key={account.id} className="flex items-center justify-between p-4 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-                      <span className="text-xs font-bold">{account.bankName.slice(0, 2)}</span>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-sm">{account.accountNumber}</h4>
-                      <p className="text-xs text-muted-foreground">{account.bankName} . {account.accountHolder}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Storefront appearance is separate from the vendor dashboard theme. */}
       <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
         <CardContent>
@@ -1735,7 +1646,6 @@ function StorefrontComponent() {
 
       <PaymentMethods />
       <LogisticsSettings />
-      <AddBankModal isOpen={isAddBankModalOpen} onClose={() => setIsAddBankModalOpen(false)} onAddBank={handleAddBank} />
     </div>
   );
 }

@@ -255,6 +255,9 @@ export default function MultiStepSignupPage() {
   const [subscriptionPricing, setSubscriptionPricing] = useState<V2SubscriptionPricing | null>(null);
   const [subscriptionPricingLoading, setSubscriptionPricingLoading] = useState(false);
   const [subscriptionPricingError, setSubscriptionPricingError] = useState<string | null>(null);
+  const selectedV2PlanModel: V2PlanModel | null = v2BusinessType === 'ticketing'
+    ? 'markup'
+    : v2PlanModel;
 
   // Updated form data state with metadata wrapper
   const [formData, setFormData] = useState<{ user_details: UserDetails; business_details: BusinessDetails; agreeToTerms: boolean; countryCode: string; colorScheme: ThemeName }>({
@@ -406,15 +409,15 @@ export default function MultiStepSignupPage() {
         }
         return true;
       case 4:
-        if (!isV2PlanStepValid(v2BusinessType ?? 'retail', v2PlanModel)) {
-          if (!v2PlanModel) {
+        if (!isV2PlanStepValid(v2BusinessType ?? 'retail', selectedV2PlanModel)) {
+          if (!selectedV2PlanModel) {
             toast.error('Please choose how you want to pay for Swiftree');
           } else {
             toast.error('Please select a subscription plan');
           }
           return false;
         }
-        if (v2PlanModel === 'subscription' && !subscriptionPricing?.payment_ready) {
+        if (selectedV2PlanModel === 'subscription' && !subscriptionPricing?.payment_ready) {
           toast.error(subscriptionPricingError || (subscriptionPricing
             ? 'Subscription checkout is not ready for this currency'
             : 'Subscription pricing is not configured for this currency'));
@@ -615,15 +618,15 @@ export default function MultiStepSignupPage() {
               ? v2SelectionToMetadata({
                   businessType: v2BusinessType,
                   country: v2Country,
-                  planModel: v2PlanModel ?? (v2BusinessType === 'ticketing' ? 'markup' : 'subscription'),
-                  ...(v2PlanModel === 'subscription' ? { billingInterval: v2BillingInterval } : {}),
+                  planModel: selectedV2PlanModel ?? 'subscription',
+                  ...(selectedV2PlanModel === 'subscription' ? { billingInterval: v2BillingInterval } : {}),
                 })
               : {}),
           },
         },
       };
 
-      if (v2PlanModel === 'subscription') {
+      if (selectedV2PlanModel === 'subscription') {
         sessionStorage.setItem('v2_subscription_signup_payload', JSON.stringify(payload));
         const paymentResponse = await fetch('/api/auth/onboard/subscription/initialize', {
           method: 'POST',
@@ -1053,8 +1056,8 @@ export default function MultiStepSignupPage() {
           className="w-[67%] py-2 rounded-lg transition-colors duration-200"
         >
           {isLoading
-            ? (v2PlanModel === 'subscription' ? 'Starting payment...' : 'Creating Storefront...')
-            : (v2PlanModel === 'subscription' ? 'Continue to payment' : 'Create Storefront')}
+            ? (selectedV2PlanModel === 'subscription' ? 'Starting payment...' : 'Creating Storefront...')
+            : (selectedV2PlanModel === 'subscription' ? 'Continue to payment' : 'Create Storefront')}
         </Button>
       </div>
     </div>
