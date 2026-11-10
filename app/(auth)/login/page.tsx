@@ -25,7 +25,20 @@ export default function LoginPage() {
   const [passwordFocused, setPasswordFocused] = useState(false);
   // const router = useRouter();
   const searchParams = useSearchParams();
-  const from = searchParams.get("from") || "/dashboard";
+  const requestedPath = searchParams.get("from");
+  const from = (() => {
+    if (!requestedPath || !requestedPath.startsWith("/") || requestedPath.startsWith("//") || requestedPath.includes("\\")) {
+      return "/dashboard";
+    }
+    try {
+      const target = new URL(requestedPath, "https://vendor.swiftree.app");
+      return target.origin === "https://vendor.swiftree.app"
+        ? `${target.pathname}${target.search}${target.hash}`
+        : "/dashboard";
+    } catch {
+      return "/dashboard";
+    }
+  })();
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
