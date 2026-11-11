@@ -51,6 +51,7 @@ interface StoreMetadata {
   country?: string;
   brand_color?: BrandColor;
   storefront_announcement?: StorefrontAnnouncement;
+  storefront_footer_image?: string;
 }
 
 interface StoreDetails {
@@ -208,6 +209,7 @@ function StorefrontComponent() {
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
   const [isUploadingBannerImages, setIsUploadingBannerImages] = useState(false);
+  const [isUploadingFooterImage, setIsUploadingFooterImage] = useState(false);
   const [isSavingAppearance, setIsSavingAppearance] = useState(false);
   const [isSavingDeliveryMethod, setIsSavingDeliveryMethod] = useState(false);
   const [isEditingPaymentMethod, setIsEditingPaymentMethod] = useState(false);
@@ -218,6 +220,7 @@ function StorefrontComponent() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const bannerImagesInputRef = useRef<HTMLInputElement>(null);
+  const footerImageInputRef = useRef<HTMLInputElement>(null);
 
   const [storefrontData, setStorefrontData] = useState<StoreDetails>({
     storeName: "",
@@ -622,6 +625,42 @@ function StorefrontComponent() {
       toast.error(error instanceof Error ? error.message : 'Failed to upload banner');
     } finally {
       setIsUploadingBanner(false);
+    }
+  };
+
+  const handleFooterImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      toast.error('Please select a JPEG, PNG, or WebP image file');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Footer image must be 10MB or smaller');
+      return;
+    }
+
+    setIsUploadingFooterImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('footer_image', file);
+      const response = await fetch('/api/store/footer-image', { method: 'POST', body: formData });
+      const result = await parseApiResponse(response);
+      if (!response.ok) throw new Error(result.error || result.message || 'Failed to upload footer image');
+      const footerImage = result.data?.footer_image;
+      if (footerImage) {
+        setStorefrontData((previous) => ({
+          ...previous,
+          metadata: { ...previous.metadata, storefront_footer_image: footerImage },
+        }));
+      }
+      toast.success('Footer image updated');
+      if (footerImageInputRef.current) footerImageInputRef.current.value = '';
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to upload footer image');
+    } finally {
+      setIsUploadingFooterImage(false);
     }
   };
 
@@ -1579,6 +1618,37 @@ function StorefrontComponent() {
                   </label>
                 );
               })}
+            </div>
+
+            <div className="space-y-3 rounded-lg border p-4">
+              <div>
+                <p className="text-sm font-medium">Footer image</p>
+                <p className="mt-1 text-xs text-muted-foreground">This background is used across your storefront pages. It does not change your banner.</p>
+              </div>
+              <div
+                className="h-28 rounded-md border bg-cover bg-center"
+                style={{ backgroundImage: `url("${storefrontData.metadata?.storefront_footer_image || '/Banner.png'}")` }}
+                role="img"
+                aria-label="Footer background preview"
+              />
+              <input
+                ref={footerImageInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleFooterImageUpload}
+                disabled={!isEditingAppearance || isUploadingFooterImage}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!isEditingAppearance || isUploadingFooterImage}
+                onClick={() => footerImageInputRef.current?.click()}
+              >
+                {isUploadingFooterImage ? <Loader2 className="mr-2 size-4 animate-spin" /> : <ImageIcon className="mr-2 size-4" />}
+                {isUploadingFooterImage ? 'Uploading...' : 'Choose footer image'}
+              </Button>
             </div>
 
             <div className="space-y-4 rounded-lg border p-4">
