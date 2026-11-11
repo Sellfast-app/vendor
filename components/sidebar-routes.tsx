@@ -2,7 +2,7 @@
 
 import { AvatarImage } from "@/components/ui/avatar";
 import { Avatar, AvatarFallback } from "@radix-ui/react-avatar";
-import { LayoutDashboardIcon, Store, Utensils } from "lucide-react";
+import { Globe, LayoutDashboardIcon, Store, Utensils } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { SVGProps, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -46,6 +46,7 @@ const adminRoutes: Route[] = [
 ];
 
 const actionRoutes: Route[] = [
+  { icon: Globe, label: "Domains", href: "/domains" },
   { icon: Settings, label: "Settings", href: "/settings" },
   { icon: Logout, label: "Logout", href: "/" },
 ];
