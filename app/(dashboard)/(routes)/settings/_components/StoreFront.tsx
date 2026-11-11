@@ -67,6 +67,7 @@ interface StoreDetails {
   banner?: string | null;
   banner_style?: "portrait" | "carousel";
   banner_images?: string[];
+  is_manually_closed?: boolean;
   metadata?: StoreMetadata;
   enabled_fulfillment_modes?: string[];
 }
@@ -249,6 +250,8 @@ function StorefrontComponent() {
     text_color: "#FFFFFF",
   });
   const [availabilityEnabled, setAvailabilityEnabled] = useState(true);
+  const [isStoreManuallyClosed, setIsStoreManuallyClosed] = useState(false);
+  const [isUpdatingStoreStatus, setIsUpdatingStoreStatus] = useState(false);
   const [availability, setAvailability] =
     useState<AvailabilityDay[]>(defaultAvailability);
   const [paymentMethods, setPaymentMethods] = useState<Record<PaymentMethodKey, boolean>>({
@@ -300,6 +303,28 @@ function StorefrontComponent() {
           : numericHour + 12;
 
     return `${String(convertedHour).padStart(2, "0")}:${minute}`;
+  };
+
+  const updateStoreClosure = async (closed: boolean) => {
+    if (isUpdatingStoreStatus) return;
+    setIsUpdatingStoreStatus(true);
+    try {
+      const response = await fetch("/api/store/manual-closure", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_manually_closed: closed }),
+      });
+      const result = await parseApiResponse(response);
+      if (!response.ok || result.status !== "success") {
+        throw new Error(result.message || "Could not update store status");
+      }
+      setIsStoreManuallyClosed(closed);
+      toast.success(closed ? "Store closed" : "Store reopened");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update store status");
+    } finally {
+      setIsUpdatingStoreStatus(false);
+    }
   };
 
   const saveAvailability = async () => {
@@ -376,6 +401,7 @@ function StorefrontComponent() {
 
         if (result.status === 'success' && result.data?.storeDetails) {
           const storeDetails = result.data.storeDetails;
+          setIsStoreManuallyClosed(Boolean(storeDetails.is_manually_closed));
           const metadata = storeDetails.metadata || {};
           const brandColor = metadata.brand_color || {};
           const resolvedBrandColor: BrandColor = {
@@ -1399,6 +1425,28 @@ function StorefrontComponent() {
                 </Button>
               </div>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
+        <CardContent className="flex items-center justify-between gap-4 py-5">
+          <div>
+            <h3 className="text-sm font-medium">Store status</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {isStoreManuallyClosed
+                ? "Your storefront is closed to customers until you reopen it."
+                : "Your storefront is open. Close it temporarily without changing your business hours."}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-3">
+            <span className="text-xs font-medium">{isStoreManuallyClosed ? "Closed" : "Open"}</span>
+            <Switch
+              checked={isStoreManuallyClosed}
+              onCheckedChange={(closed) => void updateStoreClosure(closed)}
+              disabled={isUpdatingStoreStatus || isLoading}
+              aria-label="Manually close or reopen storefront"
+            />
           </div>
         </CardContent>
       </Card>
