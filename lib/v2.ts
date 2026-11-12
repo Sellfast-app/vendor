@@ -114,12 +114,15 @@ export const normalizeBusinessTypeString = (businessType: unknown): string =>
         .toLowerCase()
     : '';
 
+export const getV2BusinessType = (businessType: unknown): V2BusinessType | null =>
+  LEGACY_TO_V2_MAP.get(normalizeBusinessTypeString(businessType)) ?? null;
+
 /**
  * Resolve any business type (V2 enum value or legacy freeform string)
  * to one of the three V2 verticals. Unknown values fall back to 'retail'.
  */
 export const toV2BusinessType = (businessType: unknown): V2BusinessType =>
-  LEGACY_TO_V2_MAP.get(normalizeBusinessTypeString(businessType)) ?? 'retail';
+  getV2BusinessType(businessType) ?? 'retail';
 
 export const isV2FoodBusiness = (businessType: unknown): boolean =>
   toV2BusinessType(businessType) === 'food';

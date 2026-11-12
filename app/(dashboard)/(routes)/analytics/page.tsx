@@ -13,6 +13,8 @@ import PendingDispatch from "@/components/svgIcons/PendingDispatch";
 import { AlertCircle, MessageCircle, MonitorSmartphone, RefreshCw, ShoppingBag } from "lucide-react";
 import { AnalyticsMetric } from "./_components/AnalyticsMetric";
 import { calculateDateRange } from "./utils";
+import { useStoreBusiness } from "@/components/store-business-context";
+import { BusinessTypeGuard } from "@/components/business-type-guard";
 
 const dateRanges = [
   { value: "today", label: "Today" },
@@ -70,7 +72,9 @@ function money(value: number | string | undefined) {
   return `NGN ${number(value).toLocaleString("en-NG", { maximumFractionDigits: 2 })}`;
 }
 
-export default function AnalyticsPage() {
+function AnalyticsPageContent() {
+  const { businessType } = useStoreBusiness();
+  const isTicketStore = businessType === "ticketing";
   const [selectedRange, setSelectedRange] = useState<(typeof dateRanges)[number]["value"]>("30_days");
   const [revenueRange, setRevenueRange] = useState<(typeof dateRanges)[number]["value"]>("30_days");
   const [channelRange, setChannelRange] = useState<(typeof dateRanges)[number]["value"]>("30_days");
@@ -113,12 +117,19 @@ export default function AnalyticsPage() {
   const loading = loadingRanges[selectedRange] ?? true;
   const error = errorsByRange[selectedRange] || "";
   const totals = data?.totals;
-  const metrics = [
-    { title: "Settled revenue", value: money(totals?.revenue), icon1: <ProductsIcon />, description: `${number(totals?.paid_orders)} paid orders · ${selectedRangeLabel}` },
-    { title: "Orders placed", value: number(totals?.orders).toLocaleString(), icon1: <LowStock />, description: `${number(totals?.settled_orders)} settled · ${number(totals?.delivered_orders)} delivered` },
-    { title: "Out for delivery", value: number(totals?.out_for_delivery).toLocaleString(), icon1: <OutOfStock />, description: selectedRangeLabel },
-    { title: "Average order value", value: money(totals?.average_order_value), icon1: <PendingDispatch />, description: "Successful payments" },
-  ];
+  const metrics = isTicketStore
+    ? [
+        { title: "Ticket revenue", value: money(totals?.revenue), icon1: <ProductsIcon />, description: `${number(totals?.paid_orders)} paid ticket orders · ${selectedRangeLabel}` },
+        { title: "Ticket orders", value: number(totals?.orders).toLocaleString(), icon1: <LowStock />, description: `${number(totals?.paid_orders)} paid · ${number(totals?.free_orders)} free/covered` },
+        { title: "Paid ticket orders", value: number(totals?.paid_orders).toLocaleString(), icon1: <OutOfStock />, description: selectedRangeLabel },
+        { title: "Average ticket order", value: money(totals?.average_order_value), icon1: <PendingDispatch />, description: "Successful payments" },
+      ]
+    : [
+        { title: "Settled revenue", value: money(totals?.revenue), icon1: <ProductsIcon />, description: `${number(totals?.paid_orders)} paid orders · ${selectedRangeLabel}` },
+        { title: "Orders placed", value: number(totals?.orders).toLocaleString(), icon1: <LowStock />, description: `${number(totals?.settled_orders)} settled · ${number(totals?.delivered_orders)} delivered` },
+        { title: "Out for delivery", value: number(totals?.out_for_delivery).toLocaleString(), icon1: <OutOfStock />, description: selectedRangeLabel },
+        { title: "Average order value", value: money(totals?.average_order_value), icon1: <PendingDispatch />, description: "Successful payments" },
+      ];
   const maxDailyRevenue = Math.max(...(revenueData?.daily || []).map((point) => number(point.revenue)), 1);
   const maxChannelOrders = Math.max(...(channelData?.channels || []).map((channel) => number(channel.orders)), 1);
 
@@ -132,7 +143,7 @@ export default function AnalyticsPage() {
   return (
     <main className="mx-auto min-h-screen px-4 py-6 sm:px-6 lg:px-8">
       <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div><p className="text-xs font-medium uppercase text-primary">Performance</p><h1 className="mt-2 text-2xl font-semibold">Analytics</h1><p className="mt-1 text-sm text-muted-foreground">Sales and customer activity for your store.</p></div>
+        <div><p className="text-xs font-medium uppercase text-primary">Performance</p><h1 className="mt-2 text-2xl font-semibold">{isTicketStore ? "Ticket analytics" : "Analytics"}</h1><p className="mt-1 text-sm text-muted-foreground">{isTicketStore ? "Ticket sales and customer activity for your events." : "Sales and customer activity for your store."}</p></div>
         <Select value={selectedRange} onValueChange={(value) => setSelectedRange(value as typeof selectedRange)}>
           <SelectTrigger aria-label="Summary date range" className="w-full sm:w-[180px]"><SelectValue placeholder="Summary range" /></SelectTrigger>
           <SelectContent>{dateRanges.map((range) => <SelectItem key={range.value} value={range.value}>{range.label}</SelectItem>)}</SelectContent>
@@ -195,4 +206,8 @@ export default function AnalyticsPage() {
       </div>
     </main>
   );
+}
+
+export default function AnalyticsPage() {
+  return <BusinessTypeGuard allow={["retail", "food", "ticketing"]} redirectTo="/dashboard"><AnalyticsPageContent /></BusinessTypeGuard>;
 }

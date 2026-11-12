@@ -25,6 +25,8 @@ import {
   Settings,
   ShoppingBag,
   Store,
+  CalendarDays,
+  Ticket,
   Truck,
   Users,
   CreditCard,
@@ -34,7 +36,7 @@ import BestSellingProducts from "./_components/BestSellingProducts";
 import { ExportModal } from "@/components/ExportModal";
 import AddProductModal from "../products/_components/AddProductModal";
 import RecentOrdersTable from "./_components/RecentOrdersTable";
-import { isFoodBusinessType } from "@/lib/store";
+import { useStoreBusiness } from "@/components/store-business-context";
 import OnboardingTour, { type TourStep } from "./_components/OnboardingTour";
 
 interface Product {
@@ -59,22 +61,9 @@ interface StoreOverviewData {
   completed_orders?: number;
 }
 
-interface StoreContext {
-  name: string;
-  businessType: string | null;
-}
-
 const formatCurrency = (value: string | number | undefined) => {
   const amount = typeof value === "string" ? Number(value) : value ?? 0;
   return `₦${Number.isFinite(amount) ? amount.toLocaleString("en-NG") : "0"}`;
-};
-
-const getCookieValue = (name: string): string | null => {
-  if (typeof document === "undefined") return null;
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop()?.split(";").shift() || null;
-  return null;
 };
 
 function SnapshotCard({
@@ -164,49 +153,12 @@ function DashboardPage() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const router = useRouter();
-  const [storeContext, setStoreContext] = useState<StoreContext>({
-    name: "there",
-    businessType: null,
-  });
-  const [storeTypeStatus, setStoreTypeStatus] = useState<"loading" | "ready" | "error">("loading");
+  const { businessType, storeName, status: storeTypeStatus, error: storeTypeError, retry: retryStoreType } = useStoreBusiness();
   const [overview, setOverview] = useState<StoreOverviewData | null>(null);
   const [isOverviewLoading, setIsOverviewLoading] = useState(true);
 
   useEffect(() => {
     const controller = new AbortController();
-
-    const fetchStoreData = async () => {
-      try {
-        setStoreTypeStatus("loading");
-        const response = await fetch("/api/store", {
-          cache: "no-store",
-          signal: controller.signal,
-        });
-        if (!response.ok) throw new Error("Failed to fetch store data");
-
-        const result = await response.json();
-        const storeDetails = result.data?.storeDetails;
-        if (result.status !== "success" || !storeDetails) {
-          throw new Error(result.message || "Store details were not returned");
-        }
-
-        setStoreContext({
-          name: storeDetails.store_name || storeDetails.name || decodeURIComponent(getCookieValue("store_name") || "") || "there",
-          businessType: storeDetails.business_type || "",
-        });
-        setStoreTypeStatus("ready");
-      } catch (error) {
-        if (controller.signal.aborted) return;
-        console.error("Error fetching store data:", error);
-        setStoreContext((current) => ({
-          ...current,
-          name: decodeURIComponent(getCookieValue("store_name") || "") || "there",
-          businessType: null,
-        }));
-        setStoreTypeStatus("error");
-      }
-    };
-
     const fetchOverview = async () => {
       try {
         setIsOverviewLoading(true);
@@ -227,13 +179,13 @@ function DashboardPage() {
       }
     };
 
-    fetchStoreData();
-    fetchOverview();
+    if (storeTypeStatus === "ready" && businessType !== "ticketing") void fetchOverview();
 
     return () => controller.abort();
-  }, []);
+  }, [businessType, storeTypeStatus]);
 
-  const isRestaurant = isFoodBusinessType(storeContext.businessType);
+  const isRestaurant = businessType === "food";
+  const isTicketStore = businessType === "ticketing";
 
   useEffect(() => {
     if (storeTypeStatus !== "ready") return;
@@ -377,6 +329,38 @@ function DashboardPage() {
     setIsProductModalOpen(true);
   }
 
+  if (storeTypeStatus === "loading") {
+    return <main className="mx-auto max-w-6xl space-y-5 px-4 py-8 sm:px-6" aria-label="Loading business dashboard">
+      <Skeleton className="h-12 w-full" /><Skeleton className="h-32 w-full" />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{[0, 1, 2, 3].map(item => <Skeleton key={item} className="h-24" />)}</div>
+    </main>;
+  }
+
+  if (storeTypeStatus === "error") {
+    return <main className="mx-auto max-w-xl px-4 py-12 text-center"><h1 className="text-lg font-semibold">Workspace unavailable</h1><p className="mt-2 text-sm text-muted-foreground">{storeTypeError}</p><Button variant="outline" className="mt-4" onClick={retryStoreType}>Retry</Button></main>;
+  }
+
+  if (isTicketStore) {
+    const ticketActions = [
+      { label: "Manage events", description: "Create and update events and ticket types.", href: "/events", icon: CalendarDays },
+      { label: "Ticket orders", description: "Review purchases, payment status and attendees.", href: "/orders/tickets", icon: Ticket },
+      { label: "Attendee check-in", description: "Scan or enter ticket codes at the door.", href: "/events/attendees", icon: CheckCircle2 },
+    ];
+
+    return <main className="mx-auto min-h-screen max-w-6xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+      <header><p className="text-xs font-medium uppercase tracking-[0.16em] text-primary">Ticketing</p><h1 className="mt-2 text-2xl font-semibold">Hello {storeName || "there"}</h1><p className="mt-1 text-sm text-muted-foreground">Manage events, ticket sales and attendee admission.</p></header>
+      <section className="grid gap-4 md:grid-cols-3" aria-label="Ticketing workspace">
+        {ticketActions.map(action => {
+          const Icon = action.icon;
+          return <Link key={action.href} href={action.href} className="flex min-h-36 flex-col justify-between border bg-card p-5 transition-colors hover:border-primary/40">
+            <Icon className="h-5 w-5 text-primary" />
+            <span><span className="block font-medium">{action.label}</span><span className="mt-1 block text-sm text-muted-foreground">{action.description}</span></span>
+          </Link>;
+        })}
+      </section>
+    </main>;
+  }
+
   return (
     <div className="min-h-screen bg-[#FAFBFA] px-4 py-6 sm:px-6 lg:px-8 dark:bg-background">
       <div className="mb-5 rounded-lg bg-[#101820] px-4 py-3 text-white shadow-sm" data-tour="launch-banner">
@@ -417,7 +401,7 @@ function DashboardPage() {
 
       <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Hello {storeContext.name}</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Hello {storeName || "there"}</h1>
           <Link href="/analytics" className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-primary">
             View channel performance today
             <ChevronRight className="h-4 w-4" />
@@ -434,13 +418,11 @@ function DashboardPage() {
           </Button>
           <Button
             onClick={handleOpenAddModal}
-            disabled={storeTypeStatus !== "ready"}
-            title={storeTypeStatus === "error" ? "Store type could not be loaded. Refresh and try again." : undefined}
             data-tour="add-product"
           >
             <PlusIcon className="h-4 w-4" />
             <span className="ml-2">
-              {storeTypeStatus === "loading" ? "Loading..." : isRestaurant ? "Add Food" : "Add Product"}
+              {isRestaurant ? "Add Food" : "Add Product"}
             </span>
           </Button>
         </div>

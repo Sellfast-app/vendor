@@ -1,9 +1,11 @@
 import { MobileSidebar } from "./_components/Mobile-sidebar";
 import { Navbar } from "./_components/navbar";
 import { Sidebar } from "./_components/sidebar";
+import { StoreBusinessProvider } from "@/components/store-business-context";
 
 const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   return (
+    <StoreBusinessProvider>
     <div className="h-full">
       <div className="h-[80px] md:pl-62.5 fixed inset-y-0 w-full z-50">
         <Navbar />
@@ -16,6 +18,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
       </main>
       <MobileSidebar />
     </div>
+    </StoreBusinessProvider>
   );
 };
 

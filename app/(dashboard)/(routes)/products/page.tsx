@@ -20,6 +20,7 @@ import { isFoodBusinessType } from "@/lib/store";
 import { Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getStoreCurrency } from "@/lib/v2-currency";
+import { BusinessTypeGuard } from "@/components/business-type-guard";
 
 interface OverviewMetric {
   id: string;
@@ -31,7 +32,7 @@ interface OverviewMetric {
   icon2: JSX.Element;
 }
 
-function ProductsPage() {
+function ProductsPageContent() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [businessType, setBusinessType] = useState<string>("");
   const [currency, setCurrency] = useState("NGN");
@@ -204,4 +205,6 @@ function ProductsPage() {
   );
 }
 
-export default ProductsPage;
+export default function ProductsPage() {
+  return <BusinessTypeGuard allow={["retail", "food"]} redirectTo="/events"><ProductsPageContent /></BusinessTypeGuard>;
+}

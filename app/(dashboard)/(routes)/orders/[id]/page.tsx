@@ -7,6 +7,7 @@ import { ArrowLeft, MapPin, Package, ReceiptText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { BusinessTypeGuard } from "@/components/business-type-guard";
 
 type OrderItem = {
   product_name?: string;
@@ -76,7 +77,7 @@ function DetailRow({ label, value }: { label: string; value?: string | number | 
   return <div className="flex items-start justify-between gap-4 border-b py-3 last:border-0"><dt className="text-sm text-muted-foreground">{label}</dt><dd className="max-w-[65%] text-right text-sm font-medium">{value || "Not provided"}</dd></div>;
 }
 
-export default function OrderDetailPage() {
+function OrderDetailPageContent() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const [order, setOrder] = useState<Order | null>(null);
@@ -184,4 +185,8 @@ export default function OrderDetailPage() {
       </div>
     </main>
   );
+}
+
+export default function OrderDetailPage() {
+  return <BusinessTypeGuard allow={["retail", "food"]} redirectTo="/orders/tickets"><OrderDetailPageContent /></BusinessTypeGuard>;
 }

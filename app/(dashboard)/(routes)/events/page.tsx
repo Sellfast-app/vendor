@@ -23,6 +23,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { BusinessTypeGuard } from "@/components/business-type-guard";
 
 const formatCompactNumber = (value: number) =>
   new Intl.NumberFormat("en-NG", { notation: "compact" }).format(value);
@@ -33,7 +34,7 @@ const getTicketRevenue = (event: Event) =>
 const formatCurrency = (value: number) =>
   `₦${value.toLocaleString("en-NG")}`;
 
-export default function EventsPage() {
+function EventsPageContent() {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -288,4 +289,8 @@ export default function EventsPage() {
       />
     </div>
   );
+}
+
+export default function EventsPage() {
+  return <BusinessTypeGuard allow={["ticketing"]} redirectTo="/dashboard"><EventsPageContent /></BusinessTypeGuard>;
 }

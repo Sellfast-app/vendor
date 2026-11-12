@@ -3,11 +3,10 @@
 import Analytics from "@/components/svgIcons/Analytics";
 import Orders from "@/components/svgIcons/Orders";
 import Products from "@/components/svgIcons/Products";
-import { LayoutDashboardIcon, Bell } from "lucide-react";
+import { LayoutDashboardIcon, Bell, Ticket } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
-import { isV2TicketingBusiness } from "@/lib/v2";
+import { useStoreBusiness } from "@/components/store-business-context";
 
 const routes = [
   {
@@ -26,6 +25,11 @@ const routes = [
     href: "/orders",
   },
   {
+    icon: Ticket,
+    label: "Events",
+    href: "/events",
+  },
+  {
     icon: Analytics,
     label: "Analytics",
     href: "/analytics",
@@ -39,28 +43,22 @@ const routes = [
 
 export const MobileSidebar = () => {
   const pathname = usePathname();
-  const [isTicketStore, setIsTicketStore] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    fetch("/api/store", { cache: "no-store" })
-      .then((response) => response.json())
-      .then((result) => {
-        const store = result.data?.storeDetails;
-        const type = store?.metadata?.v2?.business_type || store?.business_type;
-        if (active) setIsTicketStore(isV2TicketingBusiness(type));
-      })
-      .catch(() => undefined);
-    return () => { active = false; };
-  }, []);
-
-  const visibleRoutes = routes.map((route) => route.label === "Orders" && isTicketStore
-    ? { ...route, label: "Ticket orders", href: "/orders/tickets" }
-    : route);
+  const { businessType, status, error, retry } = useStoreBusiness();
+  const isTicketStore = businessType === "ticketing";
+  const visibleRoutes = status === "ready"
+    ? routes
+      .filter(route => route.label !== "Events" || isTicketStore)
+      .filter(route => route.label !== "Products" || !isTicketStore)
+      .map((route) => route.label === "Orders" && isTicketStore
+        ? { ...route, label: "Ticket orders", href: "/orders/tickets" }
+        : route)
+    : [];
 
   return (
     <div className="md:hidden fixed bottom-0 left-0 right-0 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-background">
       <div className="flex justify-around items-center py-2">
+        {status === "loading" && <div className="h-9 w-40 animate-pulse rounded-md bg-muted" aria-label="Loading workspace navigation" />}
+        {status === "error" && <div className="flex items-center gap-2 text-xs" role="alert"><span className="max-w-48 truncate text-muted-foreground">{error}</span><button className="font-medium text-primary" onClick={retry}>Retry</button></div>}
         {visibleRoutes.map((route) => {
           const Icon = route.icon;
           const isActive = pathname === route.href || (route.href === "/orders/tickets" && pathname.startsWith("/orders/tickets"));

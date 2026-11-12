@@ -9,8 +9,7 @@ import { toast } from "sonner";
 import { SidebarItem } from "../app/(dashboard)/_components/sidebar-item";
 import Products from "./svgIcons/Products";
 import InventoryNavigation from "./inventory-navigation";
-import { isFoodBusinessType } from "@/lib/store";
-import { isV2TicketingBusiness } from "@/lib/v2";
+import { useStoreBusiness } from "@/components/store-business-context";
 import Orders from "./svgIcons/Orders";
 import Analytics from "./svgIcons/Analytics";
 import Settings from "./svgIcons/Settings";
@@ -56,8 +55,9 @@ export const SidebarRoutes = () => {
   const [storeLogo, setStoreLogo] = useState<string | null>(null); // Add this state
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [isFoodStore, setIsFoodStore] = useState(false);
-  const [isTicketStore, setIsTicketStore] = useState(false);
+  const { businessType, status: businessStatus, error: businessError, retry: retryBusiness } = useStoreBusiness();
+  const isFoodStore = businessType === "food";
+  const isTicketStore = businessType === "ticketing";
 
   // Helper function to get cookie value
   const getCookieValue = (name: string): string | null => {
@@ -73,7 +73,7 @@ export const SidebarRoutes = () => {
   // Fetch store data including logo
   const fetchStoreData = async () => {
     try {
-      const response = await fetch('/api/store');
+      const response = await fetch('/api/store', { cache: "no-store" });
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -84,10 +84,6 @@ export const SidebarRoutes = () => {
       
       if (result.status === 'success' && result.data?.storeDetails) {
         const storeDetails = result.data.storeDetails;
-        const businessType = storeDetails.metadata?.v2?.business_type || storeDetails.business_type;
-        setIsFoodStore(isFoodBusinessType(businessType));
-        setIsTicketStore(isV2TicketingBusiness(businessType));
-        
         // Set store logo if available
         if (storeDetails.logo) {
           setStoreLogo(storeDetails.logo);
@@ -190,11 +186,19 @@ export const SidebarRoutes = () => {
   return (
     <div className="flex min-h-full w-full flex-col">
       <div className="space-y-1">
-        {adminRoutes
+        {businessStatus === "loading" && <div className="space-y-2 px-4 py-3" aria-label="Loading workspace navigation">
+          {[0, 1, 2, 3, 4, 5].map(item => <div key={item} className="h-10 animate-pulse rounded-md bg-muted" />)}
+        </div>}
+        {businessStatus === "error" && <div className="mx-4 space-y-2 py-3" role="alert">
+          <p className="text-xs text-muted-foreground">{businessError}</p>
+          <button className="text-xs font-medium text-primary" onClick={retryBusiness}>Retry workspace load</button>
+        </div>}
+        {businessStatus === "ready" && adminRoutes
           .filter((route) => {
             if (route.label === "Events") return isTicketStore;
             if (route.label === "POS") return !isTicketStore;
             if (route.label === "Menu") return isFoodStore;
+            if (route.label === "Products") return !isTicketStore;
             return true;
           })
           .map((route, index) => {

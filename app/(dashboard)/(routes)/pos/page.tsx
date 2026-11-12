@@ -2,10 +2,11 @@ import Link from "next/link";
 import { ArrowUpRight, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { BusinessTypeGuard } from "@/components/business-type-guard";
 
 export default function PosPage() {
   return (
-    <main className="mx-auto min-h-screen px-4 py-6 sm:px-6 lg:px-8">
+    <BusinessTypeGuard allow={["retail", "food"]} redirectTo="/dashboard"><main className="mx-auto min-h-screen px-4 py-6 sm:px-6 lg:px-8">
       <header className="mb-6">
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary">Sales</p>
         <h1 className="mt-2 text-xl font-semibold">Point of sale</h1>
@@ -24,6 +25,6 @@ export default function PosPage() {
           </Button>
         </CardContent>
       </Card>
-    </main>
+    </main></BusinessTypeGuard>
   );
 }
