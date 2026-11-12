@@ -94,8 +94,8 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
   const [sizeChartEnabled, setSizeChartEnabled] = useState(false);
   const [sizeChartUrl, setSizeChartUrl] = useState("");
   const [price, setPrice] = useState("");
-  const [costPrice, setCostPrice] = useState("");
-  const [compareAtPrice, setCompareAtPrice] = useState("");
+  const [discountMode, setDiscountMode] = useState("none");
+  const [discountValue, setDiscountValue] = useState("");
   const [stock, setStock] = useState("");
   const [status, setStatus] = useState("ready");
   const [unit, setUnit] = useState("pc");
@@ -181,8 +181,8 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
 
   const reset = () => {
     setKind("regular"); setName(""); setLocation(""); setShortDescription(""); setDescription("");
-    setCollection(""); setSizeChartEnabled(false); setSizeChartUrl(""); setPrice(""); setCostPrice("");
-    setCompareAtPrice(""); setStock(""); setStatus("ready"); setUnit("pc"); setBarcode(""); setIsBarcodeScannerOpen(false);
+    setCollection(""); setSizeChartEnabled(false); setSizeChartUrl(""); setPrice(""); setDiscountMode("none"); setDiscountValue("");
+    setStock(""); setStatus("ready"); setUnit("pc"); setBarcode(""); setIsBarcodeScannerOpen(false);
     setWeight("1"); setProductionFrom("2"); setProductionTo("5"); setOrderQuantityEnabled(false);
     setMinimumOrder("1"); setMaximumOrder(""); setVariants([newVariant()]); setBundleEntries([]); setImages([]);
   };
@@ -237,8 +237,9 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
       formData.append("est_prod_days_from", productionFrom);
       formData.append("est_prod_days_to", productionTo);
       formData.append("store_id", storeId);
-      formData.append("cost_price", costPrice);
-      formData.append("compare_at_price", compareAtPrice);
+      formData.append("discount_type", discountMode === "percentage" ? "percentage" : discountMode === "none" ? "" : "fixed");
+      formData.append("discount_mode", discountMode === "sale_price" ? "sale_price" : "amount_off");
+      formData.append("discount_value", discountMode === "none" ? "" : discountValue);
       formData.append("unit", unit);
       formData.append("barcode", barcode);
       formData.append("collection", collection);
@@ -367,11 +368,20 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
     {sizeChartEnabled && field("Size chart link", <Input value={sizeChartUrl} onChange={event => setSizeChartUrl(event.target.value)} placeholder="https://" />, true)}
   </>);
 
+  const discountPreviewPrice = discountMode === "sale_price"
+    ? Number(discountValue || 0)
+    : discountMode === "percentage"
+      ? Number(price || 0) * (1 - Number(discountValue || 0) / 100)
+      : discountMode === "amount_off"
+        ? Math.max(0, Number(price || 0) - Number(discountValue || 0))
+        : Number(price || 0);
+
   const pricing = section(kind === "bundle" ? "Bundle pricing" : "Product pricing", <>
     {field(`Selling price (${currency})`, <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">{currencySymbol}</span><Input className="pl-8" type="number" min="0" value={price} onChange={event => setPrice(event.target.value)} placeholder="Enter amount" /></div>)}
-    {field(`Cost price (${currency})`, <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">{currencySymbol}</span><Input className="pl-8" type="number" min="0" value={costPrice} onChange={event => setCostPrice(event.target.value)} placeholder="Enter cost" /></div>, true)}
-    {field(`Compare at price (${currency})`, <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">{currencySymbol}</span><Input className="pl-8" type="number" min="0" value={compareAtPrice} onChange={event => setCompareAtPrice(event.target.value)} placeholder="Enter reference price" /></div>, true)}
-    <div className="sm:col-span-2"><ProductMarkupPreview basePrice={price} /></div>
+    {field("Discount", <Select value={discountMode} onValueChange={value => { setDiscountMode(value); if (value === "none") setDiscountValue(""); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">No discount</SelectItem><SelectItem value="percentage">Percentage off</SelectItem><SelectItem value="amount_off">Amount off</SelectItem>{kind === "regular" && <SelectItem value="sale_price">Set discounted price</SelectItem>}</SelectContent></Select>, true)}
+    {discountMode !== "none" && field(discountMode === "percentage" ? "Discount (%)" : discountMode === "sale_price" ? `Discounted price (${currency})` : `Amount off (${currency})`, <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">{discountMode === "percentage" ? "%" : currencySymbol}</span><Input className="pl-8" type="number" min="0.01" max={discountMode === "percentage" ? 100 : undefined} value={discountValue} onChange={event => setDiscountValue(event.target.value)} placeholder={discountMode === "sale_price" ? "Enter sale price" : "Enter discount"} /></div>, true)}
+    {discountMode !== "none" && price && <p className="text-xs text-muted-foreground sm:col-span-2">Customer price preview: {currencySymbol}{(discountMode === "sale_price" ? Number(discountValue || 0) : discountMode === "percentage" ? Number(price) * (1 - Number(discountValue || 0) / 100) : Number(price) - Number(discountValue || 0)).toLocaleString()} before any applicable platform markup.</p>}
+    <div className="sm:col-span-2"><ProductMarkupPreview basePrice={String(discountPreviewPrice)} /></div>
   </>);
 
   const inventory = section(kind === "bundle" ? "Bundle inventory" : "Product inventory", <>

@@ -89,6 +89,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json(cachedData.data);
       }
     } else {
+      cache.delete(cacheKey);
       console.log('🔄 Cache bypassed due to _t parameter');
     }
 
@@ -126,7 +127,7 @@ export async function GET(request: NextRequest) {
     const result = await response.json();
 
     // Cache the successful response (unless bypassing cache)
-    if (result.status === 'success' && !shouldBypassCache) {
+    if (result.status === 'success') {
       cache.set(cacheKey, {
         data: result,
         timestamp: Date.now()

@@ -3,7 +3,7 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronLeft, ChevronRight, FilterIcon, PlusIcon, SearchIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, FilterIcon, Percent, PlusIcon, SearchIcon } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { BsThreeDots } from "react-icons/bs";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -38,6 +38,7 @@ import ProductDetailsModal from "./ProductDetailsModal";
 import Loading from "@/components/Loading";
 import { toast } from "sonner";
 import { formatStoreCurrency } from "@/lib/v2-currency";
+import { StoreDiscountDialog } from "./StoreDiscountDialog";
 
 interface ProductsTableProps { currency?: string }
 
@@ -57,6 +58,23 @@ interface Product {
   product_quantity: number;
   est_prod_days_from: number;
   product_description: string;
+  effective_discount_type?: "fixed" | "percentage" | null;
+  effective_discount_mode?: "amount_off" | "sale_price" | null;
+  effective_discount_value?: number | null;
+  discount_amount?: number;
+  discounted_product_price?: number;
+  short_description?: string | null;
+  discount_type?: "fixed" | "percentage" | null;
+  discount_mode?: "amount_off" | "sale_price" | null;
+  discount_value?: number | string | null;
+  product_weight?: number | string;
+  product_unit?: string | null;
+  barcode?: string | null;
+  collection_name?: string | null;
+  size_chart_url?: string | null;
+  min_order_quantity?: number | null;
+  max_order_quantity?: number | null;
+  store_location?: string | null;
 }
 
 interface ApiResponse {
@@ -85,8 +103,11 @@ interface FrontendProduct {
   product_type?: string;
   productType?: string;
   shortDescription?: string;
-  costPrice?: number | null;
-  compareAtPrice?: number | null;
+  discountType?: "fixed" | "percentage" | null;
+  discountMode?: "amount_off" | "sale_price" | null;
+  discountValue?: number | null;
+  discountAmount?: number;
+  discountedPrice?: number;
   unit?: string;
   barcode?: string;
   collection?: string;
@@ -110,7 +131,23 @@ const transformProduct = (product: Product): FrontendProduct => ({
   sales: product.product_price,
   status: mapStatusFromApi(product.product_status),
   createdAt: product.created_at,
-  thumbnail: product.product_images?.length ? product.product_images : ['/thumbnails/default.png'],
+  thumbnail: product.product_images?.length ? product.product_images : [],
+  shortDescription: product.short_description || "",
+  discountType: product.discount_type ?? null,
+  discountMode: product.discount_mode ?? null,
+  discountValue: product.discount_value == null ? null : Number(product.discount_value),
+  discountAmount: Number(product.discount_amount || 0),
+  discountedPrice: Number(product.discounted_product_price ?? product.product_price),
+  unit: product.product_unit || "",
+  barcode: product.barcode || "",
+  collection: product.collection_name || "",
+  sizeChartUrl: product.size_chart_url || "",
+  minOrderQuantity: product.min_order_quantity ?? null,
+  maxOrderQuantity: product.max_order_quantity ?? null,
+  location: product.store_location || "",
+  product_weight: Number(product.product_weight || 1),
+  est_prod_days_from: product.est_prod_days_from,
+  est_prod_days_to: product.est_prod_days_to,
   variants: Array.isArray(product.variants) ? product.variants.map((variant, index) => ({
     id: String(variant.id || `${product.id}-variant-${index}`),
     name: String(variant.name || variant.size || ""),
@@ -150,6 +187,7 @@ export default function ProductTable({ currency = "NGN" }: ProductsTableProps) {
   const [products, setProducts] = useState<FrontendProduct[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [isStoreDiscountOpen, setIsStoreDiscountOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<FrontendProduct | null>(null);
@@ -172,6 +210,7 @@ export default function ProductTable({ currency = "NGN" }: ProductsTableProps) {
       const queryParams = new URLSearchParams({
         page: (currentPage + 1).toString(),
         pageSize: pageSize.toString(),
+        _t: Date.now().toString(),
         ...(searchTerm && { search: searchTerm }),
         ...(filterStatus && { status: mapStatusToApi(filterStatus) }),
         ...(sortBy !== "default" && { 
@@ -364,7 +403,7 @@ export default function ProductTable({ currency = "NGN" }: ProductsTableProps) {
   };
 
   const handleEdit = (product: FrontendProduct) => {
-    setProducts((prev) => prev.map((p) => (p.sku === product.sku ? product : p)));
+    setProducts((prev) => prev.map((p) => (p.id === product.id ? product : p)));
     setIsDetailsModalOpen(false);
     toast.success('Product updated successfully!');
   };
@@ -416,6 +455,9 @@ export default function ProductTable({ currency = "NGN" }: ProductsTableProps) {
           <SearchIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         </div>
         <div className="flex space-x-2">
+          <Button variant="outline" className="border-[#F5F5F5] dark:border-[#1F1F1F] dark:bg-background" onClick={() => setIsStoreDiscountOpen(true)}>
+            <Percent className="h-4 w-4" /><span className="hidden sm:inline ml-2">Store discount</span>
+          </Button>
           <Button
             variant="outline"
             className="border-[#F5F5F5] dark:border-[#1F1F1F] dark:bg-background"
@@ -540,7 +582,7 @@ export default function ProductTable({ currency = "NGN" }: ProductsTableProps) {
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Product Name</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Stock</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Remnant</TableHead>
-            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Sales</TableHead>
+            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Price</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Status</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Actions</TableHead>
             
@@ -578,7 +620,11 @@ export default function ProductTable({ currency = "NGN" }: ProductsTableProps) {
                 <TableCell>{product.productName}</TableCell>
                 <TableCell>{product.stock}</TableCell>
                 <TableCell>{product.remanent}</TableCell>
-                <TableCell>{formatStoreCurrency(product.sales, currency)}</TableCell>
+                <TableCell><div className="flex flex-col items-start">
+                  {product.discountAmount ? <span className="text-xs text-muted-foreground line-through">{formatStoreCurrency(product.sales, currency)}</span> : null}
+                  <span>{formatStoreCurrency(product.discountedPrice ?? product.sales, currency)}</span>
+                  {product.discountAmount ? <span className="text-[11px] text-muted-foreground">-{formatStoreCurrency(product.discountAmount, currency)}</span> : null}
+                </div></TableCell>
                 <TableCell>
                   <span className={`flex items-center px-2 py-1 text-black rounded text-sm ${getStatusClass(product.status)}`}>
                     <span className={`w-2 h-2 rounded-full mr-2 ${product.status === "Ready Stock" ? "bg-[#53DC19]" :
@@ -680,6 +726,7 @@ export default function ProductTable({ currency = "NGN" }: ProductsTableProps) {
         availableProducts={products.map((product) => ({ id: product.id, productName: product.productName, sku: product.sku, stock: product.stock, productType: product.productType }))}
         isEditMode={isEditMode}
       />
+      <StoreDiscountDialog open={isStoreDiscountOpen} onOpenChange={setIsStoreDiscountOpen} onSaved={fetchProducts} currency={currency} />
       <ActionModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}

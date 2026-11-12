@@ -39,8 +39,9 @@ interface FrontendProduct {
     variants?: { id: string; name?: string; size: string | number; color: string; sku?: string; price: number; quantity: number }[];
     bundleItems?: { productId: string; productName: string; sku: string; quantity: number }[];
     shortDescription?: string;
-    costPrice?: number | null;
-    compareAtPrice?: number | null;
+    discountType?: "fixed" | "percentage" | null;
+    discountMode?: "amount_off" | "sale_price" | null;
+    discountValue?: number | null;
     unit?: string;
     barcode?: string;
     collection?: string;
@@ -77,8 +78,9 @@ interface ApiProduct {
     variants?: Array<{ id?: string; name?: string; size?: string | number; color?: string; sku?: string; price?: number | string; quantity?: number | string }>;
     bundle_items?: Array<{ product_id: string; product_name?: string; product_sku?: string; quantity?: number | string }>;
     short_description?: string | null;
-    cost_price?: number | string | null;
-    compare_at_price?: number | string | null;
+    discount_type?: "fixed" | "percentage" | null;
+    discount_mode?: "amount_off" | "sale_price" | null;
+    discount_value?: number | string | null;
     product_unit?: string | null;
     barcode?: string | null;
     collection_name?: string | null;
@@ -173,8 +175,9 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
           formData.append('quantity', localProduct.stock.toString());
           formData.append('description', localProduct.description || '');
           formData.append('short_description', localProduct.shortDescription || '');
-          formData.append('cost_price', localProduct.costPrice?.toString() || '');
-          formData.append('compare_at_price', localProduct.compareAtPrice?.toString() || '');
+          formData.append('discount_type', localProduct.discountType || '');
+          formData.append('discount_mode', localProduct.discountMode || 'amount_off');
+          formData.append('discount_value', localProduct.discountValue?.toString() || '');
           formData.append('est_prod_days_from', String(localProduct.est_prod_days_from ?? 0));
           formData.append('est_prod_days_to', String(localProduct.est_prod_days_to ?? 0));
           formData.append('weight', String(localProduct.product_weight || 1));
@@ -279,8 +282,12 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (files) {
-            const newFiles = Array.from(files);
-            setNewImages(prev => [...prev, ...newFiles]);
+            const newFiles = Array.from(files).filter(file => file.type.startsWith("image/") && file.size <= 5 * 1024 * 1024);
+            const availableSlots = Math.max(0, 5 - existingImages.length - newImages.length);
+            if (newFiles.length > availableSlots) toast.error("A product can have at most five images.");
+            setNewImages(prev => [...prev, ...newFiles.slice(0, availableSlots)]);
+            if (newFiles.length !== files.length) toast.error("Use image files up to 5 MB each.");
+            e.target.value = "";
         }
     };
 
@@ -323,8 +330,9 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
             quantity: Number(item.quantity || 1),
         })) : [],
         shortDescription: apiProduct.short_description || "",
-        costPrice: apiProduct.cost_price == null ? null : Number(apiProduct.cost_price),
-        compareAtPrice: apiProduct.compare_at_price == null ? null : Number(apiProduct.compare_at_price),
+        discountType: apiProduct.discount_type || null,
+        discountMode: apiProduct.discount_mode || null,
+        discountValue: apiProduct.discount_value == null ? null : Number(apiProduct.discount_value),
         unit: apiProduct.product_unit || "",
         barcode: apiProduct.barcode || "",
         collection: apiProduct.collection_name || "",
@@ -461,7 +469,9 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                                         <Button
                                                             variant="destructive"
                                                             size="icon"
-                                                            className="absolute -top-2 -right-2 h-5 w-5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                                                            type="button"
+                                                            aria-label={`Remove product image ${index + 1}`}
                                                             onClick={() => handleRemoveExistingImage(img)}
                                                         >
                                                             <X className="h-3 w-3" />
@@ -483,7 +493,9 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                                 <Button
                                                     variant="destructive"
                                                     size="icon"
-                                                    className="absolute -top-2 -right-2 h-5 w-5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                                                    type="button"
+                                                    aria-label={`Remove new image ${index + 1}`}
                                                     onClick={() => handleRemoveNewImage(index)}
                                                 >
                                                     <X className="h-3 w-3" />
@@ -618,10 +630,17 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                     />
                                 </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div><Label className="text-xs mb-1">Cost price</Label><Input type="number" min="0" value={localProduct.costPrice ?? ""} readOnly={!editMode} onChange={(e) => handleInputChange("costPrice", e.target.value === "" ? null : Number(e.target.value))} /></div>
-                                <div><Label className="text-xs mb-1">Compare-at price</Label><Input type="number" min="0" value={localProduct.compareAtPrice ?? ""} readOnly={!editMode} onChange={(e) => handleInputChange("compareAtPrice", e.target.value === "" ? null : Number(e.target.value))} /></div>
-                            </div>
+                            {editMode && <div className="space-y-2 rounded-md border p-3">
+                                <Label className="text-xs">Product discount</Label>
+                                <Select value={localProduct.discountType ? localProduct.discountMode === "sale_price" ? "sale_price" : localProduct.discountType === "percentage" ? "percentage" : "amount_off" : "none"} onValueChange={(value) => {
+                                    const discountType = value === "percentage" ? "percentage" : value === "none" ? null : "fixed";
+                                    setLocalProduct({ ...localProduct, discountType, discountMode: value === "sale_price" ? "sale_price" : "amount_off", discountValue: value === "none" ? null : localProduct.discountValue });
+                                }}>
+                                    <SelectTrigger disabled={!editMode}><SelectValue /></SelectTrigger>
+                                    <SelectContent><SelectItem value="none">No discount</SelectItem><SelectItem value="percentage">Percentage off</SelectItem><SelectItem value="amount_off">Amount off</SelectItem>{localProduct.product_type === "single" && <SelectItem value="sale_price">Set discounted price</SelectItem>}</SelectContent>
+                                </Select>
+                                {localProduct.discountType && <Input type="number" min="0.01" max={localProduct.discountType === "percentage" ? 100 : undefined} placeholder={localProduct.discountMode === "sale_price" ? "Discounted price" : localProduct.discountType === "percentage" ? "Discount percent" : "Amount off"} value={localProduct.discountValue ?? ""} onChange={(e) => handleInputChange("discountValue", e.target.value === "" ? null : Number(e.target.value))} />}
+                            </div>}
                             <div className="grid grid-cols-2 gap-4">
                                 <div><Label className="text-xs mb-1">Unit</Label><Input value={localProduct.unit || ""} readOnly={!editMode} onChange={(e) => handleInputChange("unit", e.target.value)} /></div>
                                 <div><Label className="text-xs mb-1">Barcode</Label><Input value={localProduct.barcode || ""} readOnly={!editMode} onChange={(e) => handleInputChange("barcode", e.target.value)} /></div>
