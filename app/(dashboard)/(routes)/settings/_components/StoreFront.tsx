@@ -24,6 +24,7 @@ interface BrandColor {
   primary: string;
   secondary: string;
   accent: string;
+  text: string;
 }
 
 interface StorefrontAnnouncement {
@@ -242,6 +243,7 @@ function StorefrontComponent() {
     primary: "#005B14",
     secondary: "#4FCA6A",
     accent: "#E8F5E9",
+    text: "#111827",
   });
   const [savedAnnouncement, setSavedAnnouncement] = useState<StorefrontAnnouncement>({
     enabled: false,
@@ -408,6 +410,7 @@ function StorefrontComponent() {
             primary: brandColor.primary || "#005B14",
             secondary: brandColor.secondary || "#4FCA6A",
             accent: brandColor.accent || "#E8F5E9",
+            text: brandColor.text || "#111827",
           };
           const resolvedAnnouncement: StorefrontAnnouncement = {
             enabled: metadata.storefront_announcement?.enabled || false,
@@ -1643,9 +1646,10 @@ function StorefrontComponent() {
 
             <div className="grid gap-3 sm:grid-cols-3">
               {([
-                ["primary", "Primary", "Buttons and key accents"],
+                ["primary", "Button color", "Primary storefront buttons and accents"],
                 ["secondary", "Secondary", "Highlights and active states"],
                 ["accent", "Soft accent", "Subtle backgrounds"],
+                ["text", "Text color", "Default storefront text"],
               ] as const).map(([key, label, description]) => {
                 const value = storefrontData.metadata?.brand_color?.[key] || savedBrandColor[key];
                 return (
