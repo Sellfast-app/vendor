@@ -693,7 +693,7 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                                     {editMode && <Button type="button" variant="ghost" size="icon" aria-label="Remove variant" onClick={() => setLocalProduct({ ...localProduct, variants: (localProduct.variants || []).filter((_, variantIndex) => variantIndex !== index) })}><X className="h-4 w-4" /></Button>}
                                                 </div>
                                             ))}
-                                            {editMode && <Button type="button" variant="outline" size="sm" onClick={() => setLocalProduct({ ...localProduct, variants: [...(localProduct.variants || []), { id: `new-${Date.now()}`, name: "", size: "", color: "", sku: "", price: localProduct.sales, quantity: 0 }] })}><Plus className="h-4 w-4 mr-1" /> Add variant</Button>}
+                                            {editMode && <Button type="button" variant="outline" size="sm" disabled={(localProduct.variants || []).length >= 100} onClick={() => setLocalProduct({ ...localProduct, variants: [...(localProduct.variants || []), { id: crypto.randomUUID(), name: "", size: "", color: "", sku: "", price: localProduct.sales, quantity: 0 }] })}><Plus className="h-4 w-4 mr-1" /> Add variant</Button>}
                                         </AccordionContent>
                                     </AccordionItem>
                                 </Accordion>

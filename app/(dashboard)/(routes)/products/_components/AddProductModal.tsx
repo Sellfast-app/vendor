@@ -411,9 +411,17 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
 
   const variantEditor = kind === "variants" && (
     <section className="border-b">
-      <h3 className="bg-muted/60 px-4 py-3 text-sm font-semibold">Product variations</h3>
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-muted/60 px-4 py-3">
+        <div>
+          <h3 className="text-sm font-semibold">Product variations</h3>
+          <p className="mt-1 text-xs text-muted-foreground">{variants.length} of 100 variations</p>
+        </div>
+        <Button type="button" variant="outline" size="sm" disabled={variants.length >= 100} onClick={() => setVariants(current => [...current, newVariant()])}>
+          <Plus className="mr-2 h-4 w-4" />Add variation
+        </Button>
+      </div>
       <div className="space-y-3 p-4">
-        <p className="text-xs text-muted-foreground">Add a row for each sellable combination. Stock, price and image can vary by option.</p>
+        <p className="text-xs text-muted-foreground">Add a row for each sellable combination. Enter a selling price only when it differs from the product price.</p>
         {variants.map((variant, index) => {
           const preview = variantPreviews.find(item => item.id === variant.id);
           return <div key={variant.id} className="rounded-md border p-3">
@@ -423,7 +431,7 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
               {field("Size", <Input value={variant.size} onChange={event => updateVariant(variant.id, "size", event.target.value)} placeholder="Optional" />, true)}
               {field("Colour", <Input value={variant.color} onChange={event => updateVariant(variant.id, "color", event.target.value)} placeholder="e.g. Black" />, true)}
               {field("SKU", <Input value={variant.sku} onChange={event => updateVariant(variant.id, "sku", event.target.value)} placeholder="Variant SKU" />, true)}
-              {field("Selling price", <Input type="number" min="0" value={variant.price} onChange={event => updateVariant(variant.id, "price", event.target.value)} placeholder={price || "Use product price"} />)}
+              {field("Selling price (optional)", <Input type="number" min="0" value={variant.price} onChange={event => updateVariant(variant.id, "price", event.target.value)} placeholder={price || "Same as product price"} />)}
               {field("Stock quantity", <Input type="number" min="0" value={variant.quantity} onChange={event => updateVariant(variant.id, "quantity", event.target.value)} placeholder="0" />)}
               <div className="space-y-1.5">
                 <Label htmlFor={`variant-image-${variant.id}`} className="text-xs text-muted-foreground">Variant image (Optional)</Label>
@@ -445,7 +453,6 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
             </div>
           </div>;
         })}
-        <Button type="button" variant="outline" onClick={() => setVariants(current => [...current, newVariant()])}><Plus className="mr-2 h-4 w-4" />Add variation</Button>
       </div>
     </section>
   );
