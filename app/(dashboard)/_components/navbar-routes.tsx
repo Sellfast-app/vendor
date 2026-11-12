@@ -15,6 +15,7 @@ export const NavbarRoutes = () => {
   const [storeLogo, setStoreLogo] = useState<string | null>(null); // Add this state
   const router = useRouter();
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+  const [isStaff, setIsStaff] = useState(false);
 
   const getCookieValue = (name: string): string | null => {
     if (typeof window === 'undefined') return null;
@@ -62,6 +63,7 @@ export const NavbarRoutes = () => {
   };
 
   useEffect(() => {
+    setIsStaff(getCookieValue("user_role") === "vendor_staff");
     const storeName = getCookieValue("store_name");
     if (storeName) {
       setBusinessName(decodeURIComponent(storeName)); 
@@ -164,7 +166,7 @@ export const NavbarRoutes = () => {
         </DropdownMenu>
       </div>
 
-      <div className="flex items-center gap-3">
+      {!isStaff && <div className="flex items-center gap-3">
         <Button variant="ghost" onClick={() => setIsNotificationModalOpen(true)}>
           <IoNotificationsOutline className="w-5 h-5" />
         </Button>
@@ -180,12 +182,12 @@ export const NavbarRoutes = () => {
         >
           Visit Your StoreFront <HiOutlineExternalLink />
         </Button>
-      </div>
+      </div>}
       
-      <NotificationModal
+      {!isStaff && <NotificationModal
         isOpen={isNotificationModalOpen} 
         onClose={() => setIsNotificationModalOpen(false)} 
-      />
+      />}
     </div>
   );
 };

@@ -152,10 +152,15 @@ const tourSteps: TourStep[] = [
 function DashboardPage() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [isStaff, setIsStaff] = useState(false);
   const router = useRouter();
   const { businessType, storeName, status: storeTypeStatus, error: storeTypeError, retry: retryStoreType } = useStoreBusiness();
   const [overview, setOverview] = useState<StoreOverviewData | null>(null);
   const [isOverviewLoading, setIsOverviewLoading] = useState(true);
+
+  useEffect(() => {
+    setIsStaff(document.cookie.split("; ").some((cookie) => cookie === "user_role=vendor_staff"));
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -338,6 +343,18 @@ function DashboardPage() {
 
   if (storeTypeStatus === "error") {
     return <main className="mx-auto max-w-xl px-4 py-12 text-center"><h1 className="text-lg font-semibold">Workspace unavailable</h1><p className="mt-2 text-sm text-muted-foreground">{storeTypeError}</p><Button variant="outline" className="mt-4" onClick={retryStoreType}>Retry</Button></main>;
+  }
+
+  if (isStaff) {
+    const ordersHref = isTicketStore ? "/orders/tickets" : "/orders";
+    return <main className="mx-auto min-h-screen max-w-5xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+      <header><p className="text-xs font-medium uppercase text-primary">Store operations</p><h1 className="mt-2 text-2xl font-semibold">Dashboard</h1><p className="mt-1 text-sm text-muted-foreground">Monitor incoming orders and continue fulfillment from the orders page.</p></header>
+      <section className="grid gap-4 sm:grid-cols-2" aria-label="Order overview">
+        <Card className="shadow-none"><CardContent className="p-5"><p className="text-sm text-muted-foreground">Total orders</p><p className="mt-2 text-2xl font-semibold">{isOverviewLoading ? "—" : overview?.total_orders ?? 0}</p></CardContent></Card>
+        <Card className="shadow-none"><CardContent className="p-5"><p className="text-sm text-muted-foreground">Pending orders</p><p className="mt-2 text-2xl font-semibold">{isOverviewLoading ? "—" : overview?.pending_orders ?? 0}</p></CardContent></Card>
+      </section>
+      <Button asChild><Link href={ordersHref}>View orders <ArrowRight className="h-4 w-4" /></Link></Button>
+    </main>;
   }
 
   if (isTicketStore) {

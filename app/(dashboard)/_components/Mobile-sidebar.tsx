@@ -6,6 +6,7 @@ import Products from "@/components/svgIcons/Products";
 import { LayoutDashboardIcon, Bell, Ticket } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useStoreBusiness } from "@/components/store-business-context";
 
 const routes = [
@@ -43,10 +44,15 @@ const routes = [
 
 export const MobileSidebar = () => {
   const pathname = usePathname();
+  const [isStaff, setIsStaff] = useState(false);
+  useEffect(() => {
+    setIsStaff(document.cookie.split("; ").some((cookie) => cookie === "user_role=vendor_staff"));
+  }, []);
   const { businessType, status, error, retry } = useStoreBusiness();
   const isTicketStore = businessType === "ticketing";
   const visibleRoutes = status === "ready"
     ? routes
+      .filter(route => !isStaff || ["Overview", "Orders"].includes(route.label))
       .filter(route => route.label !== "Events" || isTicketStore)
       .filter(route => route.label !== "Products" || !isTicketStore)
       .map((route) => route.label === "Orders" && isTicketStore

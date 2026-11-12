@@ -55,6 +55,7 @@ export const SidebarRoutes = () => {
   const [storeLogo, setStoreLogo] = useState<string | null>(null); // Add this state
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [isStaff, setIsStaff] = useState(false);
   const { businessType, status: businessStatus, error: businessError, retry: retryBusiness } = useStoreBusiness();
   const isFoodStore = businessType === "food";
   const isTicketStore = businessType === "ticketing";
@@ -102,6 +103,7 @@ export const SidebarRoutes = () => {
 
   // Retrieve business name from cookies and fetch store data on mount
   useEffect(() => {
+    setIsStaff(getCookieValue("user_role") === "vendor_staff");
     const storeName = getCookieValue("store_name");
     if (storeName) {
       setBusinessName(decodeURIComponent(storeName));
@@ -194,6 +196,7 @@ export const SidebarRoutes = () => {
           <button className="text-xs font-medium text-primary" onClick={retryBusiness}>Retry workspace load</button>
         </div>}
         {businessStatus === "ready" && adminRoutes
+          .filter((route) => !isStaff || ["Overview", "Orders"].includes(route.label))
           .filter((route) => {
             if (route.label === "Events") return isTicketStore;
             if (route.label === "POS") return !isTicketStore;
@@ -220,7 +223,7 @@ export const SidebarRoutes = () => {
       </div>
       <div className="mt-auto w-full pt-6">
         <div className="w-full border-b border-[#F5F5F5] dark:border-[#1F1F1F]">
-          {updatedActionRoutes.map((route) => (
+          {updatedActionRoutes.filter((route) => !isStaff || route.label === "Logout").map((route) => (
             <SidebarItem
               key={route.label}
               icon={route.icon}
@@ -231,7 +234,7 @@ export const SidebarRoutes = () => {
             />
           ))}
         </div>
-        <DropdownMenu>
+        {!isStaff && <DropdownMenu>
           <DropdownMenuTrigger className="w-full">
             <div className="mx-4 mt-4 flex items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted">
               <Avatar className="h-10 w-10 rounded-full border text-center">
@@ -253,7 +256,7 @@ export const SidebarRoutes = () => {
           <DropdownMenuContent align="start" className="w-56">
             <DropdownMenuItem>Other Stores</DropdownMenuItem>
           </DropdownMenuContent>
-        </DropdownMenu>
+        </DropdownMenu>}
       </div>
     </div>
   );

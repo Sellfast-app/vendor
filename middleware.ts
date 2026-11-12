@@ -26,7 +26,18 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (request.cookies.get("accessToken")?.value) return NextResponse.next();
+  if (request.cookies.get("accessToken")?.value) {
+    if (request.cookies.get("user_role")?.value === "vendor_staff") {
+      const isAllowedStaffRoute = pathname === "/dashboard" || pathname.startsWith("/dashboard/") || pathname === "/orders" || pathname.startsWith("/orders/");
+      if (!isAllowedStaffRoute) {
+        const dashboardUrl = request.nextUrl.clone();
+        dashboardUrl.pathname = "/dashboard";
+        dashboardUrl.search = "";
+        return NextResponse.redirect(dashboardUrl);
+      }
+    }
+    return NextResponse.next();
+  }
 
   const loginUrl = request.nextUrl.clone();
   loginUrl.pathname = "/login";
