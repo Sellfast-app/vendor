@@ -57,6 +57,7 @@ type VariantDraft = {
   image: File | null;
 };
 type BundleEntry = { productId: string; quantity: string };
+type StoreBranchOption = { id: string; name: string; city: string; region: string };
 
 interface AddProductModalProps {
   isOpen: boolean;
@@ -88,6 +89,10 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
   const [kind, setKind] = useState<ProductKind>("regular");
   const [name, setName] = useState("");
   const [location, setLocation] = useState("");
+  const [selectedBranchId, setSelectedBranchId] = useState("all");
+  const [branches, setBranches] = useState<StoreBranchOption[]>([]);
+  const [branchesLoading, setBranchesLoading] = useState(false);
+  const [branchesError, setBranchesError] = useState("");
   const [shortDescription, setShortDescription] = useState("");
   const [description, setDescription] = useState("");
   const [collection, setCollection] = useState("");
@@ -120,6 +125,33 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
     ? [{ id: variant.id, url: URL.createObjectURL(variant.image) }]
     : []), [variants]);
   useEffect(() => () => variantPreviews.forEach(preview => URL.revokeObjectURL(preview.url)), [variantPreviews]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let active = true;
+    setBranchesLoading(true);
+    setBranchesError("");
+    fetch("/api/branches", { cache: "no-store" })
+      .then(async response => {
+        const result = await response.json();
+        if (!response.ok || result.status !== "success") throw new Error(result.message || "Unable to load branches.");
+        return result.data;
+      })
+      .then(data => {
+        if (!active) return;
+        setBranches(Array.isArray(data) ? data.map((branch: Record<string, unknown>) => ({
+          id: String(branch.id),
+          name: String(branch.name || "Branch"),
+          city: String(branch.city || ""),
+          region: String(branch.region || ""),
+        })) : []);
+      })
+      .catch(error => {
+        if (active) setBranchesError(error instanceof Error ? error.message : "Unable to load branches.");
+      })
+      .finally(() => { if (active) setBranchesLoading(false); });
+    return () => { active = false; };
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isBarcodeScannerOpen) return;
@@ -180,7 +212,7 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
   };
 
   const reset = () => {
-    setKind("regular"); setName(""); setLocation(""); setShortDescription(""); setDescription("");
+    setKind("regular"); setName(""); setLocation(""); setSelectedBranchId("all"); setShortDescription(""); setDescription("");
     setCollection(""); setSizeChartEnabled(false); setSizeChartUrl(""); setPrice(""); setDiscountMode("none"); setDiscountValue("");
     setStock(""); setStatus("ready"); setUnit("pc"); setBarcode(""); setIsBarcodeScannerOpen(false);
     setWeight("1"); setProductionFrom("2"); setProductionTo("5"); setOrderQuantityEnabled(false);
@@ -356,7 +388,20 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
 
   const productDetails = section(kind === "bundle" ? "Bundle details" : "Product details", <>
     {field(kind === "bundle" ? "Bundle name" : "Product name", <Input value={name} onChange={event => setName(event.target.value)} placeholder="Enter name" />)}
-    {field("Store location", <Input value={location} onChange={event => setLocation(event.target.value)} placeholder="All locations" />, true)}
+    {field("Branch", <div className="space-y-1.5">
+      <Select value={selectedBranchId} disabled={branchesLoading || Boolean(branchesError)} onValueChange={id => {
+        setSelectedBranchId(id);
+        setLocation(branches.find(branch => branch.id === id)?.name || "");
+      }}>
+        <SelectTrigger><SelectValue placeholder={branchesLoading ? "Loading branches..." : "All branches"} /></SelectTrigger>
+        <SelectContent className="z-[80]">
+          <SelectItem value="all">All branches</SelectItem>
+          {branches.map(branch => <SelectItem key={branch.id} value={branch.id}>{[branch.name, branch.city, branch.region].filter(Boolean).join(" · ")}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      {branchesError ? <p role="alert" className="text-xs text-destructive">{branchesError} Close and reopen the form to retry.</p>
+        : !branchesLoading && branches.length === 0 && <p className="text-xs text-muted-foreground">No branches yet. This product will be available across all branches.</p>}
+    </div>, true)}
     {imagePicker}
     {field("Short description", <Input value={shortDescription} onChange={event => setShortDescription(event.target.value)} maxLength={180} placeholder="A short summary" />, true)}
     {field("Long description", <Textarea value={description} onChange={event => setDescription(event.target.value)} rows={4} placeholder="Describe this product" className="sm:col-span-2" />, true)}
