@@ -83,6 +83,7 @@ export function EventDetailModal({
     }
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [isCoverUploading, setIsCoverUploading] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -226,6 +227,7 @@ export function EventDetailModal({
           <EventImagePicker
             value={formData.coverImage}
             onChange={(url) => handleInputChange("coverImage", url)}
+            onUploadingChange={setIsCoverUploading}
           />
 
           {/* Event Details */}
@@ -583,10 +585,10 @@ export function EventDetailModal({
           </Button>
           <Button
             onClick={handleSave}
-            disabled={isLoading}
+            disabled={isLoading || isCoverUploading}
             className="bg-primary hover:bg-primary/90"
           >
-            {isLoading ? "Saving..." : isEditMode ? "Update Event" : "Create Event"}
+            {isCoverUploading ? "Uploading cover..." : isLoading ? "Saving..." : isEditMode ? "Update Event" : "Create Event"}
           </Button>
         </div>
       </DialogContent>
