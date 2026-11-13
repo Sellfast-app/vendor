@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { CheckCircle2, CircleAlert, CreditCard, LoaderCircle, ShieldCheck } from "lucide-react";
+import { CheckCircle2, CircleAlert, CreditCard, ShieldCheck } from "lucide-react";
 import AddBankModal from "@/app/(dashboard)/(routes)/payouts/_components/AddBankModal";
 
 type Provider = {
@@ -66,26 +66,23 @@ export default function PaymentMethods() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const toggle = (provider: Provider, enabled: boolean) => {
-    if (provider.required) return;
-    setSelected((current) => enabled
-      ? [...new Set([...current, provider.id])]
-      : current.filter((id) => id !== provider.id));
-  };
-
-  const save = async () => {
+  const toggle = async (provider: Provider, enabled: boolean) => {
+    if (provider.required || saving) return;
+    const nextSelected = enabled
+      ? [...new Set([...selected, provider.id])]
+      : selected.filter((id) => id !== provider.id);
     setSaving(true);
     setError("");
     try {
       const response = await fetch("/api/v2/payment-methods", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ providers: selected }),
+        body: JSON.stringify({ providers: nextSelected }),
       });
       const result = await response.json();
       if (!response.ok || result.status !== "success") throw new Error(result.message || "Could not save payment methods");
-      toast.success("Payment methods saved");
-      await load();
+      setSelected(nextSelected);
+      toast.success(`${provider.name} ${enabled ? "enabled" : "disabled"}`);
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Could not save payment methods";
       setError(message);
@@ -97,9 +94,8 @@ export default function PaymentMethods() {
 
   return <div className="space-y-6">
     <Card className="shadow-none">
-      <CardHeader className="flex flex-col gap-3 border-b sm:flex-row sm:items-center sm:justify-between">
+      <CardHeader className="border-b">
         <div><p className="text-xs font-medium uppercase text-primary">Checkout routing</p><h2 className="mt-2 text-lg font-semibold">Payment methods</h2><p className="mt-1 text-sm text-muted-foreground">Choose the providers customers can use for online checkout.</p></div>
-        <Button onClick={save} disabled={loading || saving || providers.length === 0}>{saving ? <><LoaderCircle className="mr-2 h-4 w-4 animate-spin" />Saving</> : "Save payment setup"}</Button>
       </CardHeader>
       <CardContent className="space-y-4 p-5">
         {loading ? <div className="h-24 animate-pulse rounded-md bg-muted" /> : providers.length === 0 ? <p className="text-sm text-muted-foreground">No online payment providers are supported for this store&apos;s market.</p> : <>
@@ -107,7 +103,7 @@ export default function PaymentMethods() {
           <div className="grid gap-3 md:grid-cols-2">{providers.map((provider) => {
             const chosen = selected.includes(provider.id);
             return <div key={provider.id} className="rounded-md border p-4">
-              <div className="flex items-start justify-between gap-4"><div className="flex gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary"><CreditCard className="h-4 w-4" /></div><div><div className="flex flex-wrap items-center gap-2"><p className="text-sm font-medium">{provider.name}</p>{provider.required && <Badge variant="outline">Required in {country}</Badge>}</div><p className="mt-1 text-xs text-muted-foreground">Customer checkout currency: {provider.currency}</p></div></div><Switch checked={chosen} disabled={provider.required || loading} onCheckedChange={(value) => toggle(provider, value)} aria-label={`${provider.name} enabled`} /></div>
+              <div className="flex items-start justify-between gap-4"><div className="flex gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary"><CreditCard className="h-4 w-4" /></div><div><div className="flex flex-wrap items-center gap-2"><p className="text-sm font-medium">{provider.name}</p>{provider.required && <Badge variant="outline">Required in {country}</Badge>}</div><p className="mt-1 text-xs text-muted-foreground">Customer checkout currency: {provider.currency}</p></div></div><Switch checked={chosen} disabled={provider.required || loading || saving} onCheckedChange={(value) => void toggle(provider, value)} aria-label={`${provider.name} enabled`} /></div>
               <div className="mt-4 flex items-center gap-2 text-xs">{provider.available ? <><ShieldCheck className="h-4 w-4 text-emerald-600" /><span className="text-emerald-700">Ready for checkout</span></> : <><CircleAlert className="h-4 w-4 text-amber-600" /><span className="text-amber-700">Settlement setup required before checkout</span></>}</div>
               {provider.id === "paystack" && !provider.settlement_account_configured && <Button className="mt-3" size="sm" variant="outline" onClick={() => setPaystackBankModalOpen(true)}>Add Paystack bank account</Button>}
               {provider.id === "seerbit" && !provider.settlement_account_configured && <Button className="mt-3" size="sm" variant="outline" onClick={() => setSeerbitBankModalOpen(true)}>Add SeerBit bank account</Button>}
