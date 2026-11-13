@@ -203,8 +203,8 @@ export function EventDetailModal({
       setFormData(savedEvent);
       toast.success(isEditMode ? "Event updated successfully" : "Event created successfully");
       onClose();
-    } catch {
-      toast.error("Failed to save event");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save event");
     } finally {
       setIsLoading(false);
     }

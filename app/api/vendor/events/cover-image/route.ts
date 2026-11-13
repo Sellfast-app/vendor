@@ -25,6 +25,12 @@ export async function POST(request: NextRequest) {
       cache: "no-store",
     });
     const text = await response.text();
+    if (!(response.headers.get("content-type") || "").includes("application/json")) {
+      const message = response.status === 404
+        ? "The configured API does not have the event image upload endpoint yet. Point this preview to the updated API or deploy the API change."
+        : "The event image upload service returned an invalid response.";
+      return NextResponse.json({ status: "failed", message }, { status: response.status === 404 ? 503 : 502 });
+    }
     let body: unknown;
     try {
       body = JSON.parse(text);
