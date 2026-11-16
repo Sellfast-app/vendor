@@ -21,6 +21,7 @@ import { Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getStoreCurrency } from "@/lib/v2-currency";
 import { BusinessTypeGuard } from "@/components/business-type-guard";
+import { CouponsDialog } from "./_components/CouponsDialog";
 
 interface OverviewMetric {
   id: string;
@@ -34,6 +35,7 @@ interface OverviewMetric {
 
 function ProductsPageContent() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isCouponsOpen, setIsCouponsOpen] = useState(false);
   const [businessType, setBusinessType] = useState<string>("");
   const [currency, setCurrency] = useState("NGN");
   const [isLoading, setIsLoading] = useState(true);
@@ -171,6 +173,7 @@ function ProductsPageContent() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setIsCouponsOpen(true)}>Coupons</Button>
           <Button variant="outline">
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline ml-2">
@@ -201,6 +204,7 @@ function ProductsPageContent() {
         fieldOptions={fieldOptions}
         dataName={isRestaurant ? "Food Items" : "Products"}
       />
+      <CouponsDialog open={isCouponsOpen} onOpenChange={setIsCouponsOpen} currency={currency} />
     </div>
   );
 }
