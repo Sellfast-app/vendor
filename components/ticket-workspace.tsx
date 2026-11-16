@@ -38,6 +38,16 @@ type LiveTicketOrder = {
   admissions: Array<{ id: string; ticket_type_id: string; ticket_name: string; status: string; checked_in_at: string | null }>;
 };
 type TicketEventOption = { id: string; name: string };
+type CheckInRecord = {
+  id: string;
+  event_id: string;
+  event_name: string;
+  attendee_first_name: string;
+  attendee_last_name: string;
+  ticket_type: string;
+  checked_in_at: string;
+  order_id: string;
+};
 
 export function TicketWorkspace({ view = "orders" }: { view?: "orders" | "attendees" }) {
   const [orders, setOrders] = useState<LiveTicketOrder[]>([]);
@@ -56,6 +66,13 @@ export function TicketWorkspace({ view = "orders" }: { view?: "orders" | "attend
   const [checkInEvents, setCheckInEvents] = useState<CheckInEvent[]>([]);
   const [checkInEventsLoading, setCheckInEventsLoading] = useState(false);
   const [selectedCheckInEvent, setSelectedCheckInEvent] = useState("");
+  const [checkIns, setCheckIns] = useState<CheckInRecord[]>([]);
+  const [checkInsLoading, setCheckInsLoading] = useState(false);
+  const [checkInsError, setCheckInsError] = useState("");
+  const [checkInPage, setCheckInPage] = useState(1);
+  const [checkInTotal, setCheckInTotal] = useState(0);
+  const [checkInTotalPages, setCheckInTotalPages] = useState(0);
+  const [checkInRefreshCount, setCheckInRefreshCount] = useState(0);
   const [scannedTicket, setScannedTicket] = useState<ScannedTicket | null>(null);
   const [detail, setDetail] = useState<LiveTicketOrder | null>(null);
 
@@ -111,6 +128,36 @@ export function TicketWorkspace({ view = "orders" }: { view?: "orders" | "attend
     return () => { active = false; };
   }, [view]);
 
+  useEffect(() => {
+    if (view !== "attendees" || !selectedCheckInEvent) {
+      setCheckIns([]);
+      setCheckInTotal(0);
+      setCheckInTotalPages(0);
+      return;
+    }
+    let active = true;
+    setCheckInsLoading(true);
+    setCheckInsError("");
+    const params = new URLSearchParams({ event_id: selectedCheckInEvent, page: String(checkInPage), pageSize: "20" });
+    fetch(`/api/vendor/tickets/check-ins?${params}`, { cache: "no-store" })
+      .then(async response => {
+        const result = await response.json();
+        if (!response.ok || result.status !== "success") throw new Error(result.message || "Could not load check-in history.");
+        return result.data;
+      })
+      .then(data => {
+        if (!active) return;
+        setCheckIns(Array.isArray(data.items) ? data.items : []);
+        setCheckInTotal(Number(data.total || 0));
+        setCheckInTotalPages(Number(data.totalPages || 0));
+      })
+      .catch(error => {
+        if (active) setCheckInsError(error instanceof Error ? error.message : "Could not load check-in history.");
+      })
+      .finally(() => { if (active) setCheckInsLoading(false); });
+    return () => { active = false; };
+  }, [view, selectedCheckInEvent, checkInPage, checkInRefreshCount]);
+
   const currentTicketCount = orders.reduce((sum, order) => sum + order.admissions.length, 0);
   const currentCheckedInCount = orders.reduce((sum, order) => sum + order.admissions.filter(ticket => ticket.status === "checked_in").length, 0);
   const validateLiveTicket = async (token: string) => {
@@ -142,6 +189,7 @@ export function TicketWorkspace({ view = "orders" }: { view?: "orders" | "attend
       if (!response.ok) throw new Error(result.message || "Check-in could not be completed.");
       setScannedTicket({ ...result.data, token: scannedTicket.token } as ScannedTicket);
       setMessage("Check-in successful.");
+      setCheckInRefreshCount(count => count + 1);
     } catch (error) {
       setScannedTicket(null);
       setMessage(error instanceof Error ? error.message : "Check-in could not be completed.");
@@ -158,7 +206,7 @@ export function TicketWorkspace({ view = "orders" }: { view?: "orders" | "attend
         <label className="flex min-w-0 flex-col gap-2 text-sm font-medium sm:w-[min(100%,420px)]">Event
           <select aria-label="Select event for check-in" className="h-10 rounded-md border bg-background px-3 text-sm font-normal"
             value={selectedCheckInEvent} disabled={checkInEventsLoading || !checkInEvents.length}
-            onChange={event => { setSelectedCheckInEvent(event.target.value); setScannedTicket(null); setMessage(""); }}>
+            onChange={event => { setSelectedCheckInEvent(event.target.value); setCheckInPage(1); setScannedTicket(null); setMessage(""); }}>
             <option value="">{checkInEventsLoading ? "Loading events..." : "Select an event"}</option>
             {checkInEvents.map(event => <option key={event.id} value={event.id}>{event.name}</option>)}
           </select>
@@ -173,6 +221,36 @@ export function TicketWorkspace({ view = "orders" }: { view?: "orders" | "attend
           <h3 className="font-medium">No published events available</h3>
           <p className="mt-1 text-sm text-muted-foreground">Published events will appear here for check-in.</p>
         </div>}
+      {selectedCheckInEvent && <div className="space-y-3 border-t pt-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div><h3 className="font-semibold">Check-in history</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Tickets successfully checked in for this event.</p></div>
+          <Button variant="outline" size="sm" disabled={checkInsLoading} onClick={() => setCheckInRefreshCount(count => count + 1)}>Refresh</Button>
+        </div>
+        {checkInsError && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 text-sm text-destructive">
+          <span>{checkInsError}</span><Button variant="outline" size="sm" onClick={() => setCheckInRefreshCount(count => count + 1)}>Retry</Button>
+        </div>}
+        {checkInsLoading ? <div className="h-24 animate-pulse rounded-md bg-muted" aria-label="Loading check-in history" /> :
+          !checkInsError && checkIns.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">No tickets have been checked in for this event yet.</p> :
+          checkIns.length > 0 && <div className="overflow-x-auto rounded-md border">
+            <table className="w-full whitespace-nowrap text-left text-sm">
+              <thead className="bg-muted/40 text-xs text-muted-foreground"><tr>
+                {["Attendee", "Ticket type", "Checked in", "Order"].map(label => <th key={label} className="px-4 py-3 font-medium">{label}</th>)}
+              </tr></thead>
+              <tbody>{checkIns.map(record => <tr key={record.id} className="border-t">
+                <td className="px-4 py-3">{record.attendee_first_name} {record.attendee_last_name}</td>
+                <td className="px-4 py-3">{record.ticket_type}</td>
+                <td className="px-4 py-3">{new Date(record.checked_in_at).toLocaleString()}</td>
+                <td className="max-w-48 truncate px-4 py-3 font-mono text-xs" title={record.order_id}>{record.order_id}</td>
+              </tr>)}</tbody>
+            </table>
+          </div>}
+        {!checkInsLoading && checkInTotalPages > 1 && <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">{checkInTotal} check-ins · Page {checkInPage} of {checkInTotalPages}</span>
+          <div className="flex gap-2"><Button variant="outline" size="sm" disabled={checkInPage <= 1} onClick={() => setCheckInPage(page => page - 1)}>Previous</Button>
+            <Button variant="outline" size="sm" disabled={checkInPage >= checkInTotalPages} onClick={() => setCheckInPage(page => page + 1)}>Next</Button></div>
+        </div>}
+      </div>}
       <Dialog open={scanner} onOpenChange={open => { setScanner(open); if (!open) { setScannedTicket(null); setMessage(""); } }}>
         <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
           <DialogHeader><DialogTitle>Event check-in</DialogTitle></DialogHeader>
