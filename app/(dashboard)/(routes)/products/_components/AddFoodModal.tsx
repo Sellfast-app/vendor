@@ -71,6 +71,8 @@ export interface EditableFoodItem {
     uid: string;
     name: string;
     description?: string;
+    discount_type?: 'fixed' | 'percentage' | null;
+    discount_value?: number | string | null;
     product_images?: string[];
     type: string;
     status: string;
@@ -127,6 +129,35 @@ interface UploadedImage {
     id: string;
 }
 
+const MAX_FOOD_IMAGE_BYTES = 700 * 1024;
+const MAX_FOOD_IMAGES_TOTAL_BYTES = 3.5 * 1024 * 1024;
+
+async function compressFoodImage(file: File) {
+    const bitmap = await createImageBitmap(file);
+    try {
+        let scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+        let quality = 0.82;
+        for (let attempt = 0; attempt < 8; attempt += 1) {
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+            canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+            const context = canvas.getContext('2d');
+            if (!context) throw new Error('Could not process this image.');
+            context.fillStyle = '#fff';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+            const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+            if (!blob) throw new Error('Could not process this image.');
+            if (blob.size <= MAX_FOOD_IMAGE_BYTES) return new File([blob], 'food-image.jpg', { type: 'image/jpeg' });
+            scale *= 0.82;
+            quality = Math.max(0.5, quality - 0.06);
+        }
+        throw new Error('This image could not be compressed enough. Choose a smaller image.');
+    } finally {
+        bitmap.close();
+    }
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdated, editFoodItem, currency = 'NGN' }: AddFoodModalProps) {
@@ -134,6 +165,8 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
     // ── Basic fields ──────────────────────────────────────────────────────────
     const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
     const [existingImages, setExistingImages] = useState<string[]>([]);
+    const [discountType, setDiscountType] = useState<'' | 'fixed' | 'percentage'>('');
+    const [discountValue, setDiscountValue] = useState('');
     const [productType, setProductType] = useState<'simple' | 'customizable' | 'bundle'>('simple');
     const [productName, setProductName] = useState('');
     const [description, setDescription] = useState('');
@@ -194,6 +227,8 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
 
         setUploadedImages([]);
         setExistingImages(editFoodItem.product_images || []);
+        setDiscountType(editFoodItem.discount_type || '');
+        setDiscountValue(editFoodItem.discount_value == null ? '' : String(editFoodItem.discount_value));
         setProductType(mapFoodTypeToForm(editFoodItem.type));
         setProductName(editFoodItem.name || '');
         setDescription(editFoodItem.description || '');
@@ -223,46 +258,59 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
     const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = event.target.files;
         if (!files) return;
-        if (uploadedImages.length + files.length > 5) return;
+        setError(null);
+        if (existingImages.length + uploadedImages.length + files.length > 5) {
+            setError('A food item can have up to 5 images. Remove an image before adding another.');
+            event.target.value = '';
+            return;
+        }
 
         const validFiles: File[] = [];
+        const uploadErrors: string[] = [];
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
-            if (!file.type.startsWith('image/')) continue;
-            if (file.size > 10 * 1024 * 1024) continue;
-            validFiles.push(file);
+            if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+                uploadErrors.push(`${file.name} is not a supported image. Use JPEG, PNG, or WebP.`);
+                continue;
+            }
+            if (file.size > 10 * 1024 * 1024) {
+                uploadErrors.push(`${file.name} is larger than 10 MB.`);
+                continue;
+            }
+            try {
+                validFiles.push(await compressFoodImage(file));
+            } catch (compressionError) {
+                uploadErrors.push(compressionError instanceof Error ? compressionError.message : `Could not process ${file.name}.`);
+            }
         }
-        if (validFiles.length === 0) return;
+        if (uploadErrors.length) setError(uploadErrors.join(' '));
+        if (validFiles.length === 0) { event.target.value = ''; return; }
+
+        const queuedBytes = uploadedImages.reduce((total, image) => total + image.file.size, 0);
+        const incomingBytes = validFiles.reduce((total, file) => total + file.size, 0);
+        if (queuedBytes + incomingBytes > MAX_FOOD_IMAGES_TOTAL_BYTES) {
+            setError('The optimized food images exceed the 3.5 MB upload limit. Select fewer images or use smaller photos.');
+            event.target.value = '';
+            return;
+        }
 
         const newImages: UploadedImage[] = validFiles.map((file) => ({
             file,
-            progress: 0,
-            isUploading: true,
+            progress: 100,
+            isUploading: false,
             id: Math.random().toString(36).substr(2, 9),
         }));
 
         setUploadedImages(prev => [...prev, ...newImages]);
 
-        newImages.forEach((image, index) => {
-            const timer = setInterval(() => {
-                setUploadedImages(prev => prev.map(img => {
-                    if (img.id === image.id) {
-                        const newProgress = img.progress + 20;
-                        if (newProgress >= 100) {
-                            clearInterval(timer);
-                            return { ...img, progress: 100, isUploading: false };
-                        }
-                        return { ...img, progress: newProgress };
-                    }
-                    return img;
-                }));
-            }, 300 + (index * 100));
-        });
+        event.target.value = '';
     };
 
     const handleRemoveImage = (id: string) => {
         setUploadedImages(prev => prev.filter(img => img.id !== id));
     };
+
+    const handleRemoveExistingImage = (url: string) => setExistingImages((images) => images.filter((image) => image !== url));
 
     const addServingType = () => {
         const val = (servingTypeCustom.trim() || servingType).trim();
@@ -326,8 +374,10 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
         if (foodCategories.length === 0) return setError('At least one food category is required.');
         if (!isEditMode && uploadedImages.length === 0) return setError('At least one image is required.');
         if (isEditMode && existingImages.length === 0 && uploadedImages.length === 0) return setError('At least one image is required.');
-        if (isEditMode && uploadedImages.length > 0) return setError('Image updates are not supported for food edits yet.');
+        if (existingImages.length + uploadedImages.length > 5) return setError('A food item can have up to 5 images.');
         if (uploadedImages.some(img => img.isUploading)) return setError('Please wait for images to finish uploading.');
+        if ((discountType && (!discountValue || Number(discountValue) <= 0)) || (!discountType && discountValue)) return setError('Choose a discount type and enter a discount value, or clear both fields.');
+        if (discountType === 'percentage' && Number(discountValue) > 100) return setError('Percentage discount cannot exceed 100%.');
 
         // Type-specific validation
         if (productType === 'simple' && portions.length === 0) return setError('Add at least one portion size.');
@@ -340,13 +390,17 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
         setIsLoading(true);
 
         try {
+            const payload = isEditMode ? buildUpdatePayload() : null;
+            const formData = new FormData();
+            const fields = isEditMode ? payload! : buildCreatePayload();
+            for (const [key, value] of Object.entries(fields)) {
+                formData.append(key, value == null ? 'null' : typeof value === 'object' ? JSON.stringify(value) : String(value));
+            }
+            if (isEditMode) formData.append('existing_images', JSON.stringify(existingImages));
+            uploadedImages.forEach((image) => formData.append('files', image.file, image.file.name));
+
             if (isEditMode) {
-                const payload = buildUpdatePayload();
-                const response = await fetch('/api/products/food', {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                });
+                const response = await fetch('/api/products/food', { method: 'PATCH', body: formData });
 
                 const result = await response.json();
 
@@ -360,84 +414,6 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                 onClose();
                 return;
             }
-
-            const formData = new FormData();
-
-            // Scalar fields
-            formData.append('name', productName);
-            formData.append('type', productType === 'simple' ? 'Simple' : productType === 'customizable' ? 'Customizable' : 'Bundle');
-            formData.append('description', description);
-            formData.append('status', status);
-            formData.append('availability', timeAvailability);
-            if (timeAvailability === 'Custom') {
-                formData.append('availabilityPeriod', JSON.stringify(buildAvailabilityPeriod()));
-            }
-
-            // Array fields — API expects JSON strings
-            formData.append('category', JSON.stringify(foodCategories));
-            formData.append('labels', JSON.stringify(dietaryLabels));
-            formData.append('servingType', JSON.stringify(servingTypes));
-
-            // Type-specific payload
-            if (productType === 'simple') {
-                const portionPayload = portions.map(p => ({
-                    name: p.name,
-                    price: parseFloat(p.price) || 0,
-                    startPrepTime: parseInt(p.prepTimeStart) || 0,
-                    endPrepTime: parseInt(p.prepTimeEnd) || 0,
-                    servingType: p.servingUnit,
-                    servingPerServingType: parseInt(p.servings) || 0,
-                }));
-                formData.append('portion', JSON.stringify(portionPayload));
-            }
-
-            if (productType === 'customizable') {
-                const servingTypePricingPayload = servingTypes.map(type => ({
-                    servingType: type,
-                    price: parseFloat(servingTypePrices[type]) || 0,
-                }));
-                const addOnPayload = savedGroups.map(g => ({
-                    name: g.groupName,
-                    selection: g.selection,
-                    maxSelection: g.maxSelections,
-                    isRequired: g.isRequired,
-                    options: g.options.map(o => ({
-                        name: o.name,
-                        price: parseFloat(o.price) || 0,
-                    })),
-                }));
-                formData.append('addOnGroup', JSON.stringify(addOnPayload));
-                formData.append('servingTypePricing', JSON.stringify(servingTypePricingPayload));
-            }
-
-            if (productType === 'bundle') {
-                const bundlePayload = bundleSlots.map(s => ({
-                    name: s.name,
-                    price: parseFloat(s.price) || 0,
-                    category: s.category,
-                    maxCount: s.maxItems,
-                }));
-                
-                // Build addOnGroup from bundleAddOnGroups
-                const addOnPayload = bundleAddOnGroups.map(g => ({
-                    name: g.groupName,
-                    selection: g.selection,
-                    maxSelection: g.maxSelections,
-                    isRequired: g.isRequired,
-                    options: g.options.map(o => ({
-                        name: o.name,
-                        price: parseFloat(o.price) || 0,
-                    })),
-                }));
-                
-                formData.append('addOnGroup', JSON.stringify(addOnPayload));
-                formData.append('bundleConfig', JSON.stringify(bundlePayload));
-            }
-
-            // Images
-            uploadedImages.forEach(img => {
-                formData.append('files', img.file);
-            });
 
             const response = await fetch('/api/products/food', {
                 method: 'POST',
@@ -468,6 +444,8 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
     const resetForm = () => {
         setUploadedImages([]);
         setExistingImages([]);
+        setDiscountType('');
+        setDiscountValue('');
         setProductType('simple');
         setProductName('');
         setDescription('');
@@ -508,6 +486,8 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
         type: productType === 'simple' ? 'Simple' : productType === 'customizable' ? 'Customizable' : 'Bundle',
         name: productName,
         description,
+        discount_type: discountType || null,
+        discount_value: discountType ? Number(discountValue) : null,
         status,
         availability: timeAvailability,
         category: foodCategories,
@@ -548,6 +528,29 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                 maxCount: s.maxItems,
                 isRequired: s.isRequired,
             })),
+        }),
+    });
+
+    const buildCreatePayload = () => ({
+        name: productName,
+        type: productType === 'simple' ? 'Simple' : productType === 'customizable' ? 'Customizable' : 'Bundle',
+        description,
+        status,
+        availability: timeAvailability,
+        ...(timeAvailability === 'Custom' && { availabilityPeriod: buildAvailabilityPeriod() }),
+        category: foodCategories,
+        labels: dietaryLabels,
+        servingType: servingTypes,
+        discount_type: discountType || null,
+        discount_value: discountType ? Number(discountValue) : null,
+        ...(productType === 'simple' && { portion: portions.map((p) => ({ name: p.name, price: Number(p.price) || 0, startPrepTime: Number(p.prepTimeStart) || 0, endPrepTime: Number(p.prepTimeEnd) || 0, servingType: p.servingUnit, servingPerServingType: Number(p.servings) || 0 })) }),
+        ...(productType === 'customizable' && {
+            servingTypePricing: servingTypes.map((type) => ({ servingType: type, price: Number(servingTypePrices[type]) || 0 })),
+            addOnGroup: savedGroups.map((group) => ({ name: group.groupName, selection: group.selection, maxSelection: group.maxSelections, isRequired: group.isRequired, options: group.options.map((option) => ({ name: option.name, price: Number(option.price) || 0 })) })),
+        }),
+        ...(productType === 'bundle' && {
+            bundleConfig: bundleSlots.map((slot) => ({ name: slot.name, price: Number(slot.price) || 0, category: slot.category, maxCount: slot.maxItems })),
+            addOnGroup: bundleAddOnGroups.map((group) => ({ name: group.groupName, selection: group.selection, maxSelection: group.maxSelections, isRequired: group.isRequired, options: group.options.map((option) => ({ name: option.name, price: Number(option.price) || 0 })) })),
         }),
     });
 
@@ -611,6 +614,29 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                                     disabled={isLoading}
                                 />
                                 <div className="text-right text-xs">{description.length}/500</div>
+                            </div>
+                            <div className="mt-4 rounded-md border p-3 space-y-3">
+                                <div>
+                                    <p className="text-sm font-medium">Product discount</p>
+                                    <p className="text-xs text-muted-foreground">Applied to this food item’s base price before checkout fees.</p>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <Label className="text-xs">Discount type</Label>
+                                        <Select value={discountType || 'none'} onValueChange={(value) => { setDiscountType(value === 'none' ? '' : value as 'fixed' | 'percentage'); if (value === 'none') setDiscountValue(''); }} disabled={isLoading}>
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="none">No discount</SelectItem>
+                                                <SelectItem value="fixed">Amount off ({currencySymbol})</SelectItem>
+                                                <SelectItem value="percentage">Percentage off (%)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    {discountType && <div className="space-y-1">
+                                        <Label className="text-xs">Discount value</Label>
+                                        <Input type="number" min="0.01" step="0.01" max={discountType === 'percentage' ? 100 : undefined} value={discountValue} onChange={(event) => setDiscountValue(event.target.value)} placeholder={discountType === 'percentage' ? 'e.g. 10' : 'e.g. 500'} disabled={isLoading} />
+                                    </div>}
+                                </div>
                             </div>
 
                             <h2 className="text-sm font-semibold pt-4">Food Type & Status</h2>
@@ -891,7 +917,7 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                         {/* Right - Image Upload */}
                         <div className='w-full md:w-[50%]'>
                             <h2 className="text-sm font-semibold">Food Image</h2>
-                            <p className="text-xs text-muted-foreground">Upload food images (max 5)</p>
+                                    <p className="text-xs text-muted-foreground">Select up to 5 JPEG, PNG, or WebP images. Photos are optimized before upload.</p>
                             <div className='border border-dashed border-primary rounded-lg w-full h-75 mt-4 flex flex-col items-center justify-center gap-3 py-3'>
                                 <ImageIcon />
                                 <Label
@@ -904,12 +930,12 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                                     id="picture"
                                     type="file"
                                     multiple
-                                    accept="image/*"
+                                    accept="image/jpeg,image/png,image/webp"
                                     className="hidden"
                                     onChange={handleImageUpload}
                                     disabled={isLoading}
                                 />
-                                <p className='text-xs text-[#A0A0A0]'>PNG, JPG, GIF up to 10MB, max 5 images</p>
+                                <p className='text-xs text-[#A0A0A0]'>Original image up to 10 MB; optimized upload up to 3.5 MB total</p>
                             </div>
 
                             {existingImages.length > 0 && (
@@ -927,6 +953,7 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                                                         sizes="40px"
                                                     />
                                                 </div>
+                                                <button type="button" onClick={() => handleRemoveExistingImage(image)} className="absolute -top-2 -right-2 bg-red-500 rounded-full p-0.5" disabled={isLoading} aria-label="Remove existing image"><X className="w-3 h-3 text-white" /></button>
                                             </div>
                                         ))}
                                     </div>
@@ -947,19 +974,6 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                                                         sizes="40px"
                                                     />
                                                 </div>
-                                                {image.isUploading && (
-                                                    <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded">
-                                                        <Loader2 className="w-4 h-4 text-green-500 animate-spin" />
-                                                    </div>
-                                                )}
-                                                {image.isUploading && (
-                                                    <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50">
-                                                        <div
-                                                            className="h-1 bg-green-500 transition-all duration-300"
-                                                            style={{ width: `${image.progress}%` }}
-                                                        />
-                                                    </div>
-                                                )}
                                                 <button
                                                     onClick={() => handleRemoveImage(image.id)}
                                                     className="absolute -top-2 -right-2 bg-red-500 rounded-full p-0.5 hover:bg-red-600 transition-colors"

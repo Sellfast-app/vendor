@@ -83,7 +83,7 @@ export function EventDetailModal({
     }
   );
   const [isLoading, setIsLoading] = useState(false);
-  const [isCoverUploading, setIsCoverUploading] = useState(false);
+  const [isImageUploading, setIsImageUploading] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -227,7 +227,7 @@ export function EventDetailModal({
           <EventImagePicker
             value={formData.coverImage}
             onChange={(url) => handleInputChange("coverImage", url)}
-            onUploadingChange={setIsCoverUploading}
+            onUploadingChange={setIsImageUploading}
           />
 
           {/* Event Details */}
@@ -400,6 +400,13 @@ export function EventDetailModal({
                   <Card key={ticket.id} className="border-[#F5F5F5] dark:border-[#1F1F1F]">
                     <CardContent className="p-4">
                       <div className="grid gap-3">
+                        <EventImagePicker
+                          value={ticket.imageUrl || ""}
+                          title="Ticket design/image"
+                          uploadPath="/api/vendor/events/ticket-image"
+                          onChange={(url) => updateTicket(ticket.id, { imageUrl: url })}
+                          onUploadingChange={setIsImageUploading}
+                        />
                         <div className="flex items-start justify-between">
                           <div className="flex items-center gap-2">
                             <Badge
@@ -585,10 +592,10 @@ export function EventDetailModal({
           </Button>
           <Button
             onClick={handleSave}
-            disabled={isLoading || isCoverUploading}
+            disabled={isLoading || isImageUploading}
             className="bg-primary hover:bg-primary/90"
           >
-            {isCoverUploading ? "Uploading cover..." : isLoading ? "Saving..." : isEditMode ? "Update Event" : "Create Event"}
+            {isImageUploading ? "Uploading image..." : isLoading ? "Saving..." : isEditMode ? "Update Event" : "Create Event"}
           </Button>
         </div>
       </DialogContent>

@@ -7,6 +7,7 @@ export interface TicketType {
   sold: number;
   orderLimitPerPerson: number;
   tag: string;
+  imageUrl?: string | null;
   discount?: { type: "fixed" | "percentage"; value: number; startsAt?: string | null; endsAt?: string | null } | null;
 }
 
@@ -41,6 +42,7 @@ type ApiTicket = {
   sold?: number | string;
   orderLimitPerPerson: number | string;
   tag?: string;
+  imageUrl?: string | null;
   discount?: TicketType["discount"];
 };
 
@@ -82,6 +84,7 @@ export function mapApiEvent(value: ApiEvent): Event {
     sold: Number(ticket.sold || 0),
     orderLimitPerPerson: Number(ticket.orderLimitPerPerson),
     tag: ticket.tag || "Single Ticket",
+    imageUrl: ticket.imageUrl || null,
     discount: ticket.discount || null,
   }));
   return {
@@ -128,6 +131,7 @@ export function toApiEventPayload(event: Event) {
       quantity: Number(ticket.quantity),
       orderLimitPerPerson: Number(ticket.orderLimitPerPerson),
       tag: ticket.tag,
+      imageUrl: ticket.imageUrl || null,
       discount: ticket.discount || null,
     })),
   };

@@ -33,6 +33,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import AddFoodModal, { EditableFoodItem } from "./AddFoodModal";
+import { getCurrencySymbol } from "@/lib/v2-currency";
 import Loading from "@/components/Loading";
 import { toast } from "sonner";
 interface FoodTableProps { currency?: string }
@@ -46,6 +47,8 @@ interface FoodApiItem {
   name: string;
   description: string;
   product_images: string[];
+  discount_type?: 'fixed' | 'percentage' | null;
+  discount_value?: number | string | null;
   type: string;
   status: string;
   availability: string;
@@ -93,6 +96,8 @@ const transformFoodItem = (item: FoodApiItem): FrontendFoodItem => ({
   productName: item.name,
   description: item.description,
   product_images: item.product_images || [],
+  discount_type: item.discount_type ?? null,
+  discount_value: item.discount_value ?? null,
   stock: 0,
   remanent: 0,
   sales: 0,
@@ -470,6 +475,7 @@ export default function FoodTable({ currency = "NGN" }: FoodTableProps) {
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Type</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Category</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Availability</TableHead>
+            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Discount</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Status</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Actions</TableHead>
           </TableRow>
@@ -477,7 +483,7 @@ export default function FoodTable({ currency = "NGN" }: FoodTableProps) {
         <TableBody>
           {isLoading ? (
             <TableRow>
-              <TableCell colSpan={9} className="text-center py-8">
+              <TableCell colSpan={10} className="text-center py-8">
                 <Loading />
               </TableCell>
             </TableRow>
@@ -507,6 +513,7 @@ export default function FoodTable({ currency = "NGN" }: FoodTableProps) {
                 <TableCell>{item.type}</TableCell>
                 <TableCell>{item.category?.join(", ") || "-"}</TableCell>
                 <TableCell>{item.availability}</TableCell>
+                <TableCell>{item.discount_type && item.discount_value != null ? `${item.discount_type === 'percentage' ? `${item.discount_value}%` : `${getCurrencySymbol(currency)}${Number(item.discount_value).toLocaleString()}`} off` : '—'}</TableCell>
 
                 <TableCell>
                   <span className={`flex items-center px-2 py-1 text-black rounded text-sm ${getStatusClass(item.status)}`}>
@@ -544,7 +551,7 @@ export default function FoodTable({ currency = "NGN" }: FoodTableProps) {
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={9} className="text-center py-8">
+              <TableCell colSpan={10} className="text-center py-8">
                 No food items found
               </TableCell>
             </TableRow>

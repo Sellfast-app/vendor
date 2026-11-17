@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,8 @@ interface ImagePickerProps {
   value: string;
   onChange: (url: string) => void;
   onUploadingChange?: (uploading: boolean) => void;
+  title?: string;
+  uploadPath?: string;
 }
 
 async function compressCoverImage(file: File) {
@@ -39,11 +41,12 @@ async function compressCoverImage(file: File) {
   }
 }
 
-export function EventImagePicker({ value, onChange, onUploadingChange }: ImagePickerProps) {
+export function EventImagePicker({ value, onChange, onUploadingChange, title = "Cover Image", uploadPath = "/api/vendor/events/cover-image" }: ImagePickerProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const imageSrc = preview || value;
+  useEffect(() => setPreview(null), [value]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -65,7 +68,7 @@ export function EventImagePicker({ value, onChange, onUploadingChange }: ImagePi
       const compressed = await compressCoverImage(file);
       const upload = new FormData();
       upload.append("image", compressed);
-      const response = await fetch("/api/vendor/events/cover-image", { method: "POST", body: upload });
+      const response = await fetch(uploadPath, { method: "POST", body: upload });
       const result = await response.json();
       if (!response.ok || result.status !== "success" || typeof result.data?.url !== "string") {
         throw new Error(result.message || "Event cover image upload failed");
@@ -89,7 +92,7 @@ export function EventImagePicker({ value, onChange, onUploadingChange }: ImagePi
 
   return (
     <div className="space-y-2">
-      <Label className="text-sm font-medium">Cover Image</Label>
+      <Label className="text-sm font-medium">{title}</Label>
       <div
         onClick={() => !uploading && fileInputRef.current?.click()}
         className={`relative rounded-lg overflow-hidden aspect-video bg-muted ${uploading ? "cursor-wait" : "cursor-pointer"} border-2 border-dashed transition-colors ${
