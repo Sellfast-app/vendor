@@ -63,8 +63,6 @@ export default function AddPickupLocationModal({
   const [state, setState] = useState("");
   const [city, setCity] = useState("");
   const [postCode, setPostCode] = useState("");
-  const [latitude, setLatitude] = useState("");
-  const [longitude, setLongitude] = useState("");
   const [country, setCountry] = useState("NG");
   const [isDefault, setIsDefault] = useState(false);
   const [errors, setErrors] = useState<{
@@ -72,7 +70,6 @@ export default function AddPickupLocationModal({
     address?: string;
     state?: string;
     city?: string;
-    coordinates?: string;
   }>({});
   const [submitError, setSubmitError] = useState("");
   const availableMarkets = markets.filter((market) => !storeCountry || market.country === storeCountry.toUpperCase());
@@ -86,8 +83,6 @@ export default function AddPickupLocationModal({
       setState(editingLocation.state);
       setCity(editingLocation.city);
       setPostCode(editingLocation.post_code || "");
-      setLatitude(editingLocation.latitude == null ? "" : String(editingLocation.latitude));
-      setLongitude(editingLocation.longitude == null ? "" : String(editingLocation.longitude));
       setCountry(editingLocation.country);
       setIsDefault(editingLocation.is_default_online);
     } else {
@@ -96,8 +91,6 @@ export default function AddPickupLocationModal({
       setState("");
       setCity("");
       setPostCode("");
-      setLatitude("");
-      setLongitude("");
       setCountry(markets[0]?.country || "NG");
       setIsDefault(false);
     }
@@ -125,12 +118,6 @@ export default function AddPickupLocationModal({
     if (!address.trim()) nextErrors.address = "Address is required";
     if (!state.trim()) nextErrors.state = "Enter a state or region";
     if (!city.trim()) nextErrors.city = "Enter a city";
-    const hasLatitude = latitude.trim() !== "";
-    const hasLongitude = longitude.trim() !== "";
-    if (hasLatitude !== hasLongitude) nextErrors.coordinates = "Enter both coordinates or leave both blank";
-    if (hasLatitude && (!Number.isFinite(Number(latitude)) || Number(latitude) < -90 || Number(latitude) > 90)) nextErrors.coordinates = "Latitude must be between -90 and 90";
-    if (hasLongitude && (!Number.isFinite(Number(longitude)) || Number(longitude) < -180 || Number(longitude) > 180)) nextErrors.coordinates = "Longitude must be between -180 and 180";
-
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
       return;
@@ -146,8 +133,8 @@ export default function AddPickupLocationModal({
       currency: availableMarkets.find((market) => market.country === country)?.currency || "NGN",
       is_default_online: isDefault,
       post_code: postCode.trim() || null,
-      latitude: latitude.trim() ? Number(latitude) : null,
-      longitude: longitude.trim() ? Number(longitude) : null,
+      latitude: null,
+      longitude: null,
     };
     try {
       if (editingLocation) await onUpdateLocation(location);
@@ -167,7 +154,7 @@ export default function AddPickupLocationModal({
             {editingLocation ? "Edit pickup location" : "Add pickup location"}
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
-            This address is used as the courier pickup origin when customers choose this branch. Add coordinates for GIG or Relay quotes; Sendbox can use the street address.
+            This address is used as the courier pickup origin. Mapbox will locate it and save the coordinates automatically.
           </DialogDescription>
         </DialogHeader>
 
@@ -196,7 +183,7 @@ export default function AddPickupLocationModal({
             </Label>
             <Input
               id="pickup-location-address"
-              placeholder="Street address"
+              placeholder="Street address and number"
               value={address}
               onChange={(e) => {
                 setAddress(e.target.value);
@@ -208,6 +195,7 @@ export default function AddPickupLocationModal({
               <p className="text-xs text-red-500">{errors.address}</p>
             )}
           </div>
+          <p className="-mt-3 text-xs text-muted-foreground">Include a recognizable street address, city, and region so the pickup point can be located accurately.</p>
 
           <div className="space-y-2">
             <Label htmlFor="pickup-location-state" className="text-xs">
@@ -223,21 +211,10 @@ export default function AddPickupLocationModal({
             {errors.state && <p className="text-xs text-red-500">{errors.state}</p>}
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="pickup-post-code" className="text-xs">Postcode</Label>
-              <Input id="pickup-post-code" value={postCode} onChange={event => setPostCode(event.target.value)} placeholder="Optional" maxLength={24} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="pickup-latitude" className="text-xs">Latitude</Label>
-              <Input id="pickup-latitude" type="number" min={-90} max={90} step="any" value={latitude} onChange={event => setLatitude(event.target.value)} placeholder="e.g. 6.5244" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="pickup-longitude" className="text-xs">Longitude</Label>
-              <Input id="pickup-longitude" type="number" min={-180} max={180} step="any" value={longitude} onChange={event => setLongitude(event.target.value)} placeholder="e.g. 3.3792" />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="pickup-post-code" className="text-xs">Postcode</Label>
+            <Input id="pickup-post-code" value={postCode} onChange={event => setPostCode(event.target.value)} placeholder="Optional" maxLength={24} />
           </div>
-          {errors.coordinates && <p role="alert" className="text-xs text-red-600">{errors.coordinates}</p>}
 
           <div className="space-y-2">
             <Label htmlFor="pickup-location-country" className="text-xs">Country and currency</Label>

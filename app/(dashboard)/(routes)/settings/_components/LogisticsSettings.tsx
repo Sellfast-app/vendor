@@ -260,18 +260,18 @@ export default function LogisticsSettings() {
     : "NGN";
 
   const handleAddLocation = async (location: PickupLocation) => {
-    const response = await fetch("/api/branches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: location.name, address: location.address, city: location.city, region: location.state, country: location.country, currency: location.currency, post_code: location.post_code, latitude: location.latitude, longitude: location.longitude, is_default_online: location.is_default_online }) });
+    const response = await fetch("/api/branches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: location.name, address: location.address, city: location.city, region: location.state, country: location.country, currency: location.currency, post_code: location.post_code, is_default_online: location.is_default_online }) });
     const result = await response.json();
     if (!response.ok) throw new Error(result.message || "Failed to add branch");
-    await persistPickupLocations([...pickupLocations, { ...location, id: result.data.id, is_default_online: result.data.is_default_online }]);
+    await persistPickupLocations([...pickupLocations, { ...location, ...result.data, id: result.data.id, state: result.data.region || location.state, is_default_online: result.data.is_default_online }]);
     toast.success(`${location.name} added`);
   };
 
   const handleUpdateLocation = async (location: PickupLocation) => {
-    const response = await fetch(`/api/branches/${encodeURIComponent(location.id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: location.name, address: location.address, city: location.city, region: location.state, country: location.country, currency: location.currency, post_code: location.post_code, latitude: location.latitude, longitude: location.longitude, is_default_online: location.is_default_online }) });
+    const response = await fetch(`/api/branches/${encodeURIComponent(location.id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: location.name, address: location.address, city: location.city, region: location.state, country: location.country, currency: location.currency, post_code: location.post_code, is_default_online: location.is_default_online }) });
     const result = await response.json();
     if (!response.ok) throw new Error(result.message || "Failed to update branch");
-    await persistPickupLocations(pickupLocations.map((item) => item.id === location.id ? { ...location, is_default_online: result.data.is_default_online } : { ...item, is_default_online: location.is_default_online ? false : item.is_default_online }));
+    await persistPickupLocations(pickupLocations.map((item) => item.id === location.id ? { ...location, ...result.data, state: result.data.region || location.state, is_default_online: result.data.is_default_online } : { ...item, is_default_online: location.is_default_online ? false : item.is_default_online }));
     toast.success(`${location.name} updated`);
   };
 
