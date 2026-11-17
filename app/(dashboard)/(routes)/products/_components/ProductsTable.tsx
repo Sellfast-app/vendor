@@ -456,7 +456,7 @@ export default function ProductTable({ currency = "NGN" }: ProductsTableProps) {
         </div>
         <div className="flex space-x-2">
           <Button variant="outline" className="border-[#F5F5F5] dark:border-[#1F1F1F] dark:bg-background" onClick={() => setIsStoreDiscountOpen(true)}>
-            <Percent className="h-4 w-4" /><span className="hidden sm:inline ml-2">Store discount</span>
+            <Percent className="h-4 w-4" /><span className="hidden sm:inline ml-2">Discounts</span>
           </Button>
           <Button
             variant="outline"

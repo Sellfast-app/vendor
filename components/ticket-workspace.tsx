@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TicketScanner } from "@/components/ticket-scanner";
+import { TicketDataExport } from "@/components/ticket-data-export";
 
 type CheckInEvent = { id: string; store_id: string; name: string; starts_at: string; ends_at: string };
 type ScannedTicket = {
@@ -40,13 +41,16 @@ type LiveTicketOrder = {
 type TicketEventOption = { id: string; name: string };
 type CheckInRecord = {
   id: string;
-  event_id: string;
+  event_id: string | null;
   event_name: string;
-  attendee_first_name: string;
-  attendee_last_name: string;
-  ticket_type: string;
+  attendee_first_name: string | null;
+  attendee_last_name: string | null;
+  ticket_type: string | null;
+  outcome: string;
+  reason: string | null;
   checked_in_at: string;
-  order_id: string;
+  order_id: string | null;
+  scan_reference: string;
 };
 
 export function TicketWorkspace({ view = "orders" }: { view?: "orders" | "attendees" }) {
@@ -142,7 +146,7 @@ export function TicketWorkspace({ view = "orders" }: { view?: "orders" | "attend
     fetch(`/api/vendor/tickets/check-ins?${params}`, { cache: "no-store" })
       .then(async response => {
         const result = await response.json();
-        if (!response.ok || result.status !== "success") throw new Error(result.message || "Could not load check-in history.");
+        if (!response.ok || result.status !== "success") throw new Error(result.message || "Could not load scan history.");
         return result.data;
       })
       .then(data => {
@@ -152,7 +156,7 @@ export function TicketWorkspace({ view = "orders" }: { view?: "orders" | "attend
         setCheckInTotalPages(Number(data.totalPages || 0));
       })
       .catch(error => {
-        if (active) setCheckInsError(error instanceof Error ? error.message : "Could not load check-in history.");
+        if (active) setCheckInsError(error instanceof Error ? error.message : "Could not load scan history.");
       })
       .finally(() => { if (active) setCheckInsLoading(false); });
     return () => { active = false; };
@@ -223,25 +227,30 @@ export function TicketWorkspace({ view = "orders" }: { view?: "orders" | "attend
         </div>}
       {selectedCheckInEvent && <div className="space-y-3 border-t pt-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div><h3 className="font-semibold">Check-in history</h3>
-            <p className="mt-1 text-sm text-muted-foreground">Tickets successfully checked in for this event.</p></div>
-          <Button variant="outline" size="sm" disabled={checkInsLoading} onClick={() => setCheckInRefreshCount(count => count + 1)}>Refresh</Button>
+          <div><h3 className="font-semibold">Scan history</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Validation attempts, including successful check-ins and rejected scans.</p></div>
+          <div className="flex flex-wrap items-center gap-2">
+            <TicketDataExport dataset="check-ins" eventId={selectedCheckInEvent} label="Export history" />
+            <Button variant="outline" size="sm" disabled={checkInsLoading} onClick={() => setCheckInRefreshCount(count => count + 1)}>Refresh</Button>
+          </div>
         </div>
         {checkInsError && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 text-sm text-destructive">
           <span>{checkInsError}</span><Button variant="outline" size="sm" onClick={() => setCheckInRefreshCount(count => count + 1)}>Retry</Button>
         </div>}
         {checkInsLoading ? <div className="h-24 animate-pulse rounded-md bg-muted" aria-label="Loading check-in history" /> :
-          !checkInsError && checkIns.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">No tickets have been checked in for this event yet.</p> :
+          !checkInsError && checkIns.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">No scans have been recorded for this event yet.</p> :
           checkIns.length > 0 && <div className="overflow-x-auto rounded-md border">
             <table className="w-full whitespace-nowrap text-left text-sm">
               <thead className="bg-muted/40 text-xs text-muted-foreground"><tr>
-                {["Attendee", "Ticket type", "Checked in", "Order"].map(label => <th key={label} className="px-4 py-3 font-medium">{label}</th>)}
+                {["Attendee", "Ticket type", "Result", "Scanned", "Code ref", "Order"].map(label => <th key={label} className="px-4 py-3 font-medium">{label}</th>)}
               </tr></thead>
               <tbody>{checkIns.map(record => <tr key={record.id} className="border-t">
-                <td className="px-4 py-3">{record.attendee_first_name} {record.attendee_last_name}</td>
-                <td className="px-4 py-3">{record.ticket_type}</td>
+                <td className="px-4 py-3">{record.attendee_first_name || record.attendee_last_name ? `${record.attendee_first_name || ""} ${record.attendee_last_name || ""}`.trim() : "Not matched"}</td>
+                <td className="px-4 py-3">{record.ticket_type || "-"}</td>
+                <td className="px-4 py-3"><span className="capitalize">{record.outcome.replaceAll("_", " ")}</span>{record.reason && <p className="max-w-64 whitespace-normal text-xs text-muted-foreground">{record.reason}</p>}</td>
                 <td className="px-4 py-3">{new Date(record.checked_in_at).toLocaleString()}</td>
-                <td className="max-w-48 truncate px-4 py-3 font-mono text-xs" title={record.order_id}>{record.order_id}</td>
+                <td className="px-4 py-3 font-mono text-xs">••••{record.scan_reference}</td>
+                <td className="max-w-48 truncate px-4 py-3 font-mono text-xs" title={record.order_id || ""}>{record.order_id || "-"}</td>
               </tr>)}</tbody>
             </table>
           </div>}
@@ -278,7 +287,11 @@ export function TicketWorkspace({ view = "orders" }: { view?: "orders" | "attend
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div><h2 className="text-xl font-semibold">Ticket orders</h2>
         <p className="mt-1 text-sm text-muted-foreground">Orders and admissions recorded for your events.</p></div>
-      <Button variant="outline" asChild><Link href="/events/attendees">Attendees &amp; check-in</Link></Button>
+      <div className="flex flex-wrap gap-2">
+        <TicketDataExport dataset="orders" eventId={eventId || undefined} label="Export orders" />
+        <TicketDataExport dataset="attendees" eventId={eventId || undefined} label="Export attendees" />
+        <Button variant="outline" asChild><Link href="/events/attendees">Attendees &amp; check-in</Link></Button>
+      </div>
     </div>
     <div className="grid grid-cols-2 gap-3 border-y py-4 sm:grid-cols-3">
       {[["Orders on this page", orders.length], ["Tickets on this page", currentTicketCount], ["Checked in", currentCheckedInCount]].map(([label, value]) =>

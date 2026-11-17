@@ -106,8 +106,8 @@ export function StoreDiscountDialog({ open, onOpenChange, onSaved, currency = "N
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
       <DialogHeader>
-        <DialogTitle>Store discount</DialogTitle>
-        <DialogDescription>Apply one discount to all products or selected products. A product-specific discount takes precedence.</DialogDescription>
+        <DialogTitle>Discounts</DialogTitle>
+        <DialogDescription>Use the same discount rules for product prices and store-wide offers. Each item receives one discount only: a product discount takes precedence over the store-wide rule. Coupon codes apply separately at checkout.</DialogDescription>
       </DialogHeader>
       <div className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">

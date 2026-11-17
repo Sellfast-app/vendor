@@ -143,6 +143,9 @@ export default function LogisticsSettings() {
           id: String(branch.id), name: String(branch.name), address: String(branch.address), city: String(branch.city),
           state: String(branch.region), country: String(branch.country), currency: String(branch.currency),
           is_default_online: Boolean(branch.is_default_online),
+          post_code: branch.post_code == null ? null : String(branch.post_code),
+          latitude: branch.latitude == null ? null : Number(branch.latitude),
+          longitude: branch.longitude == null ? null : Number(branch.longitude),
         })) : []);
       } catch (error) {
         console.error("Failed to load manual shipping rates:", error);
@@ -257,7 +260,7 @@ export default function LogisticsSettings() {
     : "NGN";
 
   const handleAddLocation = async (location: PickupLocation) => {
-    const response = await fetch("/api/branches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: location.name, address: location.address, city: location.city, region: location.state, country: location.country, currency: location.currency, is_default_online: location.is_default_online }) });
+    const response = await fetch("/api/branches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: location.name, address: location.address, city: location.city, region: location.state, country: location.country, currency: location.currency, post_code: location.post_code, latitude: location.latitude, longitude: location.longitude, is_default_online: location.is_default_online }) });
     const result = await response.json();
     if (!response.ok) throw new Error(result.message || "Failed to add branch");
     await persistPickupLocations([...pickupLocations, { ...location, id: result.data.id, is_default_online: result.data.is_default_online }]);
@@ -265,7 +268,7 @@ export default function LogisticsSettings() {
   };
 
   const handleUpdateLocation = async (location: PickupLocation) => {
-    const response = await fetch(`/api/branches/${encodeURIComponent(location.id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: location.name, address: location.address, city: location.city, region: location.state, country: location.country, currency: location.currency, is_default_online: location.is_default_online }) });
+    const response = await fetch(`/api/branches/${encodeURIComponent(location.id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: location.name, address: location.address, city: location.city, region: location.state, country: location.country, currency: location.currency, post_code: location.post_code, latitude: location.latitude, longitude: location.longitude, is_default_online: location.is_default_online }) });
     const result = await response.json();
     if (!response.ok) throw new Error(result.message || "Failed to update branch");
     await persistPickupLocations(pickupLocations.map((item) => item.id === location.id ? { ...location, is_default_online: result.data.is_default_online } : { ...item, is_default_online: location.is_default_online ? false : item.is_default_online }));

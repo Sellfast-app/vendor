@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BusinessTypeGuard } from "@/components/business-type-guard";
+import { TicketDataExport } from "@/components/ticket-data-export";
 
 const formatCompactNumber = (value: number) =>
   new Intl.NumberFormat("en-NG", { notation: "compact" }).format(value);
@@ -130,6 +131,7 @@ function EventsPageContent() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+        <TicketDataExport dataset="events" label="Export events" />
         <Button variant="outline" asChild><Link href="/events/attendees"><Users className="mr-2 h-4 w-4" />Attendees & check-in</Link></Button>
         <Button onClick={handleAddEvent} className="h-10 w-full gap-2 lg:w-auto">
           <Plus className="h-4 w-4" />

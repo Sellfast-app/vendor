@@ -1628,7 +1628,10 @@ function StorefrontComponent() {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-medium">Storefront appearance</h3>
-                <p className="mt-1 text-xs text-muted-foreground">Customize the colors and announcement customers see in your store.</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Customize the colors and announcement customers see in your store.
+                  {(storefrontData.storeType || "").toLowerCase().includes("ticket") && " These settings also apply to your public event and ticket storefront."}
+                </p>
               </div>
               {!isEditingAppearance ? (
                 <Button onClick={handleEditAppearance} variant="outline" size="sm" className="dark:bg-background">
