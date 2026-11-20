@@ -1,195 +1,59 @@
 "use client";
 
-import React, { useState } from "react";
+import { Bell, Mail, MessageCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
-import { Bell, Mail, MessageCircle, Smartphone } from "lucide-react";
 
-interface NotificationSetting {
-  id: string;
-  title: string;
-  description: string;
-  enabled: boolean;
-}
+const channels = [
+  {
+    name: "Email",
+    description: "Order, payment, and store activity updates delivered to your account email.",
+    icon: Mail,
+    status: "Available",
+    enabled: true,
+  },
+  {
+    name: "In-app",
+    description: "Alerts and updates shown inside your Swiftree dashboard.",
+    icon: Bell,
+    status: "Available",
+    enabled: true,
+  },
+  {
+    name: "WhatsApp",
+    description: "WhatsApp notification routing is not available yet.",
+    icon: MessageCircle,
+    status: "Coming soon",
+    enabled: false,
+  },
+];
 
-function PreferencesComponent() {
-  const [notifications, setNotifications] = useState<NotificationSetting[]>([
-    {
-      id: "email",
-      title: "Email Notifications",
-      description: "Get notified about orders and payment status from your storefront and dashboard via email",
-      enabled: false,
-    },
-    {
-      id: "sms",
-      title: "SMS Notifications",
-      description: "Get notified about orders, alerts and deliveries from your storefront and dashboard via SMS",
-      enabled: false,
-    },
-    {
-      id: "whatsapp",
-      title: "WhatsApp Notifications",
-      description: "Get notified on alerts, deliveries coming from your WhatsApp bot",
-      enabled: false,
-    },
-    {
-      id: "in-app",
-      title: "In App Notifications",
-      description: "Get notified on everything inside your dashboard",
-      enabled: true,
-    },
-  ]);
-
-  const handleToggle = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((notification) =>
-        notification.id === id
-          ? { ...notification, enabled: !notification.enabled }
-          : notification
-      )
-    );
-  };
-
+export default function PreferencesComponent() {
   return (
-    <div className="w-full space-y-6">
-      <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
-        <CardHeader className="border-b">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary">
-              Notification routing
-            </p>
-            <h2 className="mt-2 text-lg font-semibold">Channel preferences</h2>
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              Choose how order confirmations, pickup instructions and tracking
-              updates are delivered across storefront channels.
-            </p>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-6 pt-6">
-
-            <div className="space-y-6">
-              {notifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className="flex items-start justify-between gap-4 py-2"
-                >
-                  <div className="flex-1">
-                    <Label
-                      htmlFor={notification.id}
-                      className="text-sm font-medium cursor-pointer"
-                    >
-                      {notification.title}
-                    </Label>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {notification.description}
-                    </p>
-                  </div>
-                  <Switch
-                    id={notification.id}
-                    checked={notification.enabled}
-                    onCheckedChange={() => handleToggle(notification.id)}
-                  />
-                </div>
-              ))}
+    <Card className="shadow-none">
+      <CardHeader className="border-b">
+        <p className="text-xs font-medium uppercase text-primary">Notifications</p>
+        <h2 className="mt-2 text-lg font-semibold">Delivery channels</h2>
+        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+          Email and in-app notifications are currently supported. WhatsApp routing will be added later.
+        </p>
+      </CardHeader>
+      <CardContent className="divide-y p-0">
+        {channels.map(({ name, description, icon: Icon, status, enabled }) => (
+          <div key={name} className="flex items-center gap-4 px-5 py-4 sm:px-6">
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md ${enabled ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+              <Icon aria-hidden="true" className="h-5 w-5" />
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
-        <CardHeader className="border-b">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold">Customer notification matrix</h2>
-              <p className="text-xs text-muted-foreground">
-                Customer routing by sales channel.
-              </p>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">{name}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{description}</p>
             </div>
-            <Badge variant="outline" className="border-primary/20 bg-primary/10 text-primary">
-              Channel routing
+            <Badge variant="outline" className={enabled ? "shrink-0 border-primary/30 text-primary" : "shrink-0 text-muted-foreground"}>
+              {status}
             </Badge>
           </div>
-        </CardHeader>
-        <CardContent className="grid gap-4 p-5 lg:grid-cols-3">
-          {[
-            {
-              channel: "Website Storefront",
-              icon: Mail,
-              routes: ["Order confirmation: Email", "Pickup instructions: Email", "Tracking link: Email"],
-            },
-            {
-              channel: "WhatsApp AI",
-              icon: MessageCircle,
-              routes: ["Order confirmation: WhatsApp", "Pickup instructions: WhatsApp", "Tracking link: WhatsApp"],
-            },
-            {
-              channel: "Web Chat Widget",
-              icon: Smartphone,
-              routes: ["Order confirmation: Email + SMS", "Pickup instructions: Email + SMS", "Tracking link: Email + SMS"],
-            },
-          ].map((item) => (
-            <div key={item.channel} className="rounded-xl border p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <item.icon className="h-5 w-5" />
-                </div>
-                <p className="text-sm font-medium">{item.channel}</p>
-              </div>
-              <div className="mt-4 space-y-2">
-                {item.routes.map((route) => (
-                  <div key={route} className="flex items-start gap-2 rounded-lg bg-[#F7FFF9] p-3 text-xs text-muted-foreground">
-                    <Bell className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                    <span>{route}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
-        <CardHeader className="border-b">
-          <div>
-            <h2 className="text-sm font-semibold">Send notification</h2>
-            <p className="text-xs text-muted-foreground mt-1">
-              Send a one-off email or in-app notification to users.
-            </p>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4 p-5">
-          <div className="space-y-2">
-            <Label htmlFor="notif-title">Subject</Label>
-            <Input id="notif-title" placeholder="Notification subject line" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="notif-message">Message</Label>
-            <Textarea id="notif-message" placeholder="Write your notification message..." className="min-h-[100px] resize-none" />
-          </div>
-          <div className="space-y-2">
-            <Label>Channels</Label>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" defaultChecked className="rounded border-muted-foreground/30" />
-                Email
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" defaultChecked className="rounded border-muted-foreground/30" />
-                In-app
-              </label>
-            </div>
-          </div>
-          <Button className="bg-primary hover:bg-primary/90">Send notification</Button>
-        </CardContent>
-      </Card>
-    </div>
+        ))}
+      </CardContent>
+    </Card>
   );
 }
-
-export default PreferencesComponent;
