@@ -32,9 +32,10 @@ export default function StaffPage() {
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [updatingStaffId, setUpdatingStaffId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     setError("");
     try {
       const [memberRows, invitationRows, auditRows] = await Promise.all([
@@ -58,14 +59,26 @@ export default function StaffPage() {
   }, [members, query]);
 
   async function toggleMember(member: Member, active: boolean) {
+    setUpdatingStaffId(member.staff_user_id);
     try {
-      await request(`/${member.staff_user_id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ is_active: active }),
-      });
-      toast.success(active ? "Staff access updated" : "Staff access disabled");
-      await load();
-    } catch (cause) { toast.error(cause instanceof Error ? cause.message : "Could not update staff access"); }
+      if (active) {
+        await request(`/${member.staff_user_id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ is_active: true }),
+        });
+      } else {
+        await request(`/${member.staff_user_id}`, { method: "DELETE" });
+      }
+      setMembers((current) => current.map((row) => row.staff_user_id === member.staff_user_id ? { ...row, is_active: active } : row));
+      toast.success(active
+        ? `Access restored for ${member.email}.`
+        : `Access revoked for ${member.email}. They can no longer access this store.`);
+      await load(false);
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : "Could not update staff access");
+    } finally {
+      setUpdatingStaffId(null);
+    }
   }
 
   async function revokeInvitation(invitation: Invitation) {
@@ -98,7 +111,14 @@ export default function StaffPage() {
           {loading ? <TableRow><TableCell colSpan={3}><div className="h-14 animate-pulse rounded bg-muted" /></TableCell></TableRow> : visibleMembers.map((member) => <TableRow key={member.staff_user_id}>
             <TableCell><div className="flex items-center gap-3"><UserRound className="h-4 w-4 text-muted-foreground" /><div><p className="text-sm font-medium">{[member.first_name, member.last_name].filter(Boolean).join(" ") || member.email}</p><p className="text-xs text-muted-foreground">{member.email}</p></div></div></TableCell>
             <TableCell><span className="text-sm">Order staff</span></TableCell>
-            <TableCell><Button size="sm" variant="outline" onClick={() => void toggleMember(member, !member.is_active)}>{member.is_active ? "Revoke access" : "Restore access"}</Button></TableCell>
+            <TableCell><div className="flex flex-wrap items-center gap-2">
+              <span className={`inline-flex items-center rounded-sm border px-2 py-1 text-xs font-medium ${member.is_active ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-muted bg-muted text-muted-foreground"}`}>
+                {member.is_active ? "Active" : "Revoked"}
+              </span>
+              <Button size="sm" variant="outline" disabled={updatingStaffId === member.staff_user_id} onClick={() => void toggleMember(member, !member.is_active)}>
+                {updatingStaffId === member.staff_user_id ? "Updating..." : member.is_active ? "Revoke access" : "Restore access"}
+              </Button>
+            </div></TableCell>
           </TableRow>)}
           {!loading && !error && visibleMembers.length === 0 && <TableRow><TableCell colSpan={3} className="py-10 text-center text-sm text-muted-foreground">No staff accounts found.</TableCell></TableRow>}
         </TableBody></Table></div></CardContent>
