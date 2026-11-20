@@ -1,128 +1,49 @@
 "use client";
 
-import { useState } from "react";
-import { Bell, Mail, MessageCircle, Smartphone, X, CheckCircle } from "lucide-react";
+import { Bell, Check, CheckCheck, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
-
-interface NotificationItem {
-  id: string;
-  title: string;
-  description: string;
-  time: string;
-  read: boolean;
-}
-
-const initialNotifications: NotificationItem[] = [
-  {
-    id: "1",
-    title: "Order confirmed",
-    description: "Order #ORD-1048 has been confirmed.",
-    time: "2 mins ago",
-    read: false,
-  },
-  {
-    id: "2",
-    title: "Payment received",
-    description: "₦18,500 received via Paystack.",
-    time: "15 mins ago",
-    read: false,
-  },
-  {
-    id: "3",
-    title: "Low stock alert",
-    description: "Product \"African Print Dress\" has 3 items left.",
-    time: "1 hour ago",
-    read: true,
-  },
-  {
-    id: "4",
-    title: "New review",
-    description: "Customer left a 5-star review on your store.",
-    time: "3 hours ago",
-    read: true,
-  },
-];
+import { useVendorNotifications } from "@/lib/use-vendor-notifications";
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
-
-  const unreadCount = notifications.filter((n) => !n.read).length;
-
-  const markAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    toast.success("All notifications marked as read");
-  };
-
-  const dismissNotification = (id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-  };
+  const { items, unreadCount, loading, error, load, markRead, markAllRead } = useVendorNotifications(true, 50);
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="bg-white dark:bg-[#1A1A1A] border-b border-[#F0F0F0] dark:border-[#2A2A2A]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Bell className="h-5 w-5 text-primary" />
-              <h1 className="text-xl font-bold text-[#1A1A1A] dark:text-white">Notifications</h1>
-              {unreadCount > 0 && (
-                <Badge variant="secondary" className="bg-primary/10 text-primary">
-                  {unreadCount} new
-                </Badge>
-              )}
-            </div>
-            <Button variant="ghost" size="sm" onClick={markAllRead}>
-              Mark all read
-            </Button>
+    <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-3 border-b pb-5">
+        <div>
+          <p className="text-xs font-medium uppercase text-primary">Store activity</p>
+          <div className="mt-2 flex items-center gap-2">
+            <h1 className="text-2xl font-semibold">Notifications</h1>
+            {unreadCount > 0 && <span className="text-sm text-muted-foreground">{unreadCount} unread</span>}
           </div>
         </div>
-      </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}Refresh
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => void markAllRead()} disabled={loading || unreadCount === 0}>
+            <CheckCheck className="mr-2 h-4 w-4" />Mark all read
+          </Button>
+        </div>
+      </header>
 
-      {/* Notification list */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {notifications.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <CheckCircle className="h-12 w-12 text-muted-foreground mb-3" />
-            <p className="text-sm font-medium text-muted-foreground">All caught up</p>
-            <p className="text-xs text-muted-foreground mt-1">No new notifications</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {notifications.map((notification) => (
-              <Card
-                key={notification.id}
-                className={`shadow-none border-[#F0F0F0] dark:border-[#2A2A2A] ${
-                  !notification.read ? "border-l-4 border-l-primary" : ""
-                }`}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{notification.title}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {notification.description}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-2">{notification.time}</p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                      onClick={() => dismissNotification(notification.id)}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+      {error && <div role="alert" className="border-y py-4 text-sm"><p>{error}</p><Button variant="outline" size="sm" className="mt-3" onClick={() => void load()}>Retry</Button></div>}
+      {loading && items.length === 0 && <div className="space-y-3">{[0, 1, 2].map((item) => <div key={item} className="h-24 animate-pulse rounded-sm bg-muted" />)}</div>}
+      {!loading && !error && items.length === 0 && <div className="flex flex-col items-center justify-center py-20 text-center"><Bell className="mb-3 h-10 w-10 text-muted-foreground" /><p className="text-sm font-medium">No notifications yet</p><p className="mt-1 text-sm text-muted-foreground">Verified order payments will appear here.</p></div>}
+
+      <div className="divide-y border-y">
+        {items.map((notification) => (
+          <article key={notification.id} className={`flex items-start gap-3 px-2 py-4 sm:px-4 ${!notification.read ? "bg-primary/5" : ""}`}>
+            <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${notification.read ? "bg-muted" : "bg-primary"}`} />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">{notification.payload?.title || "Store notification"}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{notification.payload?.body || "You have a new store notification."}</p>
+              <time className="mt-2 block text-xs text-muted-foreground" dateTime={notification.created_at}>{new Date(notification.created_at).toLocaleString()}</time>
+            </div>
+            {!notification.read && <Button variant="ghost" size="icon" aria-label="Mark as read" title="Mark as read" onClick={() => void markRead(notification.id)}><Check className="h-4 w-4" /></Button>}
+          </article>
+        ))}
       </div>
-    </div>
+    </main>
   );
 }

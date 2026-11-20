@@ -15,6 +15,7 @@ export const NavbarRoutes = () => {
   const [storeLogo, setStoreLogo] = useState<string | null>(null); // Add this state
   const router = useRouter();
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [isStaff, setIsStaff] = useState(false);
 
   const getCookieValue = (name: string): string | null => {
@@ -43,7 +44,7 @@ export const NavbarRoutes = () => {
       
       if (result.status === 'success' && result.data?.storeDetails) {
         const storeDetails = result.data.storeDetails;
-        
+
         // Set store logo if available
         if (storeDetails.logo) {
           setStoreLogo(storeDetails.logo);
@@ -85,6 +86,28 @@ export const NavbarRoutes = () => {
     // Fetch store data including logo
     fetchStoreData();
   }, []);
+
+  useEffect(() => {
+    if (isStaff) return;
+    let active = true;
+    const refreshUnreadCount = async () => {
+      try {
+        const response = await fetch("/api/notifications?page=1&pageSize=1&unread=true", { cache: "no-store" });
+        const result = await response.json();
+        if (active && response.ok && result.status === "success") setUnreadNotifications(Number(result.data?.total || 0));
+      } catch {
+        if (active) setUnreadNotifications(0);
+      }
+    };
+    void refreshUnreadCount();
+    const interval = window.setInterval(() => void refreshUnreadCount(), 60_000);
+    window.addEventListener("swiftree:notifications-changed", refreshUnreadCount);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      window.removeEventListener("swiftree:notifications-changed", refreshUnreadCount);
+    };
+  }, [isStaff]);
 
   useEffect(() => {
     const checkForUpdatedStoreName = () => {
@@ -169,6 +192,7 @@ export const NavbarRoutes = () => {
       {!isStaff && <div className="flex items-center gap-3">
         <Button variant="ghost" onClick={() => setIsNotificationModalOpen(true)}>
           <IoNotificationsOutline className="w-5 h-5" />
+          {unreadNotifications > 0 && <span className="ml-1 min-w-5 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold leading-none text-primary-foreground">{unreadNotifications > 99 ? "99+" : unreadNotifications}</span>}
         </Button>
 
         <Button variant="ghost" onClick={() => router.push("/settings")}>
@@ -187,6 +211,7 @@ export const NavbarRoutes = () => {
       {!isStaff && <NotificationModal
         isOpen={isNotificationModalOpen} 
         onClose={() => setIsNotificationModalOpen(false)} 
+        onUnreadCountChange={setUnreadNotifications}
       />}
     </div>
   );
