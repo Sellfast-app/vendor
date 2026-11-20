@@ -25,7 +25,7 @@ export async function proxyVendorStaffRequest(request: NextRequest, path: string
     }
   }
   try {
-    const body = ["GET", "HEAD"].includes(method) ? undefined : await request.json().catch(() => null);
+    const body = ["GET", "HEAD", "DELETE"].includes(method) ? undefined : await request.json().catch(() => null);
     if (body === null && !["GET", "DELETE"].includes(method)) {
       return NextResponse.json({ status: "error", message: "A JSON request body is required" }, { status: 400 });
     }
