@@ -15,6 +15,7 @@ import { AnalyticsMetric } from "./_components/AnalyticsMetric";
 import { calculateDateRange } from "./utils";
 import { useStoreBusiness } from "@/components/store-business-context";
 import { BusinessTypeGuard } from "@/components/business-type-guard";
+import { ReportDownload } from "@/components/report-download";
 
 const dateRanges = [
   { value: "today", label: "Today" },
@@ -144,10 +145,16 @@ function AnalyticsPageContent() {
     <main className="mx-auto min-h-screen px-4 py-6 sm:px-6 lg:px-8">
       <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div><p className="text-xs font-medium uppercase text-primary">Performance</p><h1 className="mt-2 text-2xl font-semibold">{isTicketStore ? "Ticket analytics" : "Analytics"}</h1><p className="mt-1 text-sm text-muted-foreground">{isTicketStore ? "Ticket sales and customer activity for your events." : "Sales and customer activity for your store."}</p></div>
-        <Select value={selectedRange} onValueChange={(value) => setSelectedRange(value as typeof selectedRange)}>
-          <SelectTrigger aria-label="Summary date range" className="w-full sm:w-[180px]"><SelectValue placeholder="Summary range" /></SelectTrigger>
-          <SelectContent>{dateRanges.map((range) => <SelectItem key={range.value} value={range.value}>{range.label}</SelectItem>)}</SelectContent>
-        </Select>
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={selectedRange} onValueChange={(value) => setSelectedRange(value as typeof selectedRange)}>
+            <SelectTrigger aria-label="Summary date range" className="w-full sm:w-[180px]"><SelectValue placeholder="Summary range" /></SelectTrigger>
+            <SelectContent>{dateRanges.map((range) => <SelectItem key={range.value} value={range.value}>{range.label}</SelectItem>)}</SelectContent>
+          </Select>
+          {(() => {
+            const range = calculateDateRange(selectedRange);
+            return <ReportDownload endpoint="/api/analytics/export" filename="swiftree-analytics" startDate={range.startDate} endDate={range.endDate} compact />;
+          })()}
+        </div>
       </header>
 
       {error && <div role="alert" className="mb-5 flex flex-col gap-3 rounded-md border border-destructive/30 p-4 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-2 text-sm"><AlertCircle className="h-4 w-4 text-destructive" /><span>{error}</span></div><Button size="sm" variant="outline" onClick={() => void loadAnalytics(selectedRange, true)}><RefreshCw className="mr-2 h-4 w-4" />Retry</Button></div>}

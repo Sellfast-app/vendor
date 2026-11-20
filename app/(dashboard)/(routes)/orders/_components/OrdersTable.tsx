@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CalendarDays, Filter, MessageCircle, MonitorSmartphone, Search, ShoppingBag, X } from "lucide-react";
+import { ReportDownload } from "@/components/report-download";
 
 type Order = {
   id: string;
@@ -188,8 +189,9 @@ export default function OrdersTable() {
           <Input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Search order number or customer" className="pl-9 pr-9" />
           {search && <Button aria-label="Clear search" title="Clear search" variant="ghost" size="icon" className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2" onClick={() => setSearch("")}><X className="h-4 w-4" /></Button>}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-muted-foreground">{total.toLocaleString()} orders</span>
+          <ReportDownload endpoint="/api/exports/orders" filename="swiftree-orders" compact />
           <Button variant="outline" onClick={() => setShowFilters((current) => !current)}><Filter className="mr-2 h-4 w-4" />Filters</Button>
         </div>
       </div>

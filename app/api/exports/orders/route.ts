@@ -4,21 +4,8 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export async function GET(request: NextRequest) {
   try {
-    // Get token and store_id from cookies
-    const cookieHeader = request.headers.get("cookie");
-    let token = null;
-    let storeId = null;
-
-    if (cookieHeader) {
-      const cookies = cookieHeader.split(";").reduce((acc, cookie) => {
-        const [name, value] = cookie.trim().split("=");
-        acc[name] = value;
-        return acc;
-      }, {} as Record<string, string>);
-      
-      token = cookies.accessToken || null;
-      storeId = cookies.store_id || null;
-    }
+    const token = request.cookies.get("accessToken")?.value;
+    const storeId = request.cookies.get("store_id")?.value;
 
     if (!token) {
       return NextResponse.json(
@@ -34,8 +21,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get query parameters
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const format = searchParams.get("format") || "csv";
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
@@ -49,67 +35,47 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Default columns for orders
-    const columns = "order_items,price,quantity,order_summary";
-
-    console.log(`📊 Exporting orders for store: ${storeId}`);
-    console.log(`📊 Date range: ${startDate} to ${endDate}`);
-    console.log(`📊 Columns: ${columns}`);
-    console.log(`📊 Format: ${format}`);
-
-    // Build external API URL
+    const supportedFormats = new Set(["csv", "pdf", "excel", "xlsx"]);
+    if (!supportedFormats.has(format.toLowerCase())) {
+      return NextResponse.json({ status: "error", message: "Choose CSV, Excel, or PDF." }, { status: 400 });
+    }
     const queryParams = new URLSearchParams({
-      columns,
+      columns: fields || "order_number,order_date,order_status,payment_status,payment_method,delivery_method,delivery_fee,order_items,quantity,price,customer_name,customer_email,customer_phone,customer_address,order_notes",
       start: startDate,
       end: endDate,
       format: format.toLowerCase()
     });
 
     const externalUrl = `${API_BASE_URL}/api/orders/store/${storeId}/export?${queryParams}`;
-    console.log("External export URL:", externalUrl);
-
     const response = await fetch(externalUrl, {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json",
       },
+      cache: "no-store",
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("External export API error:", response.status, errorText);
-      
+      const contentType = response.headers.get("content-type") || "";
+      const parsed = contentType.includes("application/json") ? (() => { try { return JSON.parse(errorText); } catch { return null; } })() : null;
       return NextResponse.json(
         { 
           status: "error", 
-          message: "Failed to export orders data"
+          message: parsed?.message || "Failed to export orders data"
         },
         { status: response.status }
       );
     }
 
-    // Get the CSV data as blob
-    const blob = await response.blob();
-    
-    // Get filename from response headers or generate one
-    const contentDisposition = response.headers.get('content-disposition');
-    let filename = `orders_export_${startDate}_to_${endDate}.csv`;
-    
-    if (contentDisposition) {
-      const match = contentDisposition.match(/filename="(.+)"/);
-      if (match) {
-        filename = match[1];
-      }
-    }
-
-    // Return the file download
-    return new NextResponse(blob, {
+    const headers = new Headers({ "Cache-Control": "no-store" });
+    const contentType = response.headers.get("content-type");
+    const contentDisposition = response.headers.get("content-disposition");
+    if (contentType) headers.set("Content-Type", contentType);
+    if (contentDisposition) headers.set("Content-Disposition", contentDisposition);
+    return new NextResponse(await response.arrayBuffer(), {
       status: 200,
-      headers: {
-        'Content-Type': 'text/csv',
-        'Content-Disposition': `attachment; filename="${filename}"`,
-      },
+      headers,
     });
 
   } catch (error) {
