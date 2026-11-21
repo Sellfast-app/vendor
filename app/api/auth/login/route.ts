@@ -99,6 +99,15 @@ export async function POST(request: Request) {
 
       const result = await response.json();
 
+      if (response.ok && result.data?.password_reset_required === true) {
+        return NextResponse.json({
+          status: "success",
+          message: result.message || "Change your temporary password before signing in",
+          success: true,
+          data: { password_reset_required: true, user_email: result.data.email || email },
+        });
+      }
+
       // Handle specific API response formats
       if (response.status === 500 && result.status === 'fail') {
         loginAttempts.set(email, { count: userAttempts.count + 1, lastAttempt: now });

@@ -127,7 +127,7 @@ export default function StaffPage() {
     </div>
 
     <div className="mt-6 grid gap-6 xl:grid-cols-2">
-      <Card className="shadow-none"><CardHeader className="border-b"><h2 className="text-sm font-semibold">Pending invitations</h2><p className="text-xs text-muted-foreground">Invited users must sign in with the invited email to accept.</p></CardHeader><CardContent className="divide-y p-0">
+      <Card className="shadow-none"><CardHeader className="border-b"><h2 className="text-sm font-semibold">Pending invitations</h2><p className="text-xs text-muted-foreground">Existing Swiftree accounts use their current password and accept access from the invitation.</p></CardHeader><CardContent className="divide-y p-0">
         {loading ? <div className="h-20 animate-pulse bg-muted" /> : invitations.filter((item) => item.status === "pending").length ? invitations.filter((item) => item.status === "pending").map((invitation) => <div key={invitation.id} className="flex flex-wrap items-center justify-between gap-3 p-4"><div><p className="text-sm font-medium">{invitation.email}</p><p className="text-xs text-muted-foreground">{invitation.role_name} · Expires {new Date(invitation.expires_at).toLocaleDateString()}</p></div><Button variant="outline" size="sm" onClick={() => void revokeInvitation(invitation)}>Revoke</Button></div>) : <p className="p-5 text-sm text-muted-foreground">No pending invitations.</p>}
       </CardContent></Card>
       <Card className="shadow-none"><CardHeader className="border-b"><h2 className="text-sm font-semibold">Audit log</h2><p className="text-xs text-muted-foreground">Recent actions recorded by the backend.</p></CardHeader><CardContent className="max-h-80 divide-y overflow-y-auto p-0">
