@@ -38,6 +38,7 @@ import AddProductModal from "../products/_components/AddProductModal";
 import RecentOrdersTable from "./_components/RecentOrdersTable";
 import { useStoreBusiness } from "@/components/store-business-context";
 import OnboardingTour, { type TourStep } from "./_components/OnboardingTour";
+import RequestPosModal from "@/components/RequestPosModal";
 
 interface Product {
   sku: string;
@@ -152,6 +153,7 @@ const tourSteps: TourStep[] = [
 function DashboardPage() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [isPosRequestOpen, setIsPosRequestOpen] = useState(false);
   const [isStaff, setIsStaff] = useState(false);
   const router = useRouter();
   const { businessType, storeName, status: storeTypeStatus, error: storeTypeError, retry: retryStoreType } = useStoreBusiness();
@@ -365,7 +367,7 @@ function DashboardPage() {
     ];
 
     return <main className="mx-auto min-h-screen max-w-6xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
-      <header><p className="text-xs font-medium uppercase tracking-[0.16em] text-primary">Ticketing</p><h1 className="mt-2 text-2xl font-semibold">Hello {storeName || "there"}</h1><p className="mt-1 text-sm text-muted-foreground">Manage events, ticket sales and attendee admission.</p></header>
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs font-medium uppercase tracking-[0.16em] text-primary">Ticketing</p><h1 className="mt-2 text-2xl font-semibold">Hello {storeName || "there"}</h1><p className="mt-1 text-sm text-muted-foreground">Manage events, ticket sales and attendee admission.</p></div><Button variant="outline" onClick={() => setIsPosRequestOpen(true)}><MonitorSmartphone className="mr-2 h-4 w-4" />Request POS</Button></header>
       <section className="grid gap-4 md:grid-cols-3" aria-label="Ticketing workspace">
         {ticketActions.map(action => {
           const Icon = action.icon;
@@ -375,6 +377,7 @@ function DashboardPage() {
           </Link>;
         })}
       </section>
+      <RequestPosModal open={isPosRequestOpen} onOpenChange={setIsPosRequestOpen} />
     </main>;
   }
 
@@ -425,6 +428,13 @@ function DashboardPage() {
           </Link>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
+          <Button
+            variant="outline"
+            onClick={() => setIsPosRequestOpen(true)}
+          >
+            <MonitorSmartphone className="h-4 w-4" />
+            <span className="ml-2">Request POS</span>
+          </Button>
           <Button
             variant="outline"
             onClick={() => setIsExportModalOpen(true)}
@@ -634,6 +644,7 @@ function DashboardPage() {
         fieldOptions={fieldOptions}
         dataName={isRestaurant ? "Food Items" : "Products"}
       />
+      <RequestPosModal open={isPosRequestOpen} onOpenChange={setIsPosRequestOpen} />
       <OnboardingTour storageKey="swiftree-dashboard-tour-v1" steps={tourSteps} />
     </div>
   );
