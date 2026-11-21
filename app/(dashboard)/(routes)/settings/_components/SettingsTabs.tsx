@@ -8,8 +8,11 @@ import Finance from './Finance'
 import Notification from './Notification'
 import Support from './Support'
 import LocalizationSettings from './LocalizationSettings'
+import { useStoreBusiness } from '@/components/store-business-context'
 
 function SettingsTabs() {
+    const { businessType } = useStoreBusiness()
+    const isTicketStore = businessType === 'ticketing'
     const [tab, setTab] = useState('account')
     useEffect(() => {
         const params = new URLSearchParams(window.location.search)
@@ -21,7 +24,7 @@ function SettingsTabs() {
             <TabsList className="w-full overflow-x-auto flex-nowrap justify-start scrollbar-hide">
                     <TabsTrigger value="account">Account</TabsTrigger>
                     <TabsTrigger value="store">StoreFront Settings</TabsTrigger>
-                    <TabsTrigger value="localization">Localization</TabsTrigger>
+                    {!isTicketStore && <TabsTrigger value="localization">Localization</TabsTrigger>}
                     <TabsTrigger value="finance">Finance & Billings</TabsTrigger>
                     <TabsTrigger value="notification">Notifications</TabsTrigger>
                     <TabsTrigger value="support">Support & Help</TabsTrigger>
@@ -32,12 +35,12 @@ function SettingsTabs() {
                 <TabsContent value="store" className='mt-4'>
                     <StoreFront/>
                 </TabsContent>
-                <TabsContent value="localization" className='mt-4'>
+                {!isTicketStore && <TabsContent value="localization" className='mt-4'>
                     <LocalizationSettings onManageBranches={() => {
                         setTab('store')
                         window.setTimeout(() => document.getElementById('branch-pickup-locations')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
                     }}/>
-                </TabsContent>
+                </TabsContent>}
                 <TabsContent value="finance" className='mt-4'>
                     <Finance/>
                 </TabsContent>

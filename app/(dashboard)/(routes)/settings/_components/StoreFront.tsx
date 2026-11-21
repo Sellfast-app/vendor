@@ -18,7 +18,7 @@ import PaymentMethods from "./PaymentMethods";
 import LogisticsSettings from "./LogisticsSettings";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { isV2FoodBusiness } from "@/lib/v2";
+import { isV2FoodBusiness, isV2TicketingBusiness } from "@/lib/v2";
 
 interface BrandColor {
   primary: string;
@@ -53,6 +53,14 @@ interface StoreMetadata {
   brand_color?: BrandColor;
   storefront_announcement?: StorefrontAnnouncement;
   storefront_footer_image?: string;
+  storefront_about_us?: string;
+  storefront_carousel_slides?: CarouselSlide[];
+}
+
+interface CarouselSlide {
+  image: string;
+  title: string;
+  description: string;
 }
 
 interface StoreDetails {
@@ -68,6 +76,7 @@ interface StoreDetails {
   banner?: string | null;
   banner_style?: "portrait" | "carousel";
   banner_images?: string[];
+  carouselSlides?: CarouselSlide[];
   is_manually_closed?: boolean;
   metadata?: StoreMetadata;
   enabled_fulfillment_modes?: string[];
@@ -83,6 +92,14 @@ type PaymentMethodKey = "paystack" | "klump" | "crypto";
 const isCryptoProvider = (provider: string) => {
   const normalizedProvider = provider.toLowerCase();
   return normalizedProvider === "crypto" || normalizedProvider === "kuvarpay";
+};
+
+const formatInternationalPhone = (phone: string, countryCode: string) => {
+  const digits = phone.replace(/\D/g, "");
+  const codeDigits = countryCode.replace(/\D/g, "");
+  if (!digits || !codeDigits) return "";
+  const localNumber = digits.startsWith(codeDigits) ? digits.slice(codeDigits.length) : digits;
+  return `+${codeDigits}${localNumber.replace(/^0+/, "")}`;
 };
 
 type Meridiem = "AM" | "PM";
@@ -218,7 +235,8 @@ function StorefrontComponent() {
   const [isSavingPaymentMethod, setIsSavingPaymentMethod] = useState(false);
   const [isLoadingPaymentMethods, setIsLoadingPaymentMethods] = useState(false);
   const [isSavingAvailability, setIsSavingAvailability] = useState(false);
-  const [isFoodVendor, setIsFoodVendor] = useState(false); // ← NEW
+  const [isFoodVendor, setIsFoodVendor] = useState(false);
+  const [isTicketVendor, setIsTicketVendor] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const bannerImagesInputRef = useRef<HTMLInputElement>(null);
@@ -404,6 +422,10 @@ function StorefrontComponent() {
         if (result.status === 'success' && result.data?.storeDetails) {
           const storeDetails = result.data.storeDetails;
           setIsStoreManuallyClosed(Boolean(storeDetails.is_manually_closed));
+          if (storeDetails.store_url) {
+            setStorefrontUrl(storeDetails.store_url);
+            document.cookie = `store_url=${encodeURIComponent(storeDetails.store_url)}; path=/; max-age=2592000; SameSite=Lax`;
+          }
           const metadata = storeDetails.metadata || {};
           const brandColor = metadata.brand_color || {};
           const resolvedBrandColor: BrandColor = {
@@ -426,20 +448,17 @@ function StorefrontComponent() {
           // ── Detect food vendor ──────────────────────────────────────────
           const businessType: string = metadata.v2?.business_type || storeDetails.business_type || '';
           const isFood = isV2FoodBusiness(businessType);
+          setIsTicketVendor(isV2TicketingBusiness(businessType));
           setIsFoodVendor(isFood);
 
           let countryCode = "+234";
-          if (metadata.phone) {
-            if (metadata.phone.startsWith('+1')) countryCode = "+1";
-            else if (metadata.phone.startsWith('+254')) countryCode = "+254";
-            else if (metadata.phone.startsWith('0') || metadata.phone.startsWith('+234')) countryCode = "+234";
-          }
-
-          let formattedPhone = metadata.phone || "";
-          if (formattedPhone.startsWith('+234')) formattedPhone = formattedPhone.replace('+234', '0');
-          else if (formattedPhone.startsWith('234')) formattedPhone = '0' + formattedPhone.slice(3);
-          else if (formattedPhone.startsWith('+1')) formattedPhone = formattedPhone.slice(2);
-          else if (formattedPhone.startsWith('+254')) formattedPhone = formattedPhone.slice(4);
+          const registeredPhone = String(storeDetails.vendor_whatsapp_number || metadata.phone || "");
+          const countryCodes = ["+234", "+254", "+233", "+27"];
+          countryCode = countryCodes.find((code) => registeredPhone.startsWith(code)) || "+234";
+          let formattedPhone = registeredPhone.replace(/^\+/, "");
+          const countryDigits = countryCode.slice(1);
+          if (formattedPhone.startsWith(countryDigits)) formattedPhone = formattedPhone.slice(countryDigits.length);
+          if (formattedPhone.startsWith("0")) formattedPhone = formattedPhone.slice(1);
 
           const storedModes = storeDetails.enabled_fulfillment_modes || [];
           const enabledModes = isFood ? storedModes : storedModes.filter((mode: string) => mode !== 'relay');
@@ -480,12 +499,17 @@ function StorefrontComponent() {
             location: metadata.city || "Lagos",
             logo: storeDetails.logo || null,
             banner: storeDetails.banner || null,
-            banner_style: storeDetails.banner_style || "portrait",
             banner_images: Array.isArray(storeDetails.banner_images)
               ? storeDetails.banner_images
-              : storeDetails.banner
-                ? [storeDetails.banner]
+              : Array.isArray(metadata.storefront_banner_images)
+                ? metadata.storefront_banner_images
+                : storeDetails.banner
+                  ? [storeDetails.banner]
                 : [],
+            carouselSlides: Array.isArray(metadata.storefront_carousel_slides)
+              ? metadata.storefront_carousel_slides
+              : [],
+            banner_style: storeDetails.banner_style || metadata.storefront_banner_style || "portrait",
             botUrl: storeDetails.bot_url || "",
             metadata: metadata,
             enabled_fulfillment_modes: enabledModes
@@ -708,6 +732,8 @@ function StorefrontComponent() {
     try {
       const formData = new FormData();
       files.forEach((file) => formData.append('banner_images', file));
+      (storefrontData.banner_images || []).forEach((image) => formData.append('existing_images', image));
+      formData.append('carousel_slides', JSON.stringify(storefrontData.carouselSlides || []));
 
       const response = await fetch('/api/store/banner-images', { method: 'POST', body: formData });
       const result = await parseApiResponse(response);
@@ -718,6 +744,13 @@ function StorefrontComponent() {
         setStorefrontData(prev => ({
           ...prev,
           banner_images: newImages,
+          carouselSlides: Array.isArray(result.data?.carousel_slides)
+            ? result.data.carousel_slides
+            : newImages.map((image: string, index: number) => ({
+                image,
+                title: prev.carouselSlides?.[index]?.title || "",
+                description: prev.carouselSlides?.[index]?.description || "",
+              })),
           banner_style: "carousel",
         }));
       }
@@ -737,10 +770,7 @@ function StorefrontComponent() {
   const handleSaveStorefront = async () => {
     try {
       toast.loading('Saving changes...');
-      const rawPhone = storefrontData.whatsappNumber.replace(/\s/g, '');
-      const formattedPhone = rawPhone.startsWith('0')
-        ? `${storefrontData.countryCode}${rawPhone.slice(1)}`
-        : `${storefrontData.countryCode}${rawPhone}`;
+      const formattedPhone = formatInternationalPhone(storefrontData.whatsappNumber, storefrontData.countryCode);
 
       const requestBody = {
         store_name: storefrontData.storeName,
@@ -764,6 +794,8 @@ function StorefrontComponent() {
           country: storefrontData.metadata?.country || "NG",
           brand_color: storefrontData.metadata?.brand_color || savedBrandColor,
           storefront_announcement: storefrontData.metadata?.storefront_announcement || savedAnnouncement,
+          storefront_about_us: storefrontData.metadata?.storefront_about_us || "",
+          storefront_carousel_slides: storefrontData.carouselSlides || [],
         },
         // Forward banner style + multi-image list to the backend
         banner_style: storefrontData.banner_style,
@@ -807,7 +839,7 @@ function StorefrontComponent() {
           city: storefrontData.metadata?.city || storefrontData.location || "Lagos",
           state: storefrontData.metadata?.state || "Lagos",
           post_code: storefrontData.metadata?.post_code || "",
-          phone: storefrontData.metadata?.phone || `+234${storefrontData.whatsappNumber.replace(/^0/, '')}`,
+          phone: formatInternationalPhone(storefrontData.whatsappNumber, storefrontData.countryCode),
           email: storefrontData.metadata?.email || "",
           instagram: storefrontData.metadata?.instagram || "",
           facebook: storefrontData.metadata?.facebook || "",
@@ -884,22 +916,38 @@ function StorefrontComponent() {
 
   const moveBannerImage = (index: number, direction: -1 | 1) => {
     const images = [...(storefrontData.banner_images || [])];
+    const slides = [...(storefrontData.carouselSlides || [])];
     const target = index + direction;
     if (target < 0 || target >= images.length) return;
     [images[index], images[target]] = [images[target], images[index]];
-    setStorefrontData((prev) => ({ ...prev, banner_images: images }));
+    if (slides.length === images.length) [slides[index], slides[target]] = [slides[target], slides[index]];
+    setStorefrontData((prev) => ({ ...prev, banner_images: images, carouselSlides: slides }));
   };
 
   const removeBannerImage = (index: number) => {
     setStorefrontData((prev) => {
       const bannerImages = (prev.banner_images || []).filter((_, imageIndex) => imageIndex !== index);
+      const carouselSlides = (prev.carouselSlides || []).filter((_, imageIndex) => imageIndex !== index);
       return {
         ...prev,
         banner_images: bannerImages,
+        carouselSlides,
         ...(bannerImages.length === 0 && prev.banner_style === "carousel"
           ? { banner_style: "portrait" as const }
           : {}),
       };
+    });
+  };
+
+  const updateCarouselSlide = (index: number, field: "title" | "description", value: string) => {
+    setStorefrontData((prev) => {
+      const slides = (prev.banner_images || []).map((image, slideIndex) => ({
+        image,
+        title: prev.carouselSlides?.[slideIndex]?.title || "",
+        description: prev.carouselSlides?.[slideIndex]?.description || "",
+      }));
+      slides[index] = { ...slides[index], [field]: value };
+      return { ...prev, carouselSlides: slides };
     });
   };
 
@@ -1157,12 +1205,12 @@ function StorefrontComponent() {
         </div>
       </div>
 
-      {/* Storefront Setup Card — unchanged */}
+      {/* Ticket stores manage an event storefront profile, not a retail catalog. */}
       <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
         <CardContent>
           <div className="space-y-6 pt-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-medium">Storefront Setup</h2>
+              <h2 className="text-sm font-medium">{isTicketVendor ? "Event storefront profile" : "Storefront Setup"}</h2>
               {!isEditingStorefront ? (
                 <Button onClick={handleEditStorefront} variant="outline" size="sm" className="dark:bg-background">
                   <span className="hidden sm:inline mr-2">Edit</span><EditIcon />
@@ -1200,34 +1248,45 @@ function StorefrontComponent() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="storeName" className="text-xs">Store Name *</Label>
-                <Input id="storeName" value={storefrontData.storeName} onChange={(e) => handleInputChange("storeName", e.target.value)} disabled={!isEditingStorefront} className="dark:bg-background" placeholder="Enter store name" />
+                <Label htmlFor="storeName" className="text-xs">{isTicketVendor ? "Organizer / storefront name *" : "Store Name *"}</Label>
+                <Input id="storeName" value={storefrontData.storeName} onChange={(e) => handleInputChange("storeName", e.target.value)} disabled={!isEditingStorefront} className="dark:bg-background" placeholder={isTicketVendor ? "Enter organizer name" : "Enter store name"} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="whatsapp" className="text-xs">WhatsApp Business Number *</Label>
-                <div className="flex gap-2">
-                  <Select value={storefrontData.countryCode} onValueChange={(value) => handleInputChange("countryCode", value)} disabled={!isEditingStorefront}>
-                    <SelectTrigger className="max-w-[120px] dark:bg-background"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="+234">+234 (NG)</SelectItem>
-                      <SelectItem value="+254">+254 (KE)</SelectItem>
-                      <SelectItem value="+1">+1 (US)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Input id="whatsapp" value={storefrontData.whatsappNumber} onChange={(e) => handleInputChange("whatsappNumber", e.target.value)} disabled={!isEditingStorefront} className="flex-1 dark:bg-background" placeholder="Enter WhatsApp number" />
-                </div>
+                <Label htmlFor="whatsapp" className="text-xs">Vendor WhatsApp Business Number</Label>
+                <Input
+                  id="whatsapp"
+                  value={`${storefrontData.countryCode} ${storefrontData.whatsappNumber}`.trim()}
+                  disabled
+                  className="dark:bg-background"
+                  aria-describedby="whatsapp-source-note"
+                />
+                <p id="whatsapp-source-note" className="text-xs text-muted-foreground">This uses the phone number on the vendor account and appears as the store contact number.</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="location" className="text-xs">Main store city *</Label>
+                <Label htmlFor="location" className="text-xs">{isTicketVendor ? "Organizer city *" : "Main store city *"}</Label>
                 <Input id="location" value={storefrontData.location} onChange={(event) => handleInputChange("location", event.target.value)} disabled={!isEditingStorefront} className="dark:bg-background" placeholder="e.g. Lagos" />
-                <p className="text-xs text-muted-foreground">This is the city shown on your store profile. Add other branches under Logistics settings.</p>
+                <p className="text-xs text-muted-foreground">{isTicketVendor ? "Shown on your public ticket storefront. Set each event venue in its event details." : "This is the city shown on your store profile. Add other branches under Logistics settings."}</p>
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="bio" className="text-xs">Bio *</Label>
-              <Textarea id="bio" value={storefrontData.bio} onChange={(e) => handleInputChange("bio", e.target.value)} disabled={!isEditingStorefront} className="min-h-[100px] dark:bg-background resize-none" maxLength={500} placeholder="Tell customers about your store..." />
+              <Textarea id="bio" value={storefrontData.bio} onChange={(e) => handleInputChange("bio", e.target.value)} disabled={!isEditingStorefront} className="min-h-[100px] dark:bg-background resize-none" maxLength={500} placeholder={isTicketVendor ? "Describe your events and what attendees can expect..." : "Tell customers about your store..."} />
               <div className="text-right text-xs text-muted-foreground">{storefrontData.bio.length}/500</div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="aboutUs" className="text-xs">About Us</Label>
+              <Textarea
+                id="aboutUs"
+                value={storefrontData.metadata?.storefront_about_us || ""}
+                onChange={(event) => handleMetadataChange("storefront_about_us", event.target.value)}
+                disabled={!isEditingStorefront}
+                className="min-h-[140px] resize-y dark:bg-background"
+                maxLength={3000}
+                placeholder={isTicketVendor ? "Tell attendees about the organizer and the events you host." : "Tell customers about your brand, story, and what makes your store special."}
+              />
+              <p className="text-right text-xs text-muted-foreground">{(storefrontData.metadata?.storefront_about_us || "").length}/3000</p>
             </div>
 
             <div className="rounded-2xl border border-[#F1F1F1] p-4 dark:border-[#252525]">
@@ -1291,7 +1350,7 @@ function StorefrontComponent() {
 
             {/* Store Banner — portrait fallback */}
             <div className="space-y-2">
-              <Label htmlFor="banner" className="text-xs">Store Banner</Label>
+              <Label htmlFor="banner" className="text-xs">{isTicketVendor ? "Ticket storefront banner" : "Store Banner"}</Label>
               <input type="file" ref={bannerInputRef} onChange={handleBannerUpload} accept="image/jpeg,image/jpg,image/png,image/webp" className="hidden" />
               <div className="border-1 border-dashed border-primary rounded-2xl p-8 text-center cursor-pointer hover:bg-primary/5 transition-colors" onClick={() => isEditingStorefront && bannerInputRef.current?.click()}>
                 {isUploadingBanner ? (
@@ -1305,7 +1364,7 @@ function StorefrontComponent() {
                 ) : (
                   <div className="flex flex-col items-center gap-2">
                     <ImageIcon className="w-8 h-8 text-primary" />
-                    <p className="text-sm font-medium">{isEditingStorefront ? 'Upload store banner' : 'No banner uploaded'}</p>
+                    <p className="text-sm font-medium">{isEditingStorefront ? (isTicketVendor ? 'Upload ticket storefront banner' : 'Upload store banner') : 'No banner uploaded'}</p>
                     <p className="text-xs text-muted-foreground">{isEditingStorefront ? 'Max 10MB, JPEG, PNG, WebP' : 'Edit to upload banner'}</p>
                   </div>
                 )}
@@ -1314,7 +1373,7 @@ function StorefrontComponent() {
 
             {/* Storefront/Banner style selector */}
             <div className="space-y-2">
-              <Label className="text-xs">Storefront / Banner style</Label>
+              <Label className="text-xs">{isTicketVendor ? "Ticket storefront banner style" : "Storefront / Banner style"}</Label>
               <Select
                 value={storefrontData.banner_style || "portrait"}
                 onValueChange={(value) => handleInputChange("banner_style", value)}
@@ -1335,7 +1394,7 @@ function StorefrontComponent() {
 
             {/* Multi-banner upload for carousel */}
             <div className="space-y-2">
-              <Label htmlFor="banner-images" className="text-xs">Banner Images (multi-image)</Label>
+              <Label htmlFor="banner-images" className="text-xs">{isTicketVendor ? "Event storefront carousel images" : "Banner Images (multi-image)"}</Label>
               <input
                 type="file"
                 ref={bannerImagesInputRef}
@@ -1355,7 +1414,7 @@ function StorefrontComponent() {
                       ))}
                     </div>
                     <p className="text-sm font-medium">{storefrontData.banner_images.length} banner images</p>
-                    <p className="text-xs text-muted-foreground">Click to add more images for the carousel</p>
+                    <p className="text-xs text-muted-foreground">Select more images to add slides. You can reorder or remove slides below.</p>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-2">
@@ -1368,12 +1427,17 @@ function StorefrontComponent() {
               {storefrontData.banner_images && storefrontData.banner_images.length > 0 && (
                 <div className="space-y-2">
                   {storefrontData.banner_images.map((image, index) => (
-                    <div key={`${image}-${index}`} className="flex items-center gap-3 rounded-lg border p-2">
-                      <div className="h-12 w-20 shrink-0 rounded bg-cover bg-center" style={{ backgroundImage: `url(${image})` }} />
-                      <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">Banner {index + 1}</span>
-                      <Button type="button" variant="ghost" size="icon" title="Move banner up" aria-label="Move banner up" disabled={!isEditingStorefront || index === 0} onClick={() => moveBannerImage(index, -1)}><ArrowUp className="h-4 w-4" /></Button>
-                      <Button type="button" variant="ghost" size="icon" title="Move banner down" aria-label="Move banner down" disabled={!isEditingStorefront || index === storefrontData.banner_images!.length - 1} onClick={() => moveBannerImage(index, 1)}><ArrowDown className="h-4 w-4" /></Button>
-                      <Button type="button" variant="ghost" size="icon" title="Remove banner" aria-label="Remove banner" disabled={!isEditingStorefront} onClick={() => removeBannerImage(index)}><Trash2 className="h-4 w-4" /></Button>
+                    <div key={`${image}-${index}`} className="grid grid-cols-[5rem_minmax(0,1fr)_auto] gap-3 rounded-lg border p-3">
+                      <div className="h-14 w-20 rounded bg-cover bg-center" style={{ backgroundImage: `url(${image})` }} />
+                      <div className="space-y-2">
+                        <Input value={storefrontData.carouselSlides?.[index]?.title || ""} onChange={(event) => updateCarouselSlide(index, "title", event.target.value)} disabled={!isEditingStorefront} placeholder={`Slide ${index + 1} title (optional)`} maxLength={100} />
+                        <Textarea value={storefrontData.carouselSlides?.[index]?.description || ""} onChange={(event) => updateCarouselSlide(index, "description", event.target.value)} disabled={!isEditingStorefront} placeholder="Slide description (optional)" maxLength={240} className="min-h-[64px] resize-y" />
+                      </div>
+                      <div className="flex flex-col">
+                        <Button type="button" variant="ghost" size="icon" title="Move banner up" aria-label="Move banner up" disabled={!isEditingStorefront || index === 0} onClick={() => moveBannerImage(index, -1)}><ArrowUp className="h-4 w-4" /></Button>
+                        <Button type="button" variant="ghost" size="icon" title="Move banner down" aria-label="Move banner down" disabled={!isEditingStorefront || index === storefrontData.banner_images!.length - 1} onClick={() => moveBannerImage(index, 1)}><ArrowDown className="h-4 w-4" /></Button>
+                        <Button type="button" variant="ghost" size="icon" title="Remove banner" aria-label="Remove banner" disabled={!isEditingStorefront} onClick={() => removeBannerImage(index)}><Trash2 className="h-4 w-4" /></Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1381,7 +1445,7 @@ function StorefrontComponent() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="customUrl" className="text-xs">Custom Storefront URL *</Label>
+              <Label htmlFor="customUrl" className="text-xs">{isTicketVendor ? "Public ticket storefront URL" : "Custom Storefront URL *"}</Label>
               <div className="flex flex-col md:flex-row gap-2">
                 <div className="flex items-center gap-2 flex-1 px-2 py-1.5 border rounded-md dark:bg-background overflow-auto">
                   <ExternalLink className="w-4 h-4 text-muted-foreground" />
@@ -1435,11 +1499,15 @@ function StorefrontComponent() {
       <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
         <CardContent className="flex items-center justify-between gap-4 py-5">
           <div>
-            <h3 className="text-sm font-medium">Store status</h3>
+            <h3 className="text-sm font-medium">{isTicketVendor ? "Ticket storefront sales" : "Store status"}</h3>
             <p className="mt-1 text-xs text-muted-foreground">
               {isStoreManuallyClosed
-                ? "Your storefront is closed to customers until you reopen it."
-                : "Your storefront is open. Close it temporarily without changing your business hours."}
+                ? isTicketVendor
+                  ? "Ticket purchases are paused on your public storefront until you reopen sales."
+                  : "Your storefront is closed to customers until you reopen it."
+                : isTicketVendor
+                  ? "Ticket purchases are available. Pause public sales temporarily without unpublishing events."
+                  : "Your storefront is open. Close it temporarily without changing your business hours."}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-3">
@@ -1455,7 +1523,7 @@ function StorefrontComponent() {
       </Card>
 
       {/* Availability Setup */}
-      <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
+      {!isTicketVendor && <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
         <CardContent>
           <div className="space-y-5 pt-6">
             <div className="flex items-center justify-between">
@@ -1619,7 +1687,7 @@ function StorefrontComponent() {
             )}
           </div>
         </CardContent>
-      </Card>
+      </Card>}
 
       {/* Storefront appearance is separate from the vendor dashboard theme. */}
       <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
@@ -1629,8 +1697,9 @@ function StorefrontComponent() {
               <div>
                 <h3 className="text-sm font-medium">Storefront appearance</h3>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Customize the colors and announcement customers see in your store.
-                  {(storefrontData.storeType || "").toLowerCase().includes("ticket") && " These settings also apply to your public event and ticket storefront."}
+                  {isTicketVendor
+                    ? "Customize the colors and announcement attendees see on your public ticket storefront."
+                    : "Customize the colors and announcement customers see in your store."}
                 </p>
               </div>
               {!isEditingAppearance ? (
@@ -1772,7 +1841,7 @@ function StorefrontComponent() {
       </Card>
 
       <PaymentMethods />
-      <LogisticsSettings />
+      {!isTicketVendor && <LogisticsSettings />}
     </div>
   );
 }
