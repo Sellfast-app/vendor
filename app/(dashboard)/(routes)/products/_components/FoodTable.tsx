@@ -171,7 +171,17 @@ export default function FoodTable({ currency = "NGN" }: FoodTableProps) {
         }
 
         if (filterStatus) {
-          items = items.filter(item => item.status === filterStatus);
+          items = items.filter(item => item.status.toLowerCase() === filterStatus.toLowerCase());
+        }
+
+        if (filterDateRange.from || filterDateRange.to) {
+          const from = filterDateRange.from ? new Date(filterDateRange.from).setHours(0, 0, 0, 0) : undefined;
+          const to = filterDateRange.to ? new Date(filterDateRange.to).setHours(23, 59, 59, 999) : undefined;
+          items = items.filter((item) => {
+            const createdAt = new Date(item.createdAt).getTime();
+            if (!Number.isFinite(createdAt)) return false;
+            return (from === undefined || createdAt >= from) && (to === undefined || createdAt <= to);
+          });
         }
 
         // Client-side sorting
@@ -182,7 +192,7 @@ export default function FoodTable({ currency = "NGN" }: FoodTableProps) {
                 ? a.productName.localeCompare(b.productName)
                 : b.productName.localeCompare(a.productName);
             }
-            if (sortBy.includes("stock")) {
+            if (sortBy.includes("created date")) {
               return sortBy.includes("(High-Low)")
                 ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
                 : new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
@@ -203,16 +213,12 @@ export default function FoodTable({ currency = "NGN" }: FoodTableProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [searchTerm, filterStatus, sortBy]);
+  }, [searchTerm, filterStatus, sortBy, filterDateRange]);
 
   // Fetch food items when filters or page changes
   useEffect(() => {
     fetchFoodItems();
   }, [fetchFoodItems]);
-
-  useEffect(() => {
-    setCurrentPage(0);
-  }, [searchTerm, filterStatus, sortBy]);
 
   // Add event listener for food item addition
   useEffect(() => {
@@ -296,6 +302,7 @@ export default function FoodTable({ currency = "NGN" }: FoodTableProps) {
     setSortBy("default");
     setIsFilterOpen(false);
     setSearchTerm("");
+    setCurrentPage(0);
     toast.info('Filters cleared');
   };
 
@@ -362,7 +369,7 @@ export default function FoodTable({ currency = "NGN" }: FoodTableProps) {
             type="text"
             placeholder="Search by name..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(0); }}
             className="w-full sm:w-64 md:w-84 pr-8 py-2 text-xs sm:text-sm dark:bg-background rounded-lg border-[#F5F5F5] dark:border-[#1F1F1F]"
           />
           <SearchIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -422,7 +429,7 @@ export default function FoodTable({ currency = "NGN" }: FoodTableProps) {
                       from: filterDateRange.from,
                       to: filterDateRange.to,
                     }}
-                    onSelect={(range) => setFilterDateRange({ from: range?.from, to: range?.to })}
+                    onSelect={(range) => { setFilterDateRange({ from: range?.from, to: range?.to }); setCurrentPage(0); }}
                     initialFocus
                   />
                 </PopoverContent>
@@ -430,7 +437,7 @@ export default function FoodTable({ currency = "NGN" }: FoodTableProps) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="statusFilter">Status</Label>
-              <Select onValueChange={setFilterStatus} value={filterStatus}>
+              <Select onValueChange={(value) => { setFilterStatus(value); setCurrentPage(0); }} value={filterStatus}>
                 <SelectTrigger className="w-full dark:bg-background">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
@@ -443,7 +450,7 @@ export default function FoodTable({ currency = "NGN" }: FoodTableProps) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="sortFilter">Sort By</Label>
-              <Select onValueChange={setSortBy} value={sortBy}>
+              <Select onValueChange={(value) => { setSortBy(value); setCurrentPage(0); }} value={sortBy}>
                 <SelectTrigger className="w-full dark:bg-background">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
@@ -451,8 +458,8 @@ export default function FoodTable({ currency = "NGN" }: FoodTableProps) {
                   <SelectItem value="default">Default</SelectItem>
                   <SelectItem value="product name (A-Z)">Name (A-Z)</SelectItem>
                   <SelectItem value="product name (Z-A)">Name (Z-A)</SelectItem>
-                  <SelectItem value="stock (High-Low)">Newest First</SelectItem>
-                  <SelectItem value="stock (Low-High)">Oldest First</SelectItem>
+                  <SelectItem value="created date (High-Low)">Newest First</SelectItem>
+                  <SelectItem value="created date (Low-High)">Oldest First</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -72,11 +72,15 @@ export async function GET(request: NextRequest) {
     const dir = searchParams.get("dir") || "";
     const minPrice = searchParams.get("minPrice") || "";
     const maxPrice = searchParams.get("maxPrice") || "";
+    const minStock = searchParams.get("minStock") || "";
+    const maxStock = searchParams.get("maxStock") || "";
+    const createdFrom = searchParams.get("created_from") || "";
+    const createdTo = searchParams.get("created_to") || "";
     const search = searchParams.get("search") || "";
     const bustCache = searchParams.get("_t"); // Cache busting parameter
 
     // Create cache key based on all parameters (excluding _t)
-    const cacheKey = `${storeId}-${page}-${pageSize}-${status}-${sort}-${dir}-${minPrice}-${maxPrice}-${search}`;
+    const cacheKey = `${storeId}-${page}-${pageSize}-${status}-${sort}-${dir}-${minPrice}-${maxPrice}-${minStock}-${maxStock}-${createdFrom}-${createdTo}-${search}`;
 
     // Check if cache should be bypassed (if _t parameter exists)
     const shouldBypassCache = !!bustCache;
@@ -102,6 +106,10 @@ export async function GET(request: NextRequest) {
       ...(dir && { dir }),
       ...(minPrice && { minPrice }),
       ...(maxPrice && { maxPrice }),
+      ...(minStock && { minStock }),
+      ...(maxStock && { maxStock }),
+      ...(createdFrom && { created_from: createdFrom }),
+      ...(createdTo && { created_to: createdTo }),
       ...(search && { search }),
     });
 

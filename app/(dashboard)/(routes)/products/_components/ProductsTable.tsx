@@ -32,7 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
+import { endOfDay, format, startOfDay } from "date-fns";
 import { Label } from "@/components/ui/label";
 import ProductDetailsModal from "./ProductDetailsModal";
 import Loading from "@/components/Loading";
@@ -214,11 +214,13 @@ export default function ProductTable({ currency = "NGN" }: ProductsTableProps) {
         ...(searchTerm && { search: searchTerm }),
         ...(filterStatus && { status: mapStatusToApi(filterStatus) }),
         ...(sortBy !== "default" && { 
-          sort: sortBy.includes("product name") ? "product_name" : "product_quantity",
+          sort: sortBy.includes("product name") ? "product_name" : sortBy.includes("stock") ? "product_quantity" : "created_at",
           dir: sortBy.includes("(A-Z)") || sortBy.includes("(Low-High)") ? "asc" : "desc"
         }),
-        ...(filterStockRange.min > 0 && { minPrice: filterStockRange.min.toString() }),
-        ...(filterStockRange.max < Infinity && { maxPrice: filterStockRange.max.toString() }),
+        ...(filterStockRange.min > 0 && { minStock: filterStockRange.min.toString() }),
+        ...(filterStockRange.max < Infinity && { maxStock: filterStockRange.max.toString() }),
+        ...(filterDateRange.from && { created_from: startOfDay(filterDateRange.from).toISOString() }),
+        ...(filterDateRange.to && { created_to: endOfDay(filterDateRange.to).toISOString() }),
       });
 
       const response = await fetch(`/api/products?${queryParams}`);
@@ -243,7 +245,7 @@ export default function ProductTable({ currency = "NGN" }: ProductsTableProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, searchTerm, filterStatus, filterStockRange, sortBy, pageSize]);
+  }, [currentPage, searchTerm, filterStatus, filterStockRange, filterDateRange.from, filterDateRange.to, sortBy, pageSize]);
 
   // Fetch products when filters or page changes
   useEffect(() => {
@@ -381,6 +383,7 @@ export default function ProductTable({ currency = "NGN" }: ProductsTableProps) {
     setSortBy("default");
     setIsFilterOpen(false);
     setSearchTerm("");
+    setCurrentPage(0);
     toast.info('Filters cleared');
   };
 
@@ -449,7 +452,7 @@ export default function ProductTable({ currency = "NGN" }: ProductsTableProps) {
             type="text"
             placeholder="Search by name/SKU..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(0); }}
             className="w-full sm:w-64 md:w-84 pr-8 py-2 text-xs sm:text-sm dark:bg-background rounded-lg border-[#F5F5F5] dark:border-[#1F1F1F]"
           />
           <SearchIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -509,7 +512,7 @@ export default function ProductTable({ currency = "NGN" }: ProductsTableProps) {
                       from: filterDateRange.from,
                       to: filterDateRange.to,
                     }}
-                    onSelect={(range) => setFilterDateRange({ from: range?.from, to: range?.to })}
+                    onSelect={(range) => { setFilterDateRange({ from: range?.from, to: range?.to }); setCurrentPage(0); }}
                     initialFocus
                   />
                 </PopoverContent>
@@ -522,7 +525,7 @@ export default function ProductTable({ currency = "NGN" }: ProductsTableProps) {
                   type="number"
                   id="stockMin"
                   value={filterStockRange.min === 0 ? "" : filterStockRange.min}
-                  onChange={(e) => setFilterStockRange((prev) => ({ ...prev, min: e.target.value ? parseInt(e.target.value) : 0 }))}
+                  onChange={(e) => { setFilterStockRange((prev) => ({ ...prev, min: e.target.value ? Number(e.target.value) : 0 })); setCurrentPage(0); }}
                   placeholder="From"
                   className="dark:bg-background"
                 />
@@ -530,7 +533,7 @@ export default function ProductTable({ currency = "NGN" }: ProductsTableProps) {
                   type="number"
                   id="stockMax"
                   value={filterStockRange.max === Infinity ? "" : filterStockRange.max}
-                  onChange={(e) => setFilterStockRange((prev) => ({ ...prev, max: e.target.value ? parseInt(e.target.value) : Infinity }))}
+                  onChange={(e) => { setFilterStockRange((prev) => ({ ...prev, max: e.target.value ? Number(e.target.value) : Infinity })); setCurrentPage(0); }}
                   placeholder="To"
                   className="dark:bg-background"
                 />
@@ -538,7 +541,7 @@ export default function ProductTable({ currency = "NGN" }: ProductsTableProps) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="statusFilter">Status</Label>
-              <Select onValueChange={setFilterStatus} value={filterStatus}>
+              <Select onValueChange={(value) => { setFilterStatus(value); setCurrentPage(0); }} value={filterStatus}>
                 <SelectTrigger className="w-full dark:bg-background">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
@@ -551,7 +554,7 @@ export default function ProductTable({ currency = "NGN" }: ProductsTableProps) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="sortFilter">Sort By</Label>
-              <Select onValueChange={setSortBy} value={sortBy}>
+              <Select onValueChange={(value) => { setSortBy(value); setCurrentPage(0); }} value={sortBy}>
                 <SelectTrigger className="w-full dark:bg-background">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>

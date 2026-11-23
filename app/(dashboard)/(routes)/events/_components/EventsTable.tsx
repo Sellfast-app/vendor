@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import {
   Table,
@@ -71,6 +71,10 @@ export default function EventsTable({ events, onAddEvent, onEditEvent, onViewEve
   const [filterDateTo, setFilterDateTo] = useState<Date | undefined>();
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 8;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchTerm, filterDateFrom, filterDateTo]);
 
   let filteredEvents = events;
 

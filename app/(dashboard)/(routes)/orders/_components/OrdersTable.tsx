@@ -10,6 +10,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CalendarDays, Filter, MessageCircle, MonitorSmartphone, Search, ShoppingBag, X } from "lucide-react";
 import { ReportDownload } from "@/components/report-download";
+import { useStoreBusiness } from "@/components/store-business-context";
+import { isFoodBusinessType } from "@/lib/store";
 
 type Order = {
   id: string;
@@ -91,6 +93,8 @@ function statusTone(status: string) {
 
 export default function OrdersTable() {
   const router = useRouter();
+  const { businessType } = useStoreBusiness();
+  const isFoodStore = isFoodBusinessType(businessType);
   const [orders, setOrders] = useState<Order[]>([]);
   const [summary, setSummary] = useState<Summary>(emptySummary);
   const [total, setTotal] = useState(0);
@@ -164,6 +168,14 @@ export default function OrdersTable() {
     { label: "Delivered", value: summary.delivered },
     { label: "Cancelled", value: summary.cancelled },
   ];
+  const deliveryMethods = [
+    { value: "vendor", label: "Vendor delivery" },
+    { value: "pickup", label: "Pickup" },
+    { value: "platform", label: "Platform delivery" },
+    { value: "gig", label: "GIG" },
+    { value: "sendbox", label: "Sendbox" },
+    ...(isFoodStore ? [{ value: "relay", label: "Relay" }] : []),
+  ];
 
   return (
     <div className="space-y-5">
@@ -202,12 +214,12 @@ export default function OrdersTable() {
         </Select>
         <Select value={paymentStatus} onValueChange={(value) => { setPaymentStatus(value); setPage(1); }}>
           <SelectTrigger><SelectValue placeholder="Payment status" /></SelectTrigger><SelectContent>
-            <SelectItem value="all">All payment statuses</SelectItem><SelectItem value="completed">Paid</SelectItem><SelectItem value="pending">Pending</SelectItem><SelectItem value="failed">Failed</SelectItem><SelectItem value="refunded">Refunded</SelectItem>
+            <SelectItem value="all">All payment statuses</SelectItem><SelectItem value="completed">Paid</SelectItem><SelectItem value="pending">Pending</SelectItem><SelectItem value="failed">Failed</SelectItem><SelectItem value="refunded">Refunded</SelectItem><SelectItem value="free">Fully covered</SelectItem>
           </SelectContent>
         </Select>
         <Select value={deliveryMethod} onValueChange={(value) => { setDeliveryMethod(value); setPage(1); }}>
           <SelectTrigger><SelectValue placeholder="Delivery method" /></SelectTrigger><SelectContent>
-            <SelectItem value="all">All delivery methods</SelectItem><SelectItem value="vendor">Vendor delivery</SelectItem><SelectItem value="pickup">Pickup</SelectItem><SelectItem value="platform">Platform delivery</SelectItem>
+            <SelectItem value="all">All delivery methods</SelectItem>{deliveryMethods.map((method) => <SelectItem key={method.value} value={method.value}>{method.label}</SelectItem>)}
           </SelectContent>
         </Select>
         <div className="flex items-center gap-2"><CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" /><Input aria-label="From date" type="date" value={dateFrom} onChange={(event) => { setDateFrom(event.target.value); setPage(1); }} /><Input aria-label="To date" type="date" value={dateTo} onChange={(event) => { setDateTo(event.target.value); setPage(1); }} /></div>
