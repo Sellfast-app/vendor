@@ -74,6 +74,7 @@ const PRODUCT_TYPES: { id: ProductKind; title: string; description: string; icon
 ];
 
 const UNIT_OPTIONS = ["pc", "pair", "set", "pack", "box", "kg", "g", "litre", "ml"];
+const ALLOWED_PRODUCT_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"]);
 const statusFromApi: Record<string, string> = {
   ready: "Ready Stock",
   "made-to-order": "Made-to-order",
@@ -221,7 +222,7 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
 
   const handleImages = (event: ChangeEvent<HTMLInputElement>) => {
     const incoming = Array.from(event.target.files || []);
-    const valid = incoming.filter(file => file.type.startsWith("image/") && file.size <= 5 * 1024 * 1024);
+    const valid = incoming.filter(file => ALLOWED_PRODUCT_IMAGE_TYPES.has(file.type) && file.size <= 5 * 1024 * 1024);
     if (valid.length !== incoming.length) toast.error("Use image files up to 5 MB each.");
     setImages(current => [...current, ...valid].slice(0, 5));
     event.target.value = "";
@@ -297,7 +298,7 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
         product_id: entry.productId,
         quantity: Number(entry.quantity),
       })) : []));
-      uploadFiles.forEach((file, index) => formData.append("files", file, `product-image-${index}.${file.name.split(".").pop() || "jpg"}`));
+      uploadFiles.forEach(file => formData.append("files", file));
 
       const response = await fetch("/api/products", { method: "POST", body: formData });
       const result = await response.json();
@@ -484,7 +485,7 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
                   {preview && <Image src={preview.url} alt={`${variant.name || `Variant ${index + 1}`} preview`} width={40} height={40} unoptimized className="h-10 w-10 rounded border object-cover" />}
                   <Input id={`variant-image-${variant.id}`} type="file" accept="image/*" className="text-xs" onChange={event => {
                     const file = event.target.files?.[0] || null;
-                    if (file && (!file.type.startsWith("image/") || file.size > 5 * 1024 * 1024)) {
+                    if (file && (!ALLOWED_PRODUCT_IMAGE_TYPES.has(file.type) || file.size > 5 * 1024 * 1024)) {
                       toast.error("Use an image file up to 5 MB.");
                       event.target.value = "";
                       return;

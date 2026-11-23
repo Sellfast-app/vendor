@@ -36,6 +36,7 @@ interface OverviewMetric {
 function ProductsPageContent() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isCouponsOpen, setIsCouponsOpen] = useState(false);
+  const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [businessType, setBusinessType] = useState<string>("");
   const [currency, setCurrency] = useState("NGN");
   const [isLoading, setIsLoading] = useState(true);
@@ -174,7 +175,7 @@ function ProductsPageContent() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setIsCouponsOpen(true)}>Coupons</Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => setIsAddProductOpen(true)}>
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline ml-2">
               {isRestaurant ? "New food item" : "New product"}
@@ -193,7 +194,9 @@ function ProductsPageContent() {
         </div>
         <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
           <CardContent>
-            {isRestaurant ? <FoodTable currency={currency} /> : <ProductsTable currency={currency} />}
+            {isRestaurant
+              ? <FoodTable currency={currency} isAddModalOpen={isAddProductOpen} onAddModalOpenChange={setIsAddProductOpen} />
+              : <ProductsTable currency={currency} isAddModalOpen={isAddProductOpen} onAddModalOpenChange={setIsAddProductOpen} />}
           </CardContent>
         </Card>
       </div>

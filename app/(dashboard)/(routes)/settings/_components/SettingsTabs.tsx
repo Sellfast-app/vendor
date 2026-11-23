@@ -19,7 +19,7 @@ function SettingsTabs() {
         if (params.has('subscription_payment')) setTab('finance')
     }, [])
     return (
-        <div className="container mx-auto p-4">
+        <div className="container mx-auto w-full min-w-0 p-4">
             <Tabs value={tab} onValueChange={setTab} className='w-full'>
             <TabsList className="w-full overflow-x-auto flex-nowrap justify-start scrollbar-hide">
                     <TabsTrigger value="account">Account</TabsTrigger>
@@ -29,25 +29,25 @@ function SettingsTabs() {
                     <TabsTrigger value="notification">Notifications</TabsTrigger>
                     <TabsTrigger value="support">Support & Help</TabsTrigger>
                 </TabsList>
-                <TabsContent value="account" className='mt-4'>
+                <TabsContent value="account" className='mt-4 min-w-0'>
                     <AccountInformation/>
                 </TabsContent>
-                <TabsContent value="store" className='mt-4'>
+                <TabsContent value="store" className='mt-4 min-w-0'>
                     <StoreFront/>
                 </TabsContent>
-                {!isTicketStore && <TabsContent value="localization" className='mt-4'>
+                {!isTicketStore && <TabsContent value="localization" className='mt-4 min-w-0'>
                     <LocalizationSettings onManageBranches={() => {
                         setTab('store')
                         window.setTimeout(() => document.getElementById('branch-pickup-locations')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
                     }}/>
                 </TabsContent>}
-                <TabsContent value="finance" className='mt-4'>
+                <TabsContent value="finance" className='mt-4 min-w-0'>
                     <Finance/>
                 </TabsContent>
-                <TabsContent value="notification" className='mt-4'>
+                <TabsContent value="notification" className='mt-4 min-w-0'>
                     <Notification/>
                 </TabsContent>
-                <TabsContent value='support'>
+                <TabsContent value='support' className='min-w-0'>
                     <Support/>
                 </TabsContent>
             </Tabs>

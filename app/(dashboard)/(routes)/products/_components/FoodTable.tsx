@@ -36,7 +36,11 @@ import AddFoodModal, { EditableFoodItem } from "./AddFoodModal";
 import { getCurrencySymbol } from "@/lib/v2-currency";
 import Loading from "@/components/Loading";
 import { toast } from "sonner";
-interface FoodTableProps { currency?: string }
+interface FoodTableProps {
+  currency?: string;
+  isAddModalOpen?: boolean;
+  onAddModalOpenChange?: (open: boolean) => void;
+}
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -127,13 +131,15 @@ const mapStatusFromApi = (status: string): string => {
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
-export default function FoodTable({ currency = "NGN" }: FoodTableProps) {
+export default function FoodTable({ currency = "NGN", isAddModalOpen: controlledAddModalOpen, onAddModalOpenChange }: FoodTableProps) {
+  const [localAddModalOpen, setLocalAddModalOpen] = useState(false);
+  const isAddModalOpen = controlledAddModalOpen ?? localAddModalOpen;
+  const setAddModalOpen = onAddModalOpenChange ?? setLocalAddModalOpen;
   const [currentPage, setCurrentPage] = useState(0);
   const pageSize = 6;
   const [searchTerm, setSearchTerm] = useState("");
   const [foodItems, setFoodItems] = useState<FrontendFoodItem[]>([]);
   const [selectedFoodItems, setSelectedFoodItems] = useState<string[]>([]);
-  const [isAddFoodModalOpen, setIsAddFoodModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedFoodItem, setSelectedFoodItem] = useState<FrontendFoodItem | null>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -315,14 +321,14 @@ export default function FoodTable({ currency = "NGN" }: FoodTableProps) {
   const handleFoodUpdated = () => {
     window.dispatchEvent(new CustomEvent("foodAdded"));
     setSelectedFoodItem(null);
-    setIsAddFoodModalOpen(false);
+    setAddModalOpen(false);
     setCurrentPage(0);
     toast.success('Food item updated successfully!');
   };
 
   const openEditModal = (item: FrontendFoodItem) => {
     setSelectedFoodItem(item);
-    setIsAddFoodModalOpen(true);
+    setAddModalOpen(true);
   };
 
   const openDeleteModal = (item: FrontendFoodItem) => {
@@ -393,7 +399,7 @@ export default function FoodTable({ currency = "NGN" }: FoodTableProps) {
             className="border-primary text-primary dark:bg-background"
             onClick={() => {
               setSelectedFoodItem(null);
-              setIsAddFoodModalOpen(true);
+              setAddModalOpen(true);
             }}
           >
             <PlusIcon className="text-primary" />
@@ -640,9 +646,9 @@ export default function FoodTable({ currency = "NGN" }: FoodTableProps) {
       </div>
 
       <AddFoodModal
-        isOpen={isAddFoodModalOpen}
+        isOpen={isAddModalOpen}
         onClose={() => {
-          setIsAddFoodModalOpen(false);
+          setAddModalOpen(false);
           setSelectedFoodItem(null);
         }}
         onFoodAdded={handleFoodAdded}

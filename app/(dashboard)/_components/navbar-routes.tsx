@@ -1,13 +1,15 @@
 import { IoNotificationsOutline } from "react-icons/io5";
 import { Button } from "@/components/ui/button";
 import { HiOutlineExternalLink } from "react-icons/hi";
-import { Search, Settings } from "lucide-react";
+import { Bell, CalendarDays, ChartNoAxesCombined, ChevronDown, Globe, LayoutDashboard, Mail, Package, Search, Settings, ShoppingBag, Utensils, UsersRound } from "lucide-react";
 import { AvatarImage } from "@/components/ui/avatar";
 import { Avatar, AvatarFallback } from "@radix-ui/react-avatar";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import NotificationModal from "./NotificationModal";
+import Link from "next/link";
+import { useStoreBusiness } from "@/components/store-business-context";
 
 export const NavbarRoutes = () => {
   const [businessName, setBusinessName] = useState<string>("My Business");
@@ -17,6 +19,33 @@ export const NavbarRoutes = () => {
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [isStaff, setIsStaff] = useState(false);
+  const { businessType, status: businessStatus } = useStoreBusiness();
+  const isFoodStore = businessType === "food";
+  const isTicketStore = businessType === "ticketing";
+  const mobileRoutes = isStaff
+    ? [
+        { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
+        { label: isTicketStore ? "Ticket orders" : "Orders", href: isTicketStore ? "/orders/tickets" : "/orders", icon: ShoppingBag },
+      ]
+    : [
+        { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
+        ...(isTicketStore
+          ? [{ label: "Events", href: "/events", icon: CalendarDays }]
+          : isFoodStore
+            ? [
+                { label: "Food items", href: "/inventory/items", icon: Utensils },
+                { label: "Categories", href: "/inventory/categories", icon: Package },
+                { label: "Units", href: "/inventory/units", icon: Package },
+              ]
+            : [{ label: "Products", href: "/products", icon: Package }]),
+        { label: isTicketStore ? "Ticket orders" : "Orders", href: isTicketStore ? "/orders/tickets" : "/orders", icon: ShoppingBag },
+        { label: "Analytics", href: "/analytics", icon: ChartNoAxesCombined },
+        ...(!isTicketStore ? [{ label: "Leads", href: "/leads", icon: Mail }] : []),
+        { label: "Staff", href: "/staff", icon: UsersRound },
+        { label: "Domains", href: "/domains", icon: Globe },
+        { label: "Notifications", href: "/notifications", icon: Bell },
+        { label: "Settings", href: "/settings", icon: Settings },
+      ];
 
   const getCookieValue = (name: string): string | null => {
     if (typeof window === 'undefined') return null;
@@ -164,9 +193,9 @@ export const NavbarRoutes = () => {
         />
       </div>
 
-      <div className="md:hidden flex-1">
+      <div className="md:hidden min-w-0 flex-1">
         <DropdownMenu>
-          <DropdownMenuTrigger className="w-full max-w-[200px]"> 
+          <DropdownMenuTrigger aria-label={`Open ${businessName} workspace menu`} className="w-full max-w-[200px]">
             <div className="flex items-center space-x-3">
               <Avatar className="w-8 h-8 border rounded-full text-center">
                 {/* Display logo if available, otherwise fallback to initials */}
@@ -184,12 +213,17 @@ export const NavbarRoutes = () => {
                   {businessName}
                 </p>
               </div>
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
             </div>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
-            <DropdownMenuItem>
-              Other Stores
-            </DropdownMenuItem>
+          <DropdownMenuContent align="start" className="max-h-[70dvh] w-64">
+            <DropdownMenuLabel className="truncate">{businessName}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {businessStatus === "ready" && mobileRoutes.map(({ label, href, icon: Icon }) => (
+              <DropdownMenuItem key={href} asChild>
+                <Link href={href}><Icon className="h-4 w-4" />{label}</Link>
+              </DropdownMenuItem>
+            ))}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

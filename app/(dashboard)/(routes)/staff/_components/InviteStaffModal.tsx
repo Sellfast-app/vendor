@@ -30,8 +30,8 @@ export function InviteStaffModal({ open, onOpenChange, onInvited }: InviteStaffM
         body: JSON.stringify({ email: email.trim(), first_name: firstName.trim(), last_name: lastName.trim(), whatsapp_number: whatsappNumber.trim(), role_key: "staff" }),
       });
       const result = await response.json();
-      if (!response.ok || result.status !== "success") throw new Error(result.message || "Failed to send invitation");
-      toast.success(result.message || `Invitation sent to ${email.trim()}`);
+      if (!response.ok || result.status !== "success") throw new Error(result.message || "Failed to add staff access");
+      toast.success(result.message || `Staff access added for ${email.trim()}`);
       onInvited();
       setEmail("");
       setFirstName("");
@@ -39,7 +39,7 @@ export function InviteStaffModal({ open, onOpenChange, onInvited }: InviteStaffM
       setWhatsappNumber("");
       onOpenChange(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to send invitation");
+      toast.error(error instanceof Error ? error.message : "Failed to add staff access");
       onInvited();
     } finally {
       setIsLoading(false);
@@ -60,9 +60,9 @@ export function InviteStaffModal({ open, onOpenChange, onInvited }: InviteStaffM
             <Input id="staff-email" type="email" placeholder="e.g. john@store.com" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
           <div className="space-y-2"><Label htmlFor="staff-whatsapp">WhatsApp number</Label><Input id="staff-whatsapp" type="tel" autoComplete="tel" placeholder="e.g. +2348012345678" value={whatsappNumber} onChange={event => setWhatsappNumber(event.target.value)} /></div>
-          <p className="text-sm text-muted-foreground">New staff receive a temporary password by email and must change it before signing in. Existing Swiftree accounts keep their current password.</p>
+          <p className="text-sm text-muted-foreground">New staff receive a temporary password by email and change it at first sign-in. Existing non-owner accounts keep their password and get immediate store access; store-owner emails cannot be reused.</p>
           <Button className="w-full" onClick={handleInvite} disabled={isLoading}>
-            {isLoading ? "Adding staff..." : "Add staff and send access details"}
+            {isLoading ? "Adding staff..." : "Add staff and send login details"}
           </Button>
         </div>
       </DialogContent>

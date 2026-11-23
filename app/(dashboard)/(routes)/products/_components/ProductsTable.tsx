@@ -40,7 +40,11 @@ import { toast } from "sonner";
 import { formatStoreCurrency } from "@/lib/v2-currency";
 import { StoreDiscountDialog } from "./StoreDiscountDialog";
 
-interface ProductsTableProps { currency?: string }
+interface ProductsTableProps {
+  currency?: string;
+  isAddModalOpen?: boolean;
+  onAddModalOpenChange?: (open: boolean) => void;
+}
 
 interface Product {
   id: string;
@@ -180,13 +184,15 @@ const mapStatusToApi = (status: string): string => {
   return statusMap[status] || 'ready';
 };
 
-export default function ProductTable({ currency = "NGN" }: ProductsTableProps) {
+export default function ProductTable({ currency = "NGN", isAddModalOpen: controlledAddModalOpen, onAddModalOpenChange }: ProductsTableProps) {
+  const [localAddModalOpen, setLocalAddModalOpen] = useState(false);
+  const isAddModalOpen = controlledAddModalOpen ?? localAddModalOpen;
+  const setAddModalOpen = onAddModalOpenChange ?? setLocalAddModalOpen;
   const [currentPage, setCurrentPage] = useState(0);
   const pageSize = 6;
   const [searchTerm, setSearchTerm] = useState("");
   const [products, setProducts] = useState<FrontendProduct[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
-  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [isStoreDiscountOpen, setIsStoreDiscountOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
@@ -477,7 +483,7 @@ export default function ProductTable({ currency = "NGN" }: ProductsTableProps) {
           <Button
             variant="outline"
             className="border-primary text-primary dark:bg-background"
-            onClick={() => setIsProductModalOpen(true)}
+            onClick={() => setAddModalOpen(true)}
           >
             <PlusIcon className="text-primary" />
             <span className="hidden sm:inline ml-2">Add Product</span>
@@ -745,8 +751,8 @@ export default function ProductTable({ currency = "NGN" }: ProductsTableProps) {
       </div>
 
       <AddProductModal
-        isOpen={isProductModalOpen}
-        onClose={() => setIsProductModalOpen(false)}
+        isOpen={isAddModalOpen}
+        onClose={() => setAddModalOpen(false)}
         onAddProduct={handleAddProduct}
         availableProducts={products}
         currency={currency}

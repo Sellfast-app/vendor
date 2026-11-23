@@ -99,9 +99,9 @@ export default function BranchCatalogSettings({ branches, catalogType }: { branc
   return <section className="space-y-4 rounded-lg border p-5">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div><h3 className="text-sm font-semibold">Branch-specific products</h3><p className="text-xs text-muted-foreground">Choose a branch to set which items it sells and whether its prices or stock differ from the store.</p></div>
-      <div className="flex flex-wrap gap-2">
-        <select aria-label="Branch" className="h-9 rounded-md border bg-background px-3 text-sm" value={branchId} onChange={event => setBranchId(event.target.value)}>{branches.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
-        <Button size="sm" disabled={saving || loading || !branch} onClick={save}>{saving ? "Saving..." : "Save branch changes"}</Button>
+      <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row">
+        <select aria-label="Branch" className="h-9 w-full min-w-0 rounded-md border bg-background px-3 text-sm sm:w-auto" value={branchId} onChange={event => setBranchId(event.target.value)}>{branches.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+        <Button size="sm" className="w-full sm:w-auto" disabled={saving || loading || !branch} onClick={save}>{saving ? "Saving..." : "Save branch changes"}</Button>
       </div>
     </div>
     {branch && <p className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">Changes apply only to <strong>{branch.name}</strong>. Keep branch price or stock empty to use the store value. Turn off &quot;Sell here&quot; to hide an item or option from this branch.</p>}
