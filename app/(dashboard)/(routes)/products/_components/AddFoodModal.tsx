@@ -172,8 +172,6 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
     const [description, setDescription] = useState('');
     const [status, setStatus] = useState('');
     const [timeAvailability, setTimeAvailability] = useState('');
-    const [availabilityStartTime, setAvailabilityStartTime] = useState('09:00');
-    const [availabilityEndTime, setAvailabilityEndTime] = useState('21:00');
     const [servingType, setServingType] = useState('');
     const [servingTypeCustom, setServingTypeCustom] = useState('');
     const [servingTypes, setServingTypes] = useState<string[]>([]);
@@ -233,8 +231,6 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
         setDescription(editFoodItem.description || '');
         setStatus(editFoodItem.status || '');
         setTimeAvailability(editFoodItem.availability || '');
-        setAvailabilityStartTime(formatTimeValue(editFoodItem.availabilityPeriod?.startTime) || '09:00');
-        setAvailabilityEndTime(formatTimeValue(editFoodItem.availabilityPeriod?.endTime) || '21:00');
         setServingType('');
         setServingTypeCustom('');
         setServingTypes(editFoodItem.servingType || []);
@@ -356,17 +352,8 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
 
         // Basic validation
         if (!productName.trim()) return setError('Food name is required.');
-        if (!description.trim()) return setError('Description is required.');
         if (!status) return setError('Product status is required.');
         if (!timeAvailability) return setError('Time-based availability is required.');
-        if (timeAvailability === 'Custom') {
-            if (!availabilityStartTime || !availabilityEndTime) {
-                return setError('Custom availability start and end time are required.');
-            }
-            if (availabilityStartTime >= availabilityEndTime) {
-                return setError('Custom availability end time must be after the start time.');
-            }
-        }
         if (servingTypes.length === 0) return setError('At least one serving type is required.');
         if (foodCategories.length === 0) return setError('At least one food category is required.');
         if (!isEditMode && uploadedImages.length === 0) return setError('At least one image is required.');
@@ -448,8 +435,6 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
         setDescription('');
         setStatus('');
         setTimeAvailability('');
-        setAvailabilityStartTime('09:00');
-        setAvailabilityEndTime('21:00');
         setServingType('');
         setServingTypeCustom('');
         setServingTypes([]);
@@ -466,16 +451,9 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
         setError(null);
     };
 
-    const buildAvailabilityPeriod = () => {
-        const existingPeriod = editFoodItem?.availabilityPeriod;
-
-        return {
-            ...(existingPeriod?.uid && { uid: existingPeriod.uid }),
-            ...(isEditMode && editFoodItem?.uid && { foodProductId: editFoodItem.uid }),
-            startTime: buildDailyAvailabilityIso(availabilityStartTime),
-            endTime: buildDailyAvailabilityIso(availabilityEndTime),
-        };
-    };
+    const existingAvailabilityPeriod = Array.isArray(editFoodItem?.availabilityPeriod)
+        ? editFoodItem.availabilityPeriod[0]
+        : editFoodItem?.availabilityPeriod;
 
     const buildUpdatePayload = () => ({
         uid: editFoodItem?.uid,
@@ -489,9 +467,7 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
         category: foodCategories,
         labels: dietaryLabels,
         servingType: servingTypes,
-        ...(timeAvailability === 'Custom' && {
-            availabilityPeriod: buildAvailabilityPeriod(),
-        }),
+        ...(timeAvailability === 'Custom' && existingAvailabilityPeriod && { availabilityPeriod: existingAvailabilityPeriod }),
         ...(productType === 'customizable' && {
             servingTypePricing: servingTypes.map(type => ({
                 servingType: type,
@@ -533,7 +509,6 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
         description,
         status,
         availability: timeAvailability,
-        ...(timeAvailability === 'Custom' && { availabilityPeriod: buildAvailabilityPeriod() }),
         category: foodCategories,
         labels: dietaryLabels,
         servingType: servingTypes,
@@ -598,7 +573,7 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                             </div>
                             <div>
                                 <Label className='text-xs font-light mt-4 mb-1' htmlFor='description'>
-                                    Description<span className="text-destructive">*</span>
+                                    Description
                                 </Label>
                                 <Textarea
                                     id='description'
@@ -688,37 +663,9 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                                         <SelectItem value='Lunch'>Lunch</SelectItem>
                                         <SelectItem value='Dinner'>Dinner</SelectItem>
                                         <SelectItem value='All Day'>All Day</SelectItem>
-                                        <SelectItem value='Custom'>Custom</SelectItem>
+                                        {isEditMode && editFoodItem?.availability === 'Custom' && <SelectItem value='Custom'>Custom (existing)</SelectItem>}
                                     </SelectContent>
                                 </Select>
-                                {timeAvailability === 'Custom' && (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-                                        <div>
-                                            <Label className='text-xs font-light mb-1' htmlFor='availability-start'>
-                                                Start Time<span className="text-destructive">*</span>
-                                            </Label>
-                                            <Input
-                                                id='availability-start'
-                                                type='time'
-                                                value={availabilityStartTime}
-                                                onChange={(e) => setAvailabilityStartTime(e.target.value)}
-                                                disabled={isLoading}
-                                            />
-                                        </div>
-                                        <div>
-                                            <Label className='text-xs font-light mb-1' htmlFor='availability-end'>
-                                                End Time<span className="text-destructive">*</span>
-                                            </Label>
-                                            <Input
-                                                id='availability-end'
-                                                type='time'
-                                                value={availabilityEndTime}
-                                                onChange={(e) => setAvailabilityEndTime(e.target.value)}
-                                                disabled={isLoading}
-                                            />
-                                        </div>
-                                    </div>
-                                )}
                             </div>
                             <div>
                                 <Label className='text-xs font-light mt-4 mb-2'>
@@ -1001,18 +948,6 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
             </div>
         </div>
     );
-}
-
-function buildDailyAvailabilityIso(time: string) {
-    return new Date(`1970-01-01T${time}:00.000Z`).toISOString();
-}
-
-function formatTimeValue(value?: string) {
-    if (!value) return '';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
-
-    return date.toISOString().slice(11, 16);
 }
 
 function mapFoodTypeToForm(type: string): 'simple' | 'customizable' | 'bundle' {
