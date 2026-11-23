@@ -11,7 +11,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import EyeIcon from "@/components/svgIcons/EyeIcon";
 import EditIcon from "@/components/svgIcons/EditIcon";
-import ArchiveIcon from "@/components/svgIcons/ArchiveIcon";
 import DeleteIcon from "@/components/svgIcons/DeleteIcon";
 import DeleteIcon2 from "@/components/svgIcons/DeleteIcon2";
 import ActionModal from "@/components/ActionModal";
@@ -553,7 +552,6 @@ export default function FoodTable({ currency = "NGN", isAddModalOpen: controlled
                       {canManageProducts && <>
                         <DropdownMenuItem onClick={() => openEditModal(item)}><EditIcon /> Edit Item</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => openDeleteModal(item)}><DeleteIcon /> <span className="text-[#E40101]">Delete Item</span></DropdownMenuItem>
-                        <DropdownMenuItem><ArchiveIcon /> Archive Item</DropdownMenuItem>
                       </>}
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -594,7 +592,6 @@ export default function FoodTable({ currency = "NGN", isAddModalOpen: controlled
                 <DropdownMenuContent align="end">
                   {canManageProducts && <>
                     <DropdownMenuItem onClick={() => openDeleteModal(item)}><DeleteIcon /> Delete item</DropdownMenuItem>
-                    <DropdownMenuItem><ArchiveIcon /> Archive item</DropdownMenuItem>
                   </>}
                 </DropdownMenuContent>
               </DropdownMenu>

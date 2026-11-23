@@ -11,10 +11,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import EyeIcon from "@/components/svgIcons/EyeIcon";
 import AddProductModal from "./AddProductModal";
 import EditIcon from "@/components/svgIcons/EditIcon";
-import ArchiveIcon from "@/components/svgIcons/ArchiveIcon";
 import DeleteIcon from "@/components/svgIcons/DeleteIcon";
 import ActionModal from "@/components/ActionModal";
-import ArchiveIcon2 from "@/components/svgIcons/ArchiveIcon2";
 import DeleteIcon2 from "@/components/svgIcons/DeleteIcon2";
 import Image from "next/image";
 import { CalendarIcon } from "lucide-react";
@@ -196,7 +194,6 @@ export default function ProductTable({ currency = "NGN", isAddModalOpen: control
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [isStoreDiscountOpen, setIsStoreDiscountOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<FrontendProduct | null>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [filterDateRange, setFilterDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined });
@@ -364,23 +361,9 @@ export default function ProductTable({ currency = "NGN", isAddModalOpen: control
     }
   };
 
-  const handleArchiveConfirm = () => {
-    if (selectedProduct) {
-      console.log(`Archiving product: ${selectedProduct.sku}`);
-      setIsArchiveModalOpen(false);
-      setSelectedProduct(null);
-      toast.info('Archive functionality coming soon!');
-    }
-  };
-
   const openDeleteModal = (product: FrontendProduct) => {
     setSelectedProduct(product);
     setIsDeleteModalOpen(true);
-  };
-
-  const openArchiveModal = (product: FrontendProduct) => {
-    setSelectedProduct(product);
-    setIsArchiveModalOpen(true);
   };
 
   const clearFilters = () => {
@@ -659,7 +642,6 @@ export default function ProductTable({ currency = "NGN", isAddModalOpen: control
                       {canManageProducts && <>
                         <DropdownMenuItem onClick={() => openEditModal(product)}><EditIcon /> Edit Product</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => openDeleteModal(product)}><DeleteIcon /> <span className="text-[#E40101]">Delete Product</span></DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => openArchiveModal(product)}><ArchiveIcon /> Archive Product</DropdownMenuItem>
                       </>}
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -701,7 +683,6 @@ export default function ProductTable({ currency = "NGN", isAddModalOpen: control
                   <DropdownMenuItem onClick={() => openDetailsModal(product)}><EyeIcon /> View details</DropdownMenuItem>
                   {canManageProducts && <>
                     <DropdownMenuItem onClick={() => openDeleteModal(product)}><DeleteIcon /> Delete product</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => openArchiveModal(product)}><ArchiveIcon /> Archive product</DropdownMenuItem>
                   </>}
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -784,23 +765,6 @@ export default function ProductTable({ currency = "NGN", isAddModalOpen: control
         productStock={selectedProduct?.stock.toString() || "0"}
         confirmButtonColor="#E40101"
         confirmText="Delete"
-        cancelText="Cancel"
-      />
-      <ActionModal
-        isOpen={isArchiveModalOpen}
-        onClose={() => setIsArchiveModalOpen(false)}
-        onConfirm={handleArchiveConfirm}
-        titleText="Confirm Action"
-        icon={<ArchiveIcon2 />}
-        heading="Archive Product"
-        description="Are you sure you want to archive this product?"
-        productImage={selectedProduct ? getFirstThumbnail(selectedProduct.thumbnail) : '/thumbnails/default.png'}
-        productName={selectedProduct?.productName || ""}
-        productId={selectedProduct?.sku || ""}
-        productPrice={selectedProduct?.sales.toLocaleString() || "0"}
-        productStock={selectedProduct?.stock.toString() || "0"}
-        confirmButtonColor="#3B82F6"
-        confirmText="Archive"
         cancelText="Cancel"
       />
     </div>
