@@ -125,6 +125,8 @@ export default function BundleConfiguration({ slots, onSlotsChange ,  addOnGroup
     const [bundleCategory, setBundleCategory] = useState('');
     const [maxItems, setMaxItems] = useState<number>(2);
     const [isSlotRequired, setIsSlotRequired] = useState(false);
+    const [stockQuantity, setStockQuantity] = useState('');
+    const [lowStockThreshold, setLowStockThreshold] = useState('');
     const [bundleOpen, setBundleOpen] = useState(true);
     const [customizationEnabled, setCustomizationEnabled] = useState(false);
 
@@ -138,9 +140,9 @@ export default function BundleConfiguration({ slots, onSlotsChange ,  addOnGroup
         if (!bundleName.trim() || !bundleCategory) return;
         onSlotsChange([...slots, {
             id: Math.random().toString(36).substr(2, 9),
-            name: bundleName, price: bundlePrice, category: bundleCategory, maxItems, isRequired: isSlotRequired,
+            name: bundleName, price: bundlePrice, category: bundleCategory, maxItems, isRequired: isSlotRequired, stockQuantity, lowStockThreshold,
         }]);
-        setBundleName(''); setBundlePrice(''); setBundleCategory(''); setMaxItems(2); setIsSlotRequired(false);
+        setBundleName(''); setBundlePrice(''); setBundleCategory(''); setMaxItems(2); setIsSlotRequired(false); setStockQuantity(''); setLowStockThreshold('');
     };
 
     const handleRemoveSlot = (id: string) => onSlotsChange(slots.filter((s) => s.id !== id));
@@ -150,6 +152,7 @@ export default function BundleConfiguration({ slots, onSlotsChange ,  addOnGroup
         if (!slot) return;
         setBundleName(slot.name); setBundlePrice(slot.price); setBundleCategory(slot.category);
         setMaxItems(slot.maxItems); setIsSlotRequired(slot.isRequired);
+        setStockQuantity(slot.stockQuantity); setLowStockThreshold(slot.lowStockThreshold);
         onSlotsChange(slots.filter((s) => s.id !== id));
     };
 
@@ -221,6 +224,16 @@ export default function BundleConfiguration({ slots, onSlotsChange ,  addOnGroup
                                 <div>
                                     <Label className="text-xs font-light mb-1">Max Items Allowed<span className="text-destructive">*</span></Label>
                                     <Input type="number" min={1} value={maxItems} onChange={(e) => setMaxItems(parseInt(e.target.value) || 1)} />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <Label className="text-xs font-light mb-1">Quantity in stock<span className="text-destructive">*</span></Label>
+                                    <Input type="number" min={0} step={1} value={stockQuantity} onChange={(event) => setStockQuantity(event.target.value)} placeholder="Available bundles" />
+                                </div>
+                                <div>
+                                    <Label className="text-xs font-light mb-1">Low stock alert at</Label>
+                                    <Input type="number" min={0} step={1} value={lowStockThreshold} onChange={(event) => setLowStockThreshold(event.target.value)} placeholder="Optional" />
                                 </div>
                             </div>
                             <div className="flex flex-col gap-1.5">

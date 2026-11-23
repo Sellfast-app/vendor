@@ -144,6 +144,17 @@ function foodPriceRange(item: FrontendFoodItem, currency: string) {
   return sorted.length > 1 ? `${symbol}${sorted[0]!.toLocaleString()} - ${symbol}${sorted.at(-1)!.toLocaleString()}` : `${symbol}${sorted[0]!.toLocaleString()}`;
 }
 
+function foodInventorySummary(item: FrontendFoodItem) {
+  const options = item.type === "Simple" ? item.portion
+    : item.type === "Customizable" ? item.servingTypePricing || []
+      : item.bundleConfig;
+  const tracked = (options || []).filter((option: { stockQuantity?: number | string | null }) => option.stockQuantity != null);
+  if (!tracked.length) return "Not tracked";
+  const available = tracked.reduce((sum: number, option: { stockQuantity: number | string }) => sum + Number(option.stockQuantity), 0);
+  const low = tracked.some((option: { stockQuantity: number | string; lowStockThreshold?: number | string | null }) => option.lowStockThreshold != null && Number(option.stockQuantity) <= Number(option.lowStockThreshold));
+  return `${available} ${low ? "· Low stock" : "available"}`;
+}
+
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function FoodTable({ currency = "NGN", isAddModalOpen: controlledAddModalOpen, onAddModalOpenChange, canManageProducts = true }: FoodTableProps) {
@@ -504,6 +515,7 @@ export default function FoodTable({ currency = "NGN", isAddModalOpen: controlled
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Type</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Category</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Store price</TableHead>
+            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Inventory</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Availability</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Discount</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Status</TableHead>
@@ -513,7 +525,7 @@ export default function FoodTable({ currency = "NGN", isAddModalOpen: controlled
         <TableBody>
           {isLoading ? (
             <TableRow>
-              <TableCell colSpan={11} className="text-center py-8">
+              <TableCell colSpan={12} className="text-center py-8">
                 <Loading />
               </TableCell>
             </TableRow>
@@ -543,6 +555,7 @@ export default function FoodTable({ currency = "NGN", isAddModalOpen: controlled
                 <TableCell>{item.type}</TableCell>
                 <TableCell>{item.category?.join(", ") || "-"}</TableCell>
                 <TableCell>{foodPriceRange(item, currency) || "-"}</TableCell>
+                <TableCell>{foodInventorySummary(item)}</TableCell>
                 <TableCell>{item.availability}</TableCell>
                 <TableCell>{item.discount_type && item.discount_value != null ? `${item.discount_type === 'percentage' ? `${item.discount_value}%` : `${getCurrencySymbol(currency)}${Number(item.discount_value).toLocaleString()}`} off` : '—'}</TableCell>
 
@@ -577,7 +590,7 @@ export default function FoodTable({ currency = "NGN", isAddModalOpen: controlled
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={11} className="text-center py-8">
+              <TableCell colSpan={12} className="text-center py-8">
                 No food items found
               </TableCell>
             </TableRow>

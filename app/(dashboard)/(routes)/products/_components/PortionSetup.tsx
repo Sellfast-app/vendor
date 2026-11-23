@@ -33,10 +33,12 @@ export default function PortionSetup({ portions, onChange, currency = 'NGN', cus
     const [prepTimeEnd, setPrepTimeEnd] = useState('');
     const [servings, setServings] = useState('');
     const [servingUnit, setServingUnit] = useState('plate');
+    const [stockQuantity, setStockQuantity] = useState('');
+    const [lowStockThreshold, setLowStockThreshold] = useState('');
 
     const resetForm = () => {
         setPortionName(''); setPortionPrice(''); setPrepTimeStart('');
-        setPrepTimeEnd(''); setServings(''); setServingUnit('plate');
+        setPrepTimeEnd(''); setServings(''); setServingUnit('plate'); setStockQuantity(''); setLowStockThreshold('');
     };
 
     const handleAdd = () => {
@@ -45,6 +47,7 @@ export default function PortionSetup({ portions, onChange, currency = 'NGN', cus
             id: Math.random().toString(36).substr(2, 9),
             name: portionName, price: portionPrice,
             prepTimeStart, prepTimeEnd, servings, servingUnit,
+            stockQuantity, lowStockThreshold,
         }]);
         resetForm();
     };
@@ -55,6 +58,7 @@ export default function PortionSetup({ portions, onChange, currency = 'NGN', cus
         setPortionName(p.name); setPortionPrice(p.price);
         setPrepTimeStart(p.prepTimeStart); setPrepTimeEnd(p.prepTimeEnd);
         setServings(p.servings); setServingUnit(p.servingUnit);
+        setStockQuantity(p.stockQuantity); setLowStockThreshold(p.lowStockThreshold);
         onChange(portions.filter((p) => p.id !== id));
     };
 
@@ -119,6 +123,16 @@ export default function PortionSetup({ portions, onChange, currency = 'NGN', cus
                                     </SelectContent>
                                 </Select>
                                 <input type="number" min={0} value={servings} onChange={(e) => setServings(e.target.value)} placeholder="0" className="flex-1 py-2 pr-3 text-sm outline-none bg-transparent" />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <Label className="text-xs font-light mb-1">Quantity in stock<span className="text-destructive">*</span></Label>
+                                <Input type="number" min={0} step={1} value={stockQuantity} onChange={(event) => setStockQuantity(event.target.value)} placeholder="Available portions" />
+                            </div>
+                            <div>
+                                <Label className="text-xs font-light mb-1">Low stock alert at</Label>
+                                <Input type="number" min={0} step={1} value={lowStockThreshold} onChange={(event) => setLowStockThreshold(event.target.value)} placeholder="Optional" />
                             </div>
                         </div>
                     </div>

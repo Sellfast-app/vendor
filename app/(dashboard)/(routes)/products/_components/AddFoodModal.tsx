@@ -26,6 +26,8 @@ export interface PortionSize {
     prepTimeEnd: string;
     servings: string;
     servingUnit: string;
+    stockQuantity: string;
+    lowStockThreshold: string;
 }
 
 export interface AddOnOption {
@@ -50,6 +52,8 @@ export interface BundleSlot {
     category: string;
     maxItems: number;
     isRequired: boolean;
+    stockQuantity: string;
+    lowStockThreshold: string;
 }
 
 interface ApiServingTypePrice {
@@ -57,6 +61,8 @@ interface ApiServingTypePrice {
     name?: string;
     type?: string;
     price?: number | string;
+    stockQuantity?: number | string | null;
+    lowStockThreshold?: number | string | null;
 }
 
 interface AvailabilityPeriod {
@@ -176,6 +182,7 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
     const [servingTypeCustom, setServingTypeCustom] = useState('');
     const [servingTypes, setServingTypes] = useState<string[]>([]);
     const [servingTypePrices, setServingTypePrices] = useState<Record<string, string>>({});
+    const [servingTypeStock, setServingTypeStock] = useState<Record<string, { quantity: string; threshold: string }>>({});
     const [foodCategory, setFoodCategory] = useState('');
     const [foodCategories, setFoodCategories] = useState<string[]>([]);
     const [savedCategoryOptions, setSavedCategoryOptions] = useState<string[]>([]);
@@ -235,6 +242,7 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
         setServingTypeCustom('');
         setServingTypes(editFoodItem.servingType || []);
         setServingTypePrices(mapApiServingTypePricesToForm(editFoodItem));
+        setServingTypeStock(mapApiServingTypeStockToForm(editFoodItem));
         setFoodCategory('');
         setFoodCategories(editFoodItem.category || []);
         setDietaryLabel('');
@@ -365,11 +373,23 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
 
         // Type-specific validation
         if (productType === 'simple' && portions.length === 0) return setError('Add at least one portion size.');
+        if (productType === 'simple' && portions.some(portion => {
+            const existing = editFoodItem?.portion?.some((entry: { uid?: string }) => entry.uid === portion.id);
+            return (portion.stockQuantity === '' && !existing) || Number(portion.stockQuantity) < 0;
+        })) return setError('Enter stock quantity for every new portion.');
         if (productType === 'customizable' && savedGroups.length === 0) return setError('Add at least one customization group.');
         if (productType === 'customizable' && servingTypes.some(type => !servingTypePrices[type] || parseFloat(servingTypePrices[type]) <= 0)) {
             return setError('Add a valid base price for each serving type.');
         }
+        if (productType === 'customizable' && servingTypes.some(type => {
+            const existing = (editFoodItem?.servingTypePricing || editFoodItem?.servingTypePrices || []).some(entry => (entry.servingType || entry.name || entry.type) === type);
+            return (servingTypeStock[type]?.quantity === '' && !existing) || Number(servingTypeStock[type]?.quantity) < 0;
+        })) return setError('Enter stock quantity for every new serving type.');
         if (productType === 'bundle' && bundleSlots.length === 0) return setError('Add at least one bundle slot.');
+        if (productType === 'bundle' && bundleSlots.some(slot => {
+            const existing = editFoodItem?.bundleConfig?.some((entry: { uid?: string }) => entry.uid === slot.id);
+            return (slot.stockQuantity === '' && !existing) || Number(slot.stockQuantity) < 0;
+        })) return setError('Enter stock quantity for every new bundle option.');
 
         setIsLoading(true);
 
@@ -439,6 +459,7 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
         setServingTypeCustom('');
         setServingTypes([]);
         setServingTypePrices({});
+        setServingTypeStock({});
         setFoodCategory('');
         setFoodCategories([]);
         setDietaryLabel('');
@@ -472,6 +493,8 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
             servingTypePricing: servingTypes.map(type => ({
                 servingType: type,
                 price: parseFloat(servingTypePrices[type]) || 0,
+                stockQuantity: servingTypeStock[type]?.quantity === '' ? null : Number(servingTypeStock[type]?.quantity),
+                lowStockThreshold: servingTypeStock[type]?.threshold === '' ? null : Number(servingTypeStock[type]?.threshold),
             })),
         }),
         ...(productType === 'simple' && {
@@ -484,6 +507,8 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                 endPrepTime: parseInt(p.prepTimeEnd) || 0,
                 servingType: p.servingUnit,
                 servingPerServingType: parseInt(p.servings) || 0,
+                stockQuantity: p.stockQuantity === '' ? null : Number(p.stockQuantity),
+                lowStockThreshold: p.lowStockThreshold === '' ? null : Number(p.lowStockThreshold),
             })),
         }),
         ...(productType === 'customizable' && {
@@ -499,6 +524,8 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                 category: s.category,
                 maxCount: s.maxItems,
                 isRequired: s.isRequired,
+                stockQuantity: s.stockQuantity === '' ? null : Number(s.stockQuantity),
+                lowStockThreshold: s.lowStockThreshold === '' ? null : Number(s.lowStockThreshold),
             })),
         }),
     });
@@ -514,13 +541,13 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
         servingType: servingTypes,
         discount_type: discountType || null,
         discount_value: discountType ? Number(discountValue) : null,
-        ...(productType === 'simple' && { portion: portions.map((p) => ({ name: p.name, price: Number(p.price) || 0, startPrepTime: Number(p.prepTimeStart) || 0, endPrepTime: Number(p.prepTimeEnd) || 0, servingType: p.servingUnit, servingPerServingType: Number(p.servings) || 0 })) }),
+        ...(productType === 'simple' && { portion: portions.map((p) => ({ name: p.name, price: Number(p.price) || 0, startPrepTime: Number(p.prepTimeStart) || 0, endPrepTime: Number(p.prepTimeEnd) || 0, servingType: p.servingUnit, servingPerServingType: Number(p.servings) || 0, stockQuantity: p.stockQuantity === '' ? null : Number(p.stockQuantity), lowStockThreshold: p.lowStockThreshold === '' ? null : Number(p.lowStockThreshold) })) }),
         ...(productType === 'customizable' && {
-            servingTypePricing: servingTypes.map((type) => ({ servingType: type, price: Number(servingTypePrices[type]) || 0 })),
+            servingTypePricing: servingTypes.map((type) => ({ servingType: type, price: Number(servingTypePrices[type]) || 0, stockQuantity: servingTypeStock[type]?.quantity === '' ? null : Number(servingTypeStock[type]?.quantity), lowStockThreshold: servingTypeStock[type]?.threshold === '' ? null : Number(servingTypeStock[type]?.threshold) })),
             addOnGroup: savedGroups.map((group) => ({ name: group.groupName, selection: group.selection, maxSelection: group.maxSelections, isRequired: group.isRequired, options: group.options.map((option) => ({ name: option.name, price: Number(option.price) || 0 })) })),
         }),
         ...(productType === 'bundle' && {
-            bundleConfig: bundleSlots.map((slot) => ({ name: slot.name, price: Number(slot.price) || 0, category: slot.category, maxCount: slot.maxItems })),
+            bundleConfig: bundleSlots.map((slot) => ({ name: slot.name, price: Number(slot.price) || 0, category: slot.category, maxCount: slot.maxItems, stockQuantity: slot.stockQuantity === '' ? null : Number(slot.stockQuantity), lowStockThreshold: slot.lowStockThreshold === '' ? null : Number(slot.lowStockThreshold) })),
             addOnGroup: bundleAddOnGroups.map((group) => ({ name: group.groupName, selection: group.selection, maxSelection: group.maxSelections, isRequired: group.isRequired, options: group.options.map((option) => ({ name: option.name, price: Number(option.price) || 0 })) })),
         }),
     });
@@ -728,7 +755,7 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                                         </div>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             {servingTypes.map((type) => (
-                                                <div key={type}>
+                                                <div key={type} className="space-y-2">
                                                     <Label className="text-xs font-light mb-1 capitalize">
                                                         {type} price<span className="text-destructive">*</span>
                                                     </Label>
@@ -746,6 +773,16 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                                                         />
                                                     </div>
                                                     <ProductMarkupPreview basePrice={servingTypePrices[type] || ''} />
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        <div>
+                                                            <Label className="text-xs">Quantity in stock</Label>
+                                                            <Input type="number" min={0} step={1} value={servingTypeStock[type]?.quantity ?? ''} onChange={event => setServingTypeStock(prev => ({ ...prev, [type]: { quantity: event.target.value, threshold: prev[type]?.threshold ?? '' } }))} placeholder="Required for new items" disabled={isLoading} />
+                                                        </div>
+                                                        <div>
+                                                            <Label className="text-xs">Low stock alert at</Label>
+                                                            <Input type="number" min={0} step={1} value={servingTypeStock[type]?.threshold ?? ''} onChange={event => setServingTypeStock(prev => ({ ...prev, [type]: { quantity: prev[type]?.quantity ?? '', threshold: event.target.value } }))} placeholder="Optional" disabled={isLoading} />
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
@@ -971,6 +1008,14 @@ function mapApiServingTypePricesToForm(item: EditableFoodItem): Record<string, s
     return prices;
 }
 
+function mapApiServingTypeStockToForm(item: EditableFoodItem): Record<string, { quantity: string; threshold: string }> {
+    const entries = item.servingTypePricing || item.servingTypePrices || [];
+    return Object.fromEntries(entries.map(entry => {
+        const type = entry?.servingType || entry?.name || entry?.type || '';
+        return [type, { quantity: entry?.stockQuantity == null ? '' : String(entry.stockQuantity), threshold: entry?.lowStockThreshold == null ? '' : String(entry.lowStockThreshold) }];
+    }).filter(([type]) => Boolean(type)));
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapApiPortionToForm(portion: any): PortionSize {
     return {
@@ -981,6 +1026,8 @@ function mapApiPortionToForm(portion: any): PortionSize {
         prepTimeEnd: String(portion.endPrepTime ?? portion.prepTimeEnd ?? ''),
         servings: String(portion.servingPerServingType ?? portion.servings ?? ''),
         servingUnit: portion.servingType || portion.servingUnit || 'plate',
+        stockQuantity: portion.stockQuantity == null ? '' : String(portion.stockQuantity),
+        lowStockThreshold: portion.lowStockThreshold == null ? '' : String(portion.lowStockThreshold),
     };
 }
 
@@ -1018,6 +1065,8 @@ function mapApiBundleSlotToForm(slot: any): BundleSlot {
         category: slot.category || '',
         maxItems: slot.maxCount || slot.maxItems || 1,
         isRequired: !!slot.isRequired,
+        stockQuantity: slot.stockQuantity == null ? '' : String(slot.stockQuantity),
+        lowStockThreshold: slot.lowStockThreshold == null ? '' : String(slot.lowStockThreshold),
     };
 }
 
