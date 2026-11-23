@@ -179,7 +179,6 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
     const [servingTypes, setServingTypes] = useState<string[]>([]);
     const [servingTypePrices, setServingTypePrices] = useState<Record<string, string>>({});
     const [foodCategory, setFoodCategory] = useState('');
-    const [foodCategoryCustom, setFoodCategoryCustom] = useState('');
     const [foodCategories, setFoodCategories] = useState<string[]>([]);
     const [savedCategoryOptions, setSavedCategoryOptions] = useState<string[]>([]);
     const [savedUnitOptions, setSavedUnitOptions] = useState<string[]>([]);
@@ -241,7 +240,6 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
         setServingTypes(editFoodItem.servingType || []);
         setServingTypePrices(mapApiServingTypePricesToForm(editFoodItem));
         setFoodCategory('');
-        setFoodCategoryCustom('');
         setFoodCategories(editFoodItem.category || []);
         setDietaryLabel('');
         setDietaryLabelCustom('');
@@ -333,12 +331,11 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
     };
     
     const addFoodCategory = () => {
-        const val = (foodCategoryCustom.trim() || foodCategory).trim();
+        const val = foodCategory.trim();
         if (!val) return;
         if (!foodCategories.includes(val)) {
             setFoodCategories(prev => [...prev, val]);
         }
-        setFoodCategoryCustom('');
         setFoodCategory('');
     };
     
@@ -458,7 +455,6 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
         setServingTypes([]);
         setServingTypePrices({});
         setFoodCategory('');
-        setFoodCategoryCustom('');
         setFoodCategories([]);
         setDietaryLabel('');
         setDietaryLabelCustom('');
@@ -813,32 +809,18 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                                 <Label className='text-xs font-light mt-4 mb-2'>
                                     Food Category<span className="text-destructive">*</span>
                                 </Label>
-                                <Select value={foodCategory} onValueChange={setFoodCategory} disabled={isLoading}>
+                                <Select value={foodCategory} onValueChange={setFoodCategory} disabled={isLoading || savedCategoryOptions.length === 0}>
                                     <SelectTrigger className='w-full'>
-                                        <SelectValue placeholder="Select category" />
+                                        <SelectValue placeholder={savedCategoryOptions.length ? "Select a saved category" : "Create a category first"} />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {savedCategoryOptions.map(category => <SelectItem key={category} value={category}>{category}</SelectItem>)}
-                                        <SelectItem value='custom'>Custom</SelectItem>
                                     </SelectContent>
                                 </Select>
-                                <div className='flex items-center gap-2 mt-2'>
-                                    <Input
-                                        value={foodCategoryCustom}
-                                        onChange={(e) => setFoodCategoryCustom(e.target.value)}
-                                        placeholder="or type a custom category"
-                                        disabled={isLoading}
-                                    />
-                                    <Button
-                                        type="button"
-                                        size={'sm'}
-                                        className='bg-white text-black border hover:bg-black hover:text-white'
-                                        onClick={addFoodCategory}
-                                        disabled={isLoading}
-                                    >
-                                        <CircleCheck /> Add
-                                    </Button>
-                                </div>
+                                <Button type="button" size="sm" variant="outline" className="mt-2" onClick={addFoodCategory} disabled={isLoading || !foodCategory || foodCategories.includes(foodCategory)}>
+                                    <CircleCheck className="mr-1 h-4 w-4" /> Add category
+                                </Button>
+                                {savedCategoryOptions.length === 0 && <p className="mt-2 text-xs text-muted-foreground">Add categories in Inventory → Categories before creating food items.</p>}
                                 {foodCategories.length > 0 && (
                                     <div className="flex flex-wrap gap-1 mt-2">
                                         {foodCategories.map(c => (

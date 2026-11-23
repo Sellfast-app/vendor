@@ -129,6 +129,21 @@ const mapStatusFromApi = (status: string): string => {
   return statusMap[status] || 'Available Today';
 };
 
+function foodPriceRange(item: FrontendFoodItem, currency: string) {
+  const options = item.type === "Simple" ? item.portion
+    : item.type === "Customizable" ? item.servingTypePricing || []
+      : item.bundleConfig;
+  const prices = (options || []).map((option: { price?: number | string }) => Number(option.price)).filter(Number.isFinite);
+  if (!prices.length) return null;
+  const discount = Number(item.discount_value || 0);
+  const applyDiscount = (price: number) => item.discount_type === "percentage"
+    ? Math.max(0, price * (1 - discount / 100))
+    : item.discount_type === "fixed" ? Math.max(0, price - discount) : price;
+  const sorted = prices.map(applyDiscount).sort((a, b) => a - b);
+  const symbol = getCurrencySymbol(currency);
+  return sorted.length > 1 ? `${symbol}${sorted[0]!.toLocaleString()} - ${symbol}${sorted.at(-1)!.toLocaleString()}` : `${symbol}${sorted[0]!.toLocaleString()}`;
+}
+
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function FoodTable({ currency = "NGN", isAddModalOpen: controlledAddModalOpen, onAddModalOpenChange, canManageProducts = true }: FoodTableProps) {
@@ -488,6 +503,7 @@ export default function FoodTable({ currency = "NGN", isAddModalOpen: controlled
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Food Name</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Type</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Category</TableHead>
+            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Store price</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Availability</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Discount</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Status</TableHead>
@@ -497,7 +513,7 @@ export default function FoodTable({ currency = "NGN", isAddModalOpen: controlled
         <TableBody>
           {isLoading ? (
             <TableRow>
-              <TableCell colSpan={10} className="text-center py-8">
+              <TableCell colSpan={11} className="text-center py-8">
                 <Loading />
               </TableCell>
             </TableRow>
@@ -526,6 +542,7 @@ export default function FoodTable({ currency = "NGN", isAddModalOpen: controlled
                 <TableCell>{item.productName}</TableCell>
                 <TableCell>{item.type}</TableCell>
                 <TableCell>{item.category?.join(", ") || "-"}</TableCell>
+                <TableCell>{foodPriceRange(item, currency) || "-"}</TableCell>
                 <TableCell>{item.availability}</TableCell>
                 <TableCell>{item.discount_type && item.discount_value != null ? `${item.discount_type === 'percentage' ? `${item.discount_value}%` : `${getCurrencySymbol(currency)}${Number(item.discount_value).toLocaleString()}`} off` : '—'}</TableCell>
 
@@ -560,7 +577,7 @@ export default function FoodTable({ currency = "NGN", isAddModalOpen: controlled
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={10} className="text-center py-8">
+              <TableCell colSpan={11} className="text-center py-8">
                 No food items found
               </TableCell>
             </TableRow>
@@ -582,6 +599,7 @@ export default function FoodTable({ currency = "NGN", isAddModalOpen: controlled
                 <p className="truncate text-xs text-muted-foreground">{item.sku}</p>
                 <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                   <span>{item.type}</span>
+                  <span className="font-medium text-foreground">{foodPriceRange(item, currency) || "Price not set"}</span>
                   <span>{item.availability}</span>
                   <span>{item.status}</span>
                 </div>
