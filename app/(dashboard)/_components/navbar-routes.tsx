@@ -45,6 +45,11 @@ export const NavbarRoutes = () => {
       if (result.status === 'success' && result.data?.storeDetails) {
         const storeDetails = result.data.storeDetails;
 
+        if (storeDetails.store_url) {
+          setStorefrontUrl(storeDetails.store_url);
+          document.cookie = `store_url=${encodeURIComponent(storeDetails.store_url)}; path=/; max-age=2592000; SameSite=Lax`;
+        }
+
         // Set store logo if available
         if (storeDetails.logo) {
           setStoreLogo(storeDetails.logo);
