@@ -195,7 +195,7 @@ export const SidebarRoutes = () => {
           <button className="text-xs font-medium text-primary" onClick={retryBusiness}>Retry workspace load</button>
         </div>}
         {businessStatus === "ready" && adminRoutes
-          .filter((route) => !isStaff || ["Overview", "Orders"].includes(route.label))
+          .filter((route) => !isStaff || ["Overview", "Products", "Orders"].includes(route.label))
           .filter((route) => {
             if (route.label === "Events") return isTicketStore;
             if (route.label === "Menu") return isFoodStore;
@@ -215,13 +215,15 @@ export const SidebarRoutes = () => {
             href={displayedRoute.href}
             data-tour={index === 0 ? "sidebar-nav" : undefined}
           />}
-          {route.label === "Products" && isFoodStore && <InventoryNavigation />}
+          {route.label === "Products" && isFoodStore && (isStaff
+            ? <SidebarItem icon={Products} label="Food items" href="/inventory/items" />
+            : <InventoryNavigation />)}
           </div>
         )})}
       </div>
       <div className="mt-auto w-full pt-6">
         <div className="w-full border-b border-[#F5F5F5] dark:border-[#1F1F1F]">
-          {updatedActionRoutes.filter((route) => !isStaff || route.label === "Logout").map((route) => (
+          {updatedActionRoutes.filter((route) => !isStaff || ["Settings", "Logout"].includes(route.label)).map((route) => (
             <SidebarItem
               key={route.label}
               icon={route.icon}

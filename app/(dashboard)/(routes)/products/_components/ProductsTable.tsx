@@ -44,6 +44,7 @@ interface ProductsTableProps {
   currency?: string;
   isAddModalOpen?: boolean;
   onAddModalOpenChange?: (open: boolean) => void;
+  canManageProducts?: boolean;
 }
 
 interface Product {
@@ -184,7 +185,7 @@ const mapStatusToApi = (status: string): string => {
   return statusMap[status] || status;
 };
 
-export default function ProductTable({ currency = "NGN", isAddModalOpen: controlledAddModalOpen, onAddModalOpenChange }: ProductsTableProps) {
+export default function ProductTable({ currency = "NGN", isAddModalOpen: controlledAddModalOpen, onAddModalOpenChange, canManageProducts = true }: ProductsTableProps) {
   const [localAddModalOpen, setLocalAddModalOpen] = useState(false);
   const isAddModalOpen = controlledAddModalOpen ?? localAddModalOpen;
   const setAddModalOpen = onAddModalOpenChange ?? setLocalAddModalOpen;
@@ -464,9 +465,9 @@ export default function ProductTable({ currency = "NGN", isAddModalOpen: control
           <SearchIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         </div>
         <div className="flex space-x-2">
-          <Button variant="outline" className="border-[#F5F5F5] dark:border-[#1F1F1F] dark:bg-background" onClick={() => setIsStoreDiscountOpen(true)}>
+          {canManageProducts && <Button variant="outline" className="border-[#F5F5F5] dark:border-[#1F1F1F] dark:bg-background" onClick={() => setIsStoreDiscountOpen(true)}>
             <Percent className="h-4 w-4" /><span className="hidden sm:inline ml-2">Discounts</span>
-          </Button>
+          </Button>}
           <Button
             variant="outline"
             className="border-[#F5F5F5] dark:border-[#1F1F1F] dark:bg-background"
@@ -655,15 +656,11 @@ export default function ProductTable({ currency = "NGN", isAddModalOpen: control
                       <DropdownMenuItem onClick={() => openDetailsModal(product)}>
                         <EyeIcon /> View Details
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => openEditModal(product)}>
-                        <EditIcon /> Edit Product
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => openDeleteModal(product)}>
-                        <DeleteIcon /> <span className="text-[#E40101]">Delete Product</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => openArchiveModal(product)}>
-                        <ArchiveIcon /> Archive Product
-                      </DropdownMenuItem>
+                      {canManageProducts && <>
+                        <DropdownMenuItem onClick={() => openEditModal(product)}><EditIcon /> Edit Product</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openDeleteModal(product)}><DeleteIcon /> <span className="text-[#E40101]">Delete Product</span></DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openArchiveModal(product)}><ArchiveIcon /> Archive Product</DropdownMenuItem>
+                      </>}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -697,15 +694,15 @@ export default function ProductTable({ currency = "NGN", isAddModalOpen: control
                   <span className="text-muted-foreground">{product.status}</span>
                 </div>
               </div>
-              <Button type="button" size="sm" variant="outline" className="min-h-9 shrink-0 px-2" onClick={() => openEditModal(product)} aria-label={`Edit ${product.productName}`}>
-                <EditIcon /><span className="ml-1">Edit</span>
-              </Button>
+              {canManageProducts && <Button type="button" size="sm" variant="outline" className="min-h-9 shrink-0 px-2" onClick={() => openEditModal(product)} aria-label={`Edit ${product.productName}`}><EditIcon /><span className="ml-1">Edit</span></Button>}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon" className="h-9 w-8 shrink-0" aria-label={`More actions for ${product.productName}`}><BsThreeDots className="h-4 w-4" /></Button></DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={() => openDetailsModal(product)}><EyeIcon /> View details</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => openDeleteModal(product)}><DeleteIcon /> Delete product</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => openArchiveModal(product)}><ArchiveIcon /> Archive product</DropdownMenuItem>
+                  {canManageProducts && <>
+                    <DropdownMenuItem onClick={() => openDeleteModal(product)}><DeleteIcon /> Delete product</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => openArchiveModal(product)}><ArchiveIcon /> Archive product</DropdownMenuItem>
+                  </>}
                 </DropdownMenuContent>
               </DropdownMenu>
             </article>
@@ -769,6 +766,7 @@ export default function ProductTable({ currency = "NGN", isAddModalOpen: control
         availableProducts={products.map((product) => ({ id: product.id, productName: product.productName, sku: product.sku, stock: product.stock, productType: product.productType }))}
         isEditMode={isEditMode}
         currency={currency}
+        canManage={canManageProducts}
       />
       <StoreDiscountDialog open={isStoreDiscountOpen} onOpenChange={setIsStoreDiscountOpen} onSaved={fetchProducts} currency={currency} />
       <ActionModal

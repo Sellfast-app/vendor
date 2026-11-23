@@ -40,6 +40,7 @@ interface FoodTableProps {
   currency?: string;
   isAddModalOpen?: boolean;
   onAddModalOpenChange?: (open: boolean) => void;
+  canManageProducts?: boolean;
 }
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -131,7 +132,7 @@ const mapStatusFromApi = (status: string): string => {
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
-export default function FoodTable({ currency = "NGN", isAddModalOpen: controlledAddModalOpen, onAddModalOpenChange }: FoodTableProps) {
+export default function FoodTable({ currency = "NGN", isAddModalOpen: controlledAddModalOpen, onAddModalOpenChange, canManageProducts = true }: FoodTableProps) {
   const [localAddModalOpen, setLocalAddModalOpen] = useState(false);
   const isAddModalOpen = controlledAddModalOpen ?? localAddModalOpen;
   const setAddModalOpen = onAddModalOpenChange ?? setLocalAddModalOpen;
@@ -549,15 +550,11 @@ export default function FoodTable({ currency = "NGN", isAddModalOpen: controlled
                       <DropdownMenuItem>
                         <EyeIcon /> View Details
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => openEditModal(item)}>
-                        <EditIcon /> Edit Item
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => openDeleteModal(item)}>
-                        <DeleteIcon /> <span className="text-[#E40101]">Delete Item</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <ArchiveIcon /> Archive Item
-                      </DropdownMenuItem>
+                      {canManageProducts && <>
+                        <DropdownMenuItem onClick={() => openEditModal(item)}><EditIcon /> Edit Item</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openDeleteModal(item)}><DeleteIcon /> <span className="text-[#E40101]">Delete Item</span></DropdownMenuItem>
+                        <DropdownMenuItem><ArchiveIcon /> Archive Item</DropdownMenuItem>
+                      </>}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -591,14 +588,14 @@ export default function FoodTable({ currency = "NGN", isAddModalOpen: controlled
                   <span>{item.status}</span>
                 </div>
               </div>
-              <Button type="button" size="sm" variant="outline" className="min-h-9 shrink-0 px-2" onClick={() => openEditModal(item)} aria-label={`Edit ${item.productName}`}>
-                <EditIcon /><span className="ml-1">Edit</span>
-              </Button>
+              {canManageProducts && <Button type="button" size="sm" variant="outline" className="min-h-9 shrink-0 px-2" onClick={() => openEditModal(item)} aria-label={`Edit ${item.productName}`}><EditIcon /><span className="ml-1">Edit</span></Button>}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon" className="h-9 w-8 shrink-0" aria-label={`More actions for ${item.productName}`}><BsThreeDots className="h-4 w-4" /></Button></DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => openDeleteModal(item)}><DeleteIcon /> Delete item</DropdownMenuItem>
-                  <DropdownMenuItem><ArchiveIcon /> Archive item</DropdownMenuItem>
+                  {canManageProducts && <>
+                    <DropdownMenuItem onClick={() => openDeleteModal(item)}><DeleteIcon /> Delete item</DropdownMenuItem>
+                    <DropdownMenuItem><ArchiveIcon /> Archive item</DropdownMenuItem>
+                  </>}
                 </DropdownMenuContent>
               </DropdownMenu>
             </article>

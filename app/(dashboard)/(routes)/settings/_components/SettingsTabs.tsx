@@ -9,15 +9,22 @@ import Notification from './Notification'
 import Support from './Support'
 import LocalizationSettings from './LocalizationSettings'
 import { useStoreBusiness } from '@/components/store-business-context'
+import StaffStoreSettings from './StaffStoreSettings'
 
 function SettingsTabs() {
     const { businessType } = useStoreBusiness()
     const isTicketStore = businessType === 'ticketing'
+    const [isStaff, setIsStaff] = useState<boolean | null>(null)
     const [tab, setTab] = useState('account')
+    useEffect(() => {
+        setIsStaff(document.cookie.split('; ').some(cookie => cookie === 'user_role=vendor_staff'))
+    }, [])
     useEffect(() => {
         const params = new URLSearchParams(window.location.search)
         if (params.has('subscription_payment')) setTab('finance')
     }, [])
+    if (isStaff === null) return <div className="h-32 animate-pulse rounded-md bg-muted/50" aria-label="Loading settings access" />
+    if (isStaff) return <StaffStoreSettings />
     return (
         <div className="container mx-auto w-full min-w-0 p-4">
             <Tabs value={tab} onValueChange={setTab} className='w-full'>

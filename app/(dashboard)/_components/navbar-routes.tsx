@@ -25,7 +25,11 @@ export const NavbarRoutes = () => {
   const mobileRoutes = isStaff
     ? [
         { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
+        ...(isTicketStore ? [] : isFoodStore
+          ? [{ label: "Food items", href: "/inventory/items", icon: Utensils }]
+          : [{ label: "Products", href: "/products", icon: Package }]),
         { label: isTicketStore ? "Ticket orders" : "Orders", href: isTicketStore ? "/orders/tickets" : "/orders", icon: ShoppingBag },
+        { label: "Settings", href: "/settings", icon: Settings },
       ]
     : [
         { label: "Overview", href: "/dashboard", icon: LayoutDashboard },

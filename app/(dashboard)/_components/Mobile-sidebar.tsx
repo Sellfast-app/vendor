@@ -3,7 +3,7 @@
 import Analytics from "@/components/svgIcons/Analytics";
 import Orders from "@/components/svgIcons/Orders";
 import Products from "@/components/svgIcons/Products";
-import { LayoutDashboardIcon, Bell, Ticket } from "lucide-react";
+import { LayoutDashboardIcon, Bell, Ticket, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -52,12 +52,13 @@ export const MobileSidebar = () => {
   const isTicketStore = businessType === "ticketing";
   const visibleRoutes = status === "ready"
     ? routes
-      .filter(route => !isStaff || ["Overview", "Orders"].includes(route.label))
+      .filter(route => !isStaff || ["Overview", "Products", "Orders"].includes(route.label))
       .filter(route => route.label !== "Events" || isTicketStore)
       .filter(route => route.label !== "Products" || !isTicketStore)
       .map((route) => route.label === "Orders" && isTicketStore
         ? { ...route, label: "Ticket orders", href: "/orders/tickets" }
         : route)
+      .concat(isStaff ? [{ label: "Settings", href: "/settings", icon: Settings }] : [])
     : [];
 
   return (

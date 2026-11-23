@@ -28,7 +28,12 @@ export function middleware(request: NextRequest) {
 
   if (request.cookies.get("accessToken")?.value) {
     if (request.cookies.get("user_role")?.value === "vendor_staff") {
-      const isAllowedStaffRoute = pathname === "/dashboard" || pathname.startsWith("/dashboard/") || pathname === "/orders" || pathname.startsWith("/orders/");
+      const isAllowedStaffRoute =
+        pathname === "/dashboard" || pathname.startsWith("/dashboard/") ||
+        pathname === "/orders" || pathname.startsWith("/orders/") ||
+        pathname === "/products" || pathname.startsWith("/products/") ||
+        pathname === "/inventory" || pathname.startsWith("/inventory/") ||
+        pathname === "/settings";
       if (!isAllowedStaffRoute) {
         const dashboardUrl = request.nextUrl.clone();
         dashboardUrl.pathname = "/dashboard";

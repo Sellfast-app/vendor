@@ -2,7 +2,7 @@
 
 import { Input } from '@/components/ui/input'
 import { SearchIcon } from 'lucide-react'
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import SettingsTabs from './_components/SettingsTabs'
 import { Button } from '@/components/ui/button'
 import Logout from '@/components/svgIcons/Logout'
@@ -12,6 +12,11 @@ import { toast } from 'sonner'
 export default function SettingsPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [isStaff, setIsStaff] = useState(false)
+
+  useEffect(() => {
+    setIsStaff(document.cookie.split('; ').some(cookie => cookie === 'user_role=vendor_staff'))
+  }, [])
 
   // Helper function to get cookie value
   const getCookieValue = (name: string): string | null => {
@@ -65,7 +70,7 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen w-full min-w-0 mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h3 className="text-sm font-bold">Account Information</h3>
+        <h3 className="text-sm font-bold">{isStaff ? "Store settings" : "Account Information"}</h3>
         <div className='relative w-full sm:w-64'>
           <Input type="text" placeholder="Search Settings..." className="mb-2"/>
           <SearchIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />

@@ -103,9 +103,10 @@ interface ProductDetailsModalProps {
     availableProducts?: AvailableProduct[];
     isEditMode?: boolean;
     currency?: string;
+    canManage?: boolean;
 }
 
-export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete, product, availableProducts = [], isEditMode = false, currency = "NGN" }: ProductDetailsModalProps) {
+export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete, product, availableProducts = [], isEditMode = false, currency = "NGN", canManage = true }: ProductDetailsModalProps) {
     const [localProduct, setLocalProduct] = useState<FrontendProduct | null>(null);
     const [editMode, setEditMode] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -709,7 +710,7 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                 {isLoading ? 'Saving...' : 'Save'}
                             </Button>
                         </>
-                    ) : (
+                    ) : canManage ? (
                         <>
                             <Button variant="outline" size="sm" onClick={() => setEditMode(true)} disabled={!localProduct}>
                                 <Edit className="h-4 w-4 mr-2" /> Edit
@@ -718,7 +719,7 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                 <Trash className="h-4 w-4 mr-2" /> Delete
                             </Button>
                         </>
-                    )}
+                    ) : null}
                 </div>
             </DialogContent>
         </Dialog>

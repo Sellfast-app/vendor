@@ -41,8 +41,10 @@ function ProductsPageContent() {
   const [currency, setCurrency] = useState("NGN");
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [isStaff, setIsStaff] = useState(false);
 
   useEffect(() => {
+    setIsStaff(document.cookie.split("; ").some(cookie => cookie === "user_role=vendor_staff"));
     const fetchStoreData = async () => {
       try {
         const response = await fetch('/api/store', { cache: 'no-store' });
@@ -174,7 +176,7 @@ function ProductsPageContent() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setIsCouponsOpen(true)}>Coupons</Button>
+          {!isStaff && <Button variant="outline" onClick={() => setIsCouponsOpen(true)}>Coupons</Button>}
           <Button variant="outline" onClick={() => setIsAddProductOpen(true)}>
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline ml-2">
@@ -195,8 +197,8 @@ function ProductsPageContent() {
         <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
           <CardContent>
             {isRestaurant
-              ? <FoodTable currency={currency} isAddModalOpen={isAddProductOpen} onAddModalOpenChange={setIsAddProductOpen} />
-              : <ProductsTable currency={currency} isAddModalOpen={isAddProductOpen} onAddModalOpenChange={setIsAddProductOpen} />}
+              ? <FoodTable currency={currency} isAddModalOpen={isAddProductOpen} onAddModalOpenChange={setIsAddProductOpen} canManageProducts={!isStaff} />
+              : <ProductsTable currency={currency} isAddModalOpen={isAddProductOpen} onAddModalOpenChange={setIsAddProductOpen} canManageProducts={!isStaff} />}
           </CardContent>
         </Card>
       </div>
@@ -207,7 +209,7 @@ function ProductsPageContent() {
         fieldOptions={fieldOptions}
         dataName={isRestaurant ? "Food Items" : "Products"}
       />
-      <CouponsDialog open={isCouponsOpen} onOpenChange={setIsCouponsOpen} currency={currency} />
+      {!isStaff && <CouponsDialog open={isCouponsOpen} onOpenChange={setIsCouponsOpen} currency={currency} />}
     </div>
   );
 }
