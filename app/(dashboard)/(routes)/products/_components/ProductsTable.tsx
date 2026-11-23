@@ -149,7 +149,7 @@ const transformProduct = (product: Product): FrontendProduct => ({
   minOrderQuantity: product.min_order_quantity ?? null,
   maxOrderQuantity: product.max_order_quantity ?? null,
   location: product.store_location || "",
-  product_weight: Number(product.product_weight || 1),
+  product_weight: product.product_weight == null ? undefined : Number(product.product_weight),
   est_prod_days_from: product.est_prod_days_from,
   est_prod_days_to: product.est_prod_days_to,
   variants: Array.isArray(product.variants) ? product.variants.map((variant, index) => ({
@@ -158,7 +158,7 @@ const transformProduct = (product: Product): FrontendProduct => ({
     size: variant.size || "",
     color: String(variant.color || ""),
     sku: String(variant.sku || ""),
-    price: Number(variant.price || product.product_price),
+    price: Number(variant.price ?? product.product_price),
     quantity: Number(variant.quantity || 0),
     image: String(variant.image_url || variant.image || product.product_images?.[Number(variant.image_file_index)] || ""),
   })) : [],
@@ -172,7 +172,7 @@ const mapStatusFromApi = (status: string): string => {
     'made-to-order': 'Made-to-order',
     'out-of-stock': 'Out of Stock'
   };
-  return statusMap[status] || 'Ready Stock';
+  return statusMap[status] || status || 'Unknown';
 };
 
 const mapStatusToApi = (status: string): string => {
@@ -181,7 +181,7 @@ const mapStatusToApi = (status: string): string => {
     'Made-to-order': 'made-to-order',
     'Out of Stock': 'out-of-stock'
   };
-  return statusMap[status] || 'ready';
+  return statusMap[status] || status;
 };
 
 export default function ProductTable({ currency = "NGN", isAddModalOpen: controlledAddModalOpen, onAddModalOpenChange }: ProductsTableProps) {

@@ -13,7 +13,7 @@ export async function POST(request: Request) {
   
   try {
     const { email: rawEmail, password } = await request.json();
-    const email = typeof rawEmail === "string" ? rawEmail.trim() : "";
+    const email = typeof rawEmail === "string" ? rawEmail.trim().toLowerCase() : "";
 
     // Rate limiting check
     const now = Date.now();

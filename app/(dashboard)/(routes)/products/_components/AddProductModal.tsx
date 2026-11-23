@@ -75,6 +75,7 @@ const PRODUCT_TYPES: { id: ProductKind; title: string; description: string; icon
 
 const UNIT_OPTIONS = ["pc", "pair", "set", "pack", "box", "kg", "g", "litre", "ml"];
 const ALLOWED_PRODUCT_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"]);
+const PRODUCT_IMAGE_TARGET_BYTES = 900 * 1024;
 const statusFromApi: Record<string, string> = {
   ready: "Ready Stock",
   "made-to-order": "Made-to-order",
@@ -84,6 +85,40 @@ const statusFromApi: Record<string, string> = {
 const newVariant = (): VariantDraft => ({
   id: crypto.randomUUID(), name: "", size: "", color: "", sku: "", price: "", quantity: "", image: null,
 });
+
+async function optimizeProductImage(file: File): Promise<File> {
+  if (file.size <= PRODUCT_IMAGE_TARGET_BYTES || file.type === "image/gif") return file;
+
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch {
+    return file;
+  }
+
+  try {
+    const scale = Math.min(1, 1800 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const context = canvas.getContext("2d");
+    if (!context) return file;
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+    let bestBlob: Blob | null = null;
+    for (const quality of [0.82, 0.72, 0.62]) {
+      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/webp", quality));
+      if (blob && (!bestBlob || blob.size < bestBlob.size)) bestBlob = blob;
+      if (blob && blob.size <= PRODUCT_IMAGE_TARGET_BYTES) break;
+    }
+    if (!bestBlob || bestBlob.size >= file.size) return file;
+
+    const baseName = file.name.replace(/\.[^.]+$/, "") || "product-image";
+    return new File([bestBlob], `${baseName}.webp`, { type: "image/webp", lastModified: file.lastModified });
+  } finally {
+    bitmap.close();
+  }
+}
 
 export default function AddProductModal({ isOpen, onClose, onAddProduct, availableProducts = [], currency = "NGN" }: AddProductModalProps) {
   const currencySymbol = getCurrencySymbol(currency);
@@ -119,6 +154,7 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
   const [bundleEntries, setBundleEntries] = useState<BundleEntry[]>([]);
   const [images, setImages] = useState<File[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [pendingImagePrep, setPendingImagePrep] = useState(0);
 
   const previews = useMemo(() => images.map(file => URL.createObjectURL(file)), [images]);
   useEffect(() => () => previews.forEach(URL.revokeObjectURL), [previews]);
@@ -224,8 +260,13 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
     const incoming = Array.from(event.target.files || []);
     const valid = incoming.filter(file => ALLOWED_PRODUCT_IMAGE_TYPES.has(file.type) && file.size <= 5 * 1024 * 1024);
     if (valid.length !== incoming.length) toast.error("Use image files up to 5 MB each.");
-    setImages(current => [...current, ...valid].slice(0, 5));
     event.target.value = "";
+    if (!valid.length) return;
+    setPendingImagePrep(count => count + 1);
+    Promise.all(valid.map(optimizeProductImage))
+      .then(optimized => setImages(current => [...current, ...optimized].slice(0, 5)))
+      .catch(() => toast.error("Unable to prepare the selected images."))
+      .finally(() => setPendingImagePrep(count => Math.max(0, count - 1)));
   };
 
   const updateVariant = (id: string, key: keyof VariantDraft, value: string | File | null) => {
@@ -243,6 +284,7 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
   };
 
   const handleSave = async () => {
+    if (pendingImagePrep > 0) return toast.error("Wait for image preparation to finish.");
     if (!name.trim()) return toast.error("Product name is required.");
     if (!price || Number(price) < 0) return toast.error("Enter a valid selling price.");
     if (kind !== "bundle" && (!weight || Number(weight) <= 0)) return toast.error("Enter a valid product weight.");
@@ -334,7 +376,12 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
       reset();
       handleClose();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to create product.");
+      const message = error instanceof Error ? error.message : "Unable to create product.";
+      if (message.includes("may still be processing")) {
+        toast.warning(message, { duration: 10000 });
+      } else {
+        toast.error(message);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -490,8 +537,13 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
                       event.target.value = "";
                       return;
                     }
-                    updateVariant(variant.id, "image", file);
                     event.target.value = "";
+                    if (!file) return updateVariant(variant.id, "image", null);
+                    setPendingImagePrep(count => count + 1);
+                    optimizeProductImage(file)
+                      .then(optimized => updateVariant(variant.id, "image", optimized))
+                      .catch(() => toast.error("Unable to prepare this variant image."))
+                      .finally(() => setPendingImagePrep(count => Math.max(0, count - 1)));
                   }} />
                   {variant.image && <Button type="button" variant="ghost" size="icon" aria-label="Remove variant image" onClick={() => updateVariant(variant.id, "image", null)}><X className="h-4 w-4" /></Button>}
                 </div>
@@ -555,7 +607,7 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
         </main>
         <footer className="flex items-center justify-between gap-3 border-t bg-background px-4 py-3 sm:px-6">
           <Button type="button" variant="ghost" onClick={reset} disabled={isSaving}>Clear fields</Button>
-          <div className="flex gap-2"><Button type="button" variant="outline" onClick={handleClose} disabled={isSaving}>Cancel</Button><Button type="button" onClick={handleSave} disabled={isSaving}>{isSaving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving</> : kind === "bundle" ? "Save bundle" : "Add product"}</Button></div>
+          <div className="flex gap-2"><Button type="button" variant="outline" onClick={handleClose} disabled={isSaving || pendingImagePrep > 0}>Cancel</Button><Button type="button" onClick={handleSave} disabled={isSaving || pendingImagePrep > 0}>{isSaving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving</> : pendingImagePrep > 0 ? "Preparing images" : kind === "bundle" ? "Save bundle" : "Add product"}</Button></div>
         </footer>
       </div>
     </div>

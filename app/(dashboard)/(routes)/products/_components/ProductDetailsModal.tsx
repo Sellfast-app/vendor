@@ -15,7 +15,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ChevronRight, Edit, Trash, ChevronLeft, Upload, X, Plus } from "lucide-react";
 import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
-import FlashIcon from "@/components/svgIcons/FlashIcon";
 import SaveIcon from "@/components/svgIcons/SaveIcon";
 import {
     Accordion,
@@ -182,7 +181,7 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
           formData.append('discount_value', localProduct.discountValue?.toString() || '');
           formData.append('est_prod_days_from', String(localProduct.est_prod_days_from ?? 0));
           formData.append('est_prod_days_to', String(localProduct.est_prod_days_to ?? 0));
-          formData.append('weight', String(localProduct.product_weight || 1));
+          formData.append('weight', String(localProduct.product_weight ?? 0));
           formData.append('unit', localProduct.unit || '');
           formData.append('barcode', localProduct.barcode || '');
           formData.append('collection', localProduct.collection || '');
@@ -343,7 +342,7 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
         minOrderQuantity: apiProduct.min_order_quantity ?? null,
         maxOrderQuantity: apiProduct.max_order_quantity ?? null,
         location: apiProduct.store_location || "",
-        product_weight: apiProduct.product_weight ? Number(apiProduct.product_weight) : undefined,
+        product_weight: apiProduct.product_weight == null ? undefined : Number(apiProduct.product_weight),
         est_prod_days_from: apiProduct.est_prod_days_from,
         est_prod_days_to: apiProduct.est_prod_days_to,
         product_type: apiProduct.product_type,
@@ -355,7 +354,7 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
             'made-to-order': 'Made-to-order',
             'out-of-stock': 'Out of Stock'
         };
-        return statusMap[status] || 'Ready Stock';
+        return statusMap[status] || status || 'Unknown';
     };
 
     const mapStatusToApi = (status: string): string => {
@@ -364,7 +363,7 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
             'Made-to-order': 'made-to-order',
             'Out of Stock': 'out-of-stock'
         };
-        return statusMap[status] || 'ready';
+        return statusMap[status] || status;
     };
 
     // Get all images (existing + new)
@@ -382,7 +381,7 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-[800px] flex-col overflow-hidden rounded-lg border-none bg-card p-0">
+            <DialogContent className="flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-none flex-col overflow-hidden rounded-lg border-none bg-card p-0 sm:w-[min(96vw,1100px)] sm:max-w-[min(96vw,1100px)]">
                 <DialogHeader className="shrink-0 border-b px-4 py-3 sm:px-6">
                     <DialogTitle className="text-sm">
                         {editMode ? "Edit Product" : "Product Details"}
@@ -394,7 +393,7 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
 
                 <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
                 {localProduct ? (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
+                    <div className="mt-2 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(280px,0.8fr)_minmax(0,1.5fr)]">
                         {/* Left Column - Product Image */}
                         <div className="space-y-4">
                             <div className="relative w-full h-64 rounded-lg overflow-hidden">
@@ -510,31 +509,6 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                 </div>
                             )}
 
-                            {/* Product Insight */}
-                            <div className="p-4 bg-muted rounded-lg">
-                                <div className="flex items-center justify-between gap-2 mb-3">
-                                    <span className="font-medium text-sm">Product Insights</span>
-                                    <FlashIcon />
-                                </div>
-                                <div className="grid grid-cols-2 gap-4 text-sm">
-                                    <div>
-                                        <Label className="text-muted-foreground">Total Sales</Label>
-                                        <p className="font-semibold">0</p>
-                                    </div>
-                                    <div>
-                                        <Label className="text-muted-foreground">Total Revenue</Label>
-                                        <p className="font-semibold">₦0</p>
-                                    </div>
-                                    <div>
-                                        <Label className="text-muted-foreground">Total Ratings</Label>
-                                        <p className="font-semibold">4.5/5</p>
-                                    </div>
-                                    <div>
-                                        <Label className="text-muted-foreground">Stock Quantity</Label>
-                                        <p className="font-semibold">{localProduct.stock}</p>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
 
                         {/* Right Column - Product Data */}
@@ -614,7 +588,7 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                     <Input
                                         id="est_prod_days_from"
                                         type="number"
-                                        value={localProduct.est_prod_days_from || ''}
+                                        value={localProduct.est_prod_days_from ?? ''}
                                         onChange={(e) => handleInputChange('est_prod_days_from', parseInt(e.target.value) || 0)}
                                         readOnly={!editMode}
                                         className={!editMode ? 'bg-muted' : ''}
@@ -626,7 +600,7 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                     <Input
                                         id="est_prod_days_to"
                                         type="number"
-                                        value={localProduct.est_prod_days_to || ''}
+                                        value={localProduct.est_prod_days_to ?? ''}
                                         onChange={(e) => handleInputChange('est_prod_days_to', parseInt(e.target.value) || 0)}
                                         readOnly={!editMode}
                                         className={!editMode ? 'bg-muted' : ''}
@@ -687,14 +661,14 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                         <AccordionTrigger className="text-sm font-medium">Variants</AccordionTrigger>
                                         <AccordionContent>
                                             {(localProduct.variants || []).map((variant, index) => (
-                                                <div key={variant.id || index} className="grid grid-cols-1 gap-2 py-2 border-b last:border-b-0 sm:grid-cols-2 xl:grid-cols-[repeat(3,minmax(0,1fr))_auto]">
+                                                <div key={variant.id || index} className="grid grid-cols-1 gap-2 border-b py-3 last:border-b-0 sm:grid-cols-2 lg:grid-cols-3">
                                                     <Input aria-label="Variant name" value={variant.name || ""} readOnly={!editMode} placeholder="Name" onChange={(e) => updateVariant(index, "name", e.target.value)} />
                                                     <Input aria-label="Variant size" value={variant.size} readOnly={!editMode} placeholder="Size" onChange={(e) => updateVariant(index, "size", e.target.value)} />
                                                     <Input aria-label="Variant color" value={variant.color} readOnly={!editMode} placeholder="Color" onChange={(e) => updateVariant(index, "color", e.target.value)} />
                                                     <Input aria-label="Variant SKU" value={variant.sku || ""} readOnly={!editMode} placeholder="SKU" onChange={(e) => updateVariant(index, "sku", e.target.value)} />
                                                     <Input aria-label="Variant price" type="number" min="0" value={variant.price} readOnly={!editMode} placeholder="Price" onChange={(e) => updateVariant(index, "price", e.target.value)} />
                                                     <Input aria-label="Variant quantity" type="number" min="0" value={variant.quantity} readOnly={!editMode} placeholder="Quantity" onChange={(e) => updateVariant(index, "quantity", e.target.value)} />
-                                                    {editMode && <Button type="button" variant="ghost" size="icon" aria-label="Remove variant" onClick={() => setLocalProduct({ ...localProduct, variants: (localProduct.variants || []).filter((_, variantIndex) => variantIndex !== index) })}><X className="h-4 w-4" /></Button>}
+                                                    {editMode && <Button type="button" variant="ghost" size="sm" className="justify-self-start" aria-label="Remove variant" onClick={() => setLocalProduct({ ...localProduct, variants: (localProduct.variants || []).filter((_, variantIndex) => variantIndex !== index) })}><X className="mr-1 h-4 w-4" />Remove variant</Button>}
                                                 </div>
                                             ))}
                                             {editMode && <Button type="button" variant="outline" size="sm" disabled={(localProduct.variants || []).length >= 100} onClick={() => setLocalProduct({ ...localProduct, variants: [...(localProduct.variants || []), { id: crypto.randomUUID(), name: "", size: "", color: "", sku: "", price: localProduct.sales, quantity: 0 }] })}><Plus className="h-4 w-4 mr-1" /> Add variant</Button>}

@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+export const maxDuration = 60;
 
 const CACHE_DURATION = 300; // 5 minutes
 
@@ -191,7 +192,7 @@ export async function POST(request: Request) {
     
     // Prepare request to external API
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    const timeoutId = setTimeout(() => controller.abort(), 55000);
     
     try {
       const response = await fetch(`${API_BASE_URL}/api/products`, {
@@ -245,8 +246,8 @@ export async function POST(request: Request) {
       
       if (fetchError.name === "AbortError") {
         return NextResponse.json(
-          { status: "error", message: "Request timeout. Please try again." },
-          { status: 408 }
+          { status: "error", message: "Product save is taking longer than expected and may still be processing. Check your product list before trying again." },
+          { status: 504 }
         );
       }
       
