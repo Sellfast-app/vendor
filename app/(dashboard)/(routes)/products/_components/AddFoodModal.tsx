@@ -562,17 +562,17 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[50] flex justify-end my-3 mr-3">
+        <div className="fixed inset-0 z-[50] flex justify-end p-2 sm:p-3">
             <div
                 className="fixed inset-0 backdrop-blur-xs bg-[#06140033] dark:bg-black/50"
                 onClick={handleClose}
             />
             <div
-                className="h-full w-[85%] md:w-[65%] bg-background shadow-lg overflow-x-auto transform transition-transform duration-300 ease-in-out rounded-xl"
+                className="h-full w-full max-w-[960px] overflow-hidden rounded-xl bg-background shadow-lg transition-transform duration-300 ease-in-out sm:w-[85%] md:w-[65%]"
                 style={{ transform: isOpen ? "translateX(0)" : "translateX(100%)" }}
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="h-full p-4 overflow-y-auto">
+                <div className="h-full overscroll-contain overflow-y-auto p-4 pb-6 sm:p-6">
                     <div className="flex justify-between py-2 items-center border-b border-[#F8F8F8] dark:border-[#2A2A2A]">
                         <div className="flex flex-col gap-0">
                             <h2 className="text-sm font-semibold">{isEditMode ? 'Edit Food Item' : 'Add Food Item'}</h2>
@@ -996,7 +996,7 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                         <p className="text-xs text-destructive mt-3 text-right">{error}</p>
                     )}
 
-                    <div className='flex justify-end gap-2 border-t mt-4 pt-4'>
+                    <div className='sticky bottom-0 -mx-4 mt-4 flex justify-end gap-2 border-t bg-background px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6'>
                         <Button variant="outline" className="px-4 py-2 text-sm" onClick={handleClose} disabled={isLoading}>
                             Cancel
                         </Button>

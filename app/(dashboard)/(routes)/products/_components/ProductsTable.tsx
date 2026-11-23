@@ -568,6 +568,7 @@ export default function ProductTable({ currency = "NGN" }: ProductsTableProps) {
         </div>
       )}
 
+      <div className="hidden md:block">
       <Table>
         <TableHeader className="bg-[#F5F5F5] dark:bg-background">
           <TableRow>
@@ -668,6 +669,39 @@ export default function ProductTable({ currency = "NGN" }: ProductsTableProps) {
           )}
         </TableBody>
       </Table>
+      </div>
+
+      <div className="space-y-3 md:hidden">
+        {isLoading ? Array.from({ length: 4 }).map((_, index) => <div key={index} className="h-24 animate-pulse rounded-md border bg-muted/40" />)
+          : displayedProducts.length ? displayedProducts.map(product => (
+            <article key={product.id} className="flex min-w-0 items-start gap-3 rounded-md border bg-card p-3">
+              <Checkbox checked={selectedProducts.includes(product.sku)} onCheckedChange={checked => handleSelectProduct(product.sku, checked as boolean)} aria-label={`Select ${product.productName}`} />
+              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded border bg-muted">
+                <Image src={getFirstThumbnail(product.thumbnail)} alt={product.productName} fill className="object-cover" sizes="56px" onError={event => { (event.target as HTMLImageElement).src = "/thumbnails/default.png"; }} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="break-words text-sm font-medium">{product.productName}</p>
+                <p className="truncate text-xs text-muted-foreground">{product.sku}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                  <span className="font-semibold">{formatStoreCurrency(product.discountedPrice ?? product.sales, currency)}</span>
+                  <span className="text-muted-foreground">Stock: {product.stock}</span>
+                  <span className="text-muted-foreground">{product.status}</span>
+                </div>
+              </div>
+              <Button type="button" size="sm" variant="outline" className="min-h-9 shrink-0 px-2" onClick={() => openEditModal(product)} aria-label={`Edit ${product.productName}`}>
+                <EditIcon /><span className="ml-1">Edit</span>
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon" className="h-9 w-8 shrink-0" aria-label={`More actions for ${product.productName}`}><BsThreeDots className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => openDetailsModal(product)}><EyeIcon /> View details</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => openDeleteModal(product)}><DeleteIcon /> Delete product</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => openArchiveModal(product)}><ArchiveIcon /> Archive product</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </article>
+          )) : <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">No products found</p>}
+      </div>
 
       <div className="flex justify-center mt-4 space-x-2">
         <span className="text-sm">
@@ -725,6 +759,7 @@ export default function ProductTable({ currency = "NGN" }: ProductsTableProps) {
         product={selectedProduct}
         availableProducts={products.map((product) => ({ id: product.id, productName: product.productName, sku: product.sku, stock: product.stock, productType: product.productType }))}
         isEditMode={isEditMode}
+        currency={currency}
       />
       <StoreDiscountDialog open={isStoreDiscountOpen} onOpenChange={setIsStoreDiscountOpen} onSaved={fetchProducts} currency={currency} />
       <ActionModal

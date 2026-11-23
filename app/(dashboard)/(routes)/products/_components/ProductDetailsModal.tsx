@@ -24,6 +24,7 @@ import {
     AccordionTrigger,
 } from "@/components/ui/accordion";
 import { toast } from "sonner";
+import { getCurrencySymbol } from "@/lib/v2-currency";
 
 interface FrontendProduct {
     id: string;
@@ -36,7 +37,7 @@ interface FrontendProduct {
     status: string;
     createdAt: string;
     thumbnail: string | string[];
-    variants?: { id: string; name?: string; size: string | number; color: string; sku?: string; price: number; quantity: number }[];
+    variants?: { id: string; name?: string; size: string | number; color: string; sku?: string; price: number; quantity: number; image_url?: string; image?: string }[];
     bundleItems?: { productId: string; productName: string; sku: string; quantity: number }[];
     shortDescription?: string;
     discountType?: "fixed" | "percentage" | null;
@@ -75,7 +76,7 @@ interface ApiProduct {
     product_status?: string | null;
     created_at?: string;
     product_images?: string[] | null;
-    variants?: Array<{ id?: string; name?: string; size?: string | number; color?: string; sku?: string; price?: number | string; quantity?: number | string }>;
+    variants?: Array<{ id?: string; name?: string; size?: string | number; color?: string; sku?: string; price?: number | string; quantity?: number | string; image_url?: string; image?: string }>;
     bundle_items?: Array<{ product_id: string; product_name?: string; product_sku?: string; quantity?: number | string }>;
     short_description?: string | null;
     discount_type?: "fixed" | "percentage" | null;
@@ -102,9 +103,10 @@ interface ProductDetailsModalProps {
     product: FrontendProduct | null;
     availableProducts?: AvailableProduct[];
     isEditMode?: boolean;
+    currency?: string;
 }
 
-export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete, product, availableProducts = [], isEditMode = false }: ProductDetailsModalProps) {
+export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete, product, availableProducts = [], isEditMode = false, currency = "NGN" }: ProductDetailsModalProps) {
     const [localProduct, setLocalProduct] = useState<FrontendProduct | null>(null);
     const [editMode, setEditMode] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -322,6 +324,7 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
             sku: String(variant.sku || ""),
             price: Number(variant.price ?? apiProduct.product_price ?? 0),
             quantity: Number(variant.quantity || 0),
+            image_url: String(variant.image_url || variant.image || ""),
         })) : [],
         bundleItems: Array.isArray(apiProduct.bundle_items) ? apiProduct.bundle_items.map((item) => ({
             productId: String(item.product_id),
@@ -379,8 +382,8 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[800px] border-none rounded-lg p-6 bg-card overflow-y-auto max-h-[90vh]">
-                <DialogHeader>
+            <DialogContent className="flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-[800px] flex-col overflow-hidden rounded-lg border-none bg-card p-0">
+                <DialogHeader className="shrink-0 border-b px-4 py-3 sm:px-6">
                     <DialogTitle className="text-sm">
                         {editMode ? "Edit Product" : "Product Details"}
                     </DialogTitle>
@@ -389,6 +392,7 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                     </DialogDescription>
                 </DialogHeader>
 
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
                 {localProduct ? (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
                         {/* Left Column - Product Image */}
@@ -567,9 +571,9 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                 <Label htmlFor="shortDescription" className="text-xs mb-1">Short description</Label>
                                 <Input id="shortDescription" maxLength={180} value={localProduct.shortDescription || ""} onChange={(e) => handleInputChange("shortDescription", e.target.value)} />
                             </div>}
-                            <div className="grid grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                                 <div>
-                                    <Label htmlFor="price" className="text-xs mb-1">Price (₦)</Label>
+                                    <Label htmlFor="price" className="text-xs mb-1">Price ({getCurrencySymbol(currency)})</Label>
                                     <Input
                                         id="price"
                                         type="number"
@@ -604,7 +608,7 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                     />
                                 </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                 <div>
                                     <Label htmlFor="est_prod_days_from" className="text-xs mb-1">Production Days (From)</Label>
                                     <Input
@@ -641,7 +645,7 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                 </Select>
                                 {localProduct.discountType && <Input type="number" min="0.01" max={localProduct.discountType === "percentage" ? 100 : undefined} placeholder={localProduct.discountMode === "sale_price" ? "Discounted price" : localProduct.discountType === "percentage" ? "Discount percent" : "Amount off"} value={localProduct.discountValue ?? ""} onChange={(e) => handleInputChange("discountValue", e.target.value === "" ? null : Number(e.target.value))} />}
                             </div>}
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                 <div><Label className="text-xs mb-1">Unit</Label><Input value={localProduct.unit || ""} readOnly={!editMode} onChange={(e) => handleInputChange("unit", e.target.value)} /></div>
                                 <div><Label className="text-xs mb-1">Barcode</Label><Input value={localProduct.barcode || ""} readOnly={!editMode} onChange={(e) => handleInputChange("barcode", e.target.value)} /></div>
                                 <div><Label className="text-xs mb-1">Collection</Label><Input value={localProduct.collection || ""} readOnly={!editMode} onChange={(e) => handleInputChange("collection", e.target.value)} /></div>
@@ -683,7 +687,7 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                         <AccordionTrigger className="text-sm font-medium">Variants</AccordionTrigger>
                                         <AccordionContent>
                                             {(localProduct.variants || []).map((variant, index) => (
-                                                <div key={variant.id || index} className="grid grid-cols-2 md:grid-cols-[repeat(3,minmax(0,1fr))_auto] gap-2 py-2 border-b last:border-b-0">
+                                                <div key={variant.id || index} className="grid grid-cols-1 gap-2 py-2 border-b last:border-b-0 sm:grid-cols-2 xl:grid-cols-[repeat(3,minmax(0,1fr))_auto]">
                                                     <Input aria-label="Variant name" value={variant.name || ""} readOnly={!editMode} placeholder="Name" onChange={(e) => updateVariant(index, "name", e.target.value)} />
                                                     <Input aria-label="Variant size" value={variant.size} readOnly={!editMode} placeholder="Size" onChange={(e) => updateVariant(index, "size", e.target.value)} />
                                                     <Input aria-label="Variant color" value={variant.color} readOnly={!editMode} placeholder="Color" onChange={(e) => updateVariant(index, "color", e.target.value)} />
@@ -701,7 +705,7 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
 
                             {localProduct.product_type === "bundle" && <section className="space-y-2 rounded-md border p-3">
                                 <h3 className="text-sm font-medium">Bundle contents</h3>
-                                {(localProduct.bundleItems || []).map((item) => <div key={item.productId} className="grid grid-cols-[1fr_90px_auto] items-center gap-2">
+                                {(localProduct.bundleItems || []).map((item) => <div key={item.productId} className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[minmax(0,1fr)_90px_auto]">
                                     <span className="text-sm">{item.productName} <span className="text-muted-foreground">{item.sku}</span></span>
                                     <Input type="number" min="1" value={item.quantity} readOnly={!editMode} aria-label={`Quantity of ${item.productName}`} onChange={(e) => setLocalProduct({ ...localProduct, bundleItems: (localProduct.bundleItems || []).map((entry) => entry.productId === item.productId ? { ...entry, quantity: Number(e.target.value) || 1 } : entry) })} />
                                     {editMode && <Button type="button" variant="ghost" size="icon" aria-label={`Remove ${item.productName}`} onClick={() => setLocalProduct({ ...localProduct, bundleItems: (localProduct.bundleItems || []).filter((entry) => entry.productId !== item.productId) })}><X className="h-4 w-4" /></Button>}
@@ -715,7 +719,8 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                         <p className="text-muted-foreground">No product data available</p>
                     </div>
                 )}
-                <div className="flex justify-end gap-2 border-t pt-3.5">
+                </div>
+                <div className="flex shrink-0 justify-end gap-2 border-t bg-card px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
                     {editMode ? (
                         <>
                             <Button variant="outline" size="sm" onClick={handleCancel} disabled={isLoading}>

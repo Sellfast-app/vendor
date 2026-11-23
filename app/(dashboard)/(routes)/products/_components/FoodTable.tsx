@@ -460,6 +460,7 @@ export default function FoodTable({ currency = "NGN" }: FoodTableProps) {
         </div>
       )}
 
+      <div className="hidden md:block">
       <Table>
         <TableHeader className="bg-[#F5F5F5] dark:bg-background">
           <TableRow>
@@ -558,6 +559,38 @@ export default function FoodTable({ currency = "NGN" }: FoodTableProps) {
           )}
         </TableBody>
       </Table>
+      </div>
+
+      <div className="space-y-3 md:hidden">
+        {isLoading ? Array.from({ length: 4 }).map((_, index) => <div key={index} className="h-24 animate-pulse rounded-md border bg-muted/40" />)
+          : displayedFoodItems.length ? displayedFoodItems.map(item => (
+            <article key={item.uid} className="flex min-w-0 items-start gap-3 rounded-md border bg-card p-3">
+              <Checkbox checked={selectedFoodItems.includes(item.uid)} onCheckedChange={checked => handleSelectFoodItem(item.uid, checked as boolean)} aria-label={`Select ${item.productName}`} />
+              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded border bg-muted">
+                <Image src={getFirstThumbnail(item.thumbnail)} alt={item.productName} fill className="object-cover" sizes="56px" onError={event => { (event.target as HTMLImageElement).src = "/thumbnails/default.png"; }} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="break-words text-sm font-medium">{item.productName}</p>
+                <p className="truncate text-xs text-muted-foreground">{item.sku}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <span>{item.type}</span>
+                  <span>{item.availability}</span>
+                  <span>{item.status}</span>
+                </div>
+              </div>
+              <Button type="button" size="sm" variant="outline" className="min-h-9 shrink-0 px-2" onClick={() => openEditModal(item)} aria-label={`Edit ${item.productName}`}>
+                <EditIcon /><span className="ml-1">Edit</span>
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon" className="h-9 w-8 shrink-0" aria-label={`More actions for ${item.productName}`}><BsThreeDots className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => openDeleteModal(item)}><DeleteIcon /> Delete item</DropdownMenuItem>
+                  <DropdownMenuItem><ArchiveIcon /> Archive item</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </article>
+          )) : <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">No food items found</p>}
+      </div>
 
       <div className="flex justify-center mt-4 space-x-2">
         <span className="text-sm">
