@@ -2,7 +2,7 @@
 
 import { AvatarImage } from "@/components/ui/avatar";
 import { Avatar, AvatarFallback } from "@radix-ui/react-avatar";
-import { Globe, LayoutDashboardIcon, Store, Utensils } from "lucide-react";
+import { Globe, LayoutDashboardIcon, Utensils } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { SVGProps, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -36,7 +36,6 @@ const adminRoutes: Route[] = [
   { icon: LayoutDashboardIcon, label: "Overview", href: "/dashboard" },
   { icon: Products, label: "Products", href: "/products" },
   { icon: Orders, label: "Orders", href: "/orders" },
-  { icon: Store, label: "POS", href: "/pos" },
   { icon: Utensils, label: "Menu", href: "/products" },
   { icon: Analytics, label: "Analytics", href: "/analytics" },
   { icon: EventIcon, label: "Events", href: "/events" },
@@ -199,7 +198,6 @@ export const SidebarRoutes = () => {
           .filter((route) => !isStaff || ["Overview", "Orders"].includes(route.label))
           .filter((route) => {
             if (route.label === "Events") return isTicketStore;
-            if (route.label === "POS") return !isTicketStore;
             if (route.label === "Menu") return isFoodStore;
             if (route.label === "Products") return !isTicketStore;
             return true;
