@@ -35,6 +35,7 @@ import AddFoodModal, { EditableFoodItem } from "./AddFoodModal";
 import { getCurrencySymbol } from "@/lib/v2-currency";
 import Loading from "@/components/Loading";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 interface FoodTableProps {
   currency?: string;
   isAddModalOpen?: boolean;
@@ -168,6 +169,7 @@ export default function FoodTable({ currency = "NGN", isAddModalOpen: controlled
   const [selectedFoodItems, setSelectedFoodItems] = useState<string[]>([]);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedFoodItem, setSelectedFoodItem] = useState<FrontendFoodItem | null>(null);
+  const [detailsFoodItem, setDetailsFoodItem] = useState<FrontendFoodItem | null>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [filterDateRange, setFilterDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined });
   const [filterStatus, setFilterStatus] = useState<string>("");
@@ -576,7 +578,7 @@ export default function FoodTable({ currency = "NGN", isAddModalOpen: controlled
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setDetailsFoodItem(item)}>
                         <EyeIcon /> View Details
                       </DropdownMenuItem>
                       {canManageProducts && <>
@@ -681,6 +683,28 @@ export default function FoodTable({ currency = "NGN", isAddModalOpen: controlled
         editFoodItem={selectedFoodItem}
         currency={currency}
       />
+      <Dialog open={!!detailsFoodItem} onOpenChange={open => { if (!open) setDetailsFoodItem(null); }}>
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
+          {detailsFoodItem && <>
+            <DialogHeader><DialogTitle>{detailsFoodItem.name}</DialogTitle></DialogHeader>
+            <div className="space-y-5 text-sm">
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span className="rounded bg-muted px-2 py-1">{detailsFoodItem.type}</span>
+                <span className="rounded bg-muted px-2 py-1">{detailsFoodItem.status}</span>
+                <span className="rounded bg-muted px-2 py-1">{detailsFoodItem.availability}</span>
+              </div>
+              {detailsFoodItem.description && <p className="text-muted-foreground">{detailsFoodItem.description}</p>}
+              <div className="flex flex-wrap gap-2">{detailsFoodItem.product_images.map((src, index) => <Image key={`${src}-${index}`} src={src} alt={`${detailsFoodItem.name} ${index + 1}`} width={96} height={80} className="h-20 w-24 rounded object-cover" />)}</div>
+              <DetailSection title="Categories" values={detailsFoodItem.category} />
+              {detailsFoodItem.type === 'Simple' && <DetailSection title="Portions" values={detailsFoodItem.portion.map(option => `${option.name}: ${getCurrencySymbol(currency)}${Number(option.price).toLocaleString()}`)} />}
+              {detailsFoodItem.type === 'Customizable' && <DetailSection title="Serving options" values={(detailsFoodItem.servingTypePricing || []).map(option => `${option.servingType}: ${getCurrencySymbol(currency)}${Number(option.price).toLocaleString()}`)} />}
+              {detailsFoodItem.type === 'Bundle' && <DetailSection title="Bundle options" values={detailsFoodItem.bundleConfig.map(option => `${option.name}${option.category ? ` (${option.category})` : ''}: ${getCurrencySymbol(currency)}${Number(option.price).toLocaleString()}`)} />}
+              {detailsFoodItem.addOnGroup.map(group => <DetailSection key={group.uid} title={group.name} values={group.addOnOptions.map((option: { name: string; price: number }) => `${option.name}: ${getCurrencySymbol(currency)}${Number(option.price).toLocaleString()}`)} />)}
+              <Button type="button" onClick={() => { setDetailsFoodItem(null); openEditModal(detailsFoodItem); }}>Edit food item</Button>
+            </div>
+          </>}
+        </DialogContent>
+      </Dialog>
       <ActionModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
@@ -700,4 +724,8 @@ export default function FoodTable({ currency = "NGN", isAddModalOpen: controlled
       />
     </div>
   );
+}
+
+function DetailSection({ title, values }: { title: string; values: string[] }) {
+  return <section><h3 className="mb-2 font-medium">{title}</h3>{values.length ? <ul className="space-y-1 text-muted-foreground">{values.map((value, index) => <li key={`${value}-${index}`}>{value}</li>)}</ul> : <p className="text-muted-foreground">None</p>}</section>;
 }

@@ -362,7 +362,7 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
         if (!productName.trim()) return setError('Food name is required.');
         if (!status) return setError('Product status is required.');
         if (!timeAvailability) return setError('Time-based availability is required.');
-        if (servingTypes.length === 0) return setError('At least one serving type is required.');
+        if (productType === 'customizable' && servingTypes.length === 0) return setError('At least one serving type is required.');
         if (foodCategories.length === 0) return setError('At least one food category is required.');
         if (!isEditMode && uploadedImages.length === 0) return setError('At least one image is required.');
         if (isEditMode && existingImages.length === 0 && uploadedImages.length === 0) return setError('At least one image is required.');
