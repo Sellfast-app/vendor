@@ -36,7 +36,7 @@ interface FrontendProduct {
     status: string;
     createdAt: string;
     thumbnail: string | string[];
-    variants?: { id: string; name?: string; size: string | number; color: string; sku?: string; price: number; quantity: number; image_url?: string; image?: string }[];
+    variants?: { id: string; name?: string; size: string | number; color: string; sku?: string; price: number | null; quantity: number; image_url?: string; image?: string; imageFile?: File; imageRemoved?: boolean }[];
     bundleItems?: { productId: string; productName: string; sku: string; quantity: number }[];
     shortDescription?: string;
     discountType?: "fixed" | "percentage" | null;
@@ -75,7 +75,7 @@ interface ApiProduct {
     product_status?: string | null;
     created_at?: string;
     product_images?: string[] | null;
-    variants?: Array<{ id?: string; name?: string; size?: string | number; color?: string; sku?: string; price?: number | string; quantity?: number | string; image_url?: string; image?: string }>;
+    variants?: Array<{ id?: string; name?: string; size?: string | number; color?: string; sku?: string; price?: number | string | null; quantity?: number | string; image_url?: string; image?: string }>;
     bundle_items?: Array<{ product_id: string; product_name?: string; product_sku?: string; quantity?: number | string }>;
     short_description?: string | null;
     discount_type?: "fixed" | "percentage" | null;
@@ -123,7 +123,7 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
         setNewImages([]);
         setRemovedImages([]);
         setBundleProductToAdd("");
-    }, [product, isEditMode]);
+    }, [isOpen, product, isEditMode]);
 
     // Helper function to get current image URL for slider
     const getCurrentImageUrl = (): string => {
@@ -145,7 +145,23 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
     const updateVariant = (index: number, field: "name" | "size" | "color" | "sku" | "price" | "quantity", value: string) => {
         if (!localProduct) return;
         const variants = [...(localProduct.variants || [])];
-        variants[index] = { ...variants[index], [field]: field === "price" || field === "quantity" ? Number(value) || 0 : value };
+        variants[index] = {
+            ...variants[index],
+            [field]: field === "price"
+                ? value.trim() === "" ? null : Number(value)
+                : field === "quantity" ? Number(value) || 0 : value,
+        };
+        setLocalProduct({ ...localProduct, variants });
+    };
+
+    const updateVariantImage = (index: number, file: File | null) => {
+        if (!localProduct) return;
+        const variants = [...(localProduct.variants || [])];
+        variants[index] = {
+            ...variants[index],
+            imageFile: file || undefined,
+            imageRemoved: file ? false : true,
+        };
         setLocalProduct({ ...localProduct, variants });
     };
 
@@ -190,7 +206,17 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
           formData.append('min_order_quantity', localProduct.minOrderQuantity?.toString() || '');
           formData.append('max_order_quantity', localProduct.maxOrderQuantity?.toString() || '');
           formData.append('location', localProduct.location || '');
-          formData.append('variants', JSON.stringify(localProduct.variants || []));
+          const uploadFiles = [...newImages];
+          const variants = (localProduct.variants || []).map((variant) => {
+            const { imageFile, imageRemoved, image, ...fields } = variant;
+            if (imageFile) {
+              return { ...fields, image_file_index: uploadFiles.push(imageFile) - 1 };
+            }
+            if (imageRemoved) return { ...fields, image_url: "" };
+            const imageUrl = variant.image_url || image;
+            return imageUrl ? { ...fields, image_url: imageUrl } : fields;
+          });
+          formData.append('variants', JSON.stringify(variants));
           formData.append('bundle_items', JSON.stringify((localProduct.bundleItems || []).map(item => ({
             product_id: item.productId,
             quantity: item.quantity,
@@ -199,7 +225,7 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
           formData.append('existing_images', JSON.stringify(existingImages));
       
           // Add new images
-          newImages.forEach((file) => {
+          uploadFiles.forEach((file) => {
             formData.append('files', file);
           });
       
@@ -322,7 +348,7 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
             size: variant.size || "",
             color: String(variant.color || ""),
             sku: String(variant.sku || ""),
-            price: Number(variant.price ?? apiProduct.product_price ?? 0),
+            price: variant.price == null ? null : Number(variant.price),
             quantity: Number(variant.quantity || 0),
             image_url: String(variant.image_url || variant.image || ""),
         })) : [],
@@ -667,12 +693,30 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                                     <Input aria-label="Variant size" value={variant.size} readOnly={!editMode} placeholder="Size" onChange={(e) => updateVariant(index, "size", e.target.value)} />
                                                     <Input aria-label="Variant color" value={variant.color} readOnly={!editMode} placeholder="Color" onChange={(e) => updateVariant(index, "color", e.target.value)} />
                                                     <Input aria-label="Variant SKU" value={variant.sku || ""} readOnly={!editMode} placeholder="SKU" onChange={(e) => updateVariant(index, "sku", e.target.value)} />
-                                                    <Input aria-label="Variant price" type="number" min="0" value={variant.price} readOnly={!editMode} placeholder="Price" onChange={(e) => updateVariant(index, "price", e.target.value)} />
-                                                    <Input aria-label="Variant quantity" type="number" min="0" value={variant.quantity} readOnly={!editMode} placeholder="Quantity" onChange={(e) => updateVariant(index, "quantity", e.target.value)} />
+                                                    <Input aria-label="Variant price" type="number" min="0" value={variant.price ?? ""} readOnly={!editMode} placeholder="Same as product price" onChange={(e) => updateVariant(index, "price", e.target.value)} />
+                                            <Input aria-label="Variant quantity" type="number" min="0" value={variant.quantity} readOnly={!editMode} placeholder="Quantity" onChange={(e) => updateVariant(index, "quantity", e.target.value)} />
+                                            {(editMode || variant.image_url || variant.image) && <div className="flex items-center gap-2 sm:col-span-2 lg:col-span-3">
+                                                {(variant.imageFile || (!variant.imageRemoved && (variant.image_url || variant.image))) && <span className="text-xs text-muted-foreground">{variant.imageFile ? variant.imageFile.name : "Variant image attached"}</span>}
+                                                {editMode && <>
+                                                    <Label htmlFor={`variant-image-${variant.id}`} className="cursor-pointer rounded-md border px-3 py-2 text-xs">{variant.imageFile || variant.image_url || variant.image ? "Replace image" : "Add image"}</Label>
+                                                    <Input id={`variant-image-${variant.id}`} type="file" accept="image/*" className="sr-only" onChange={(event) => {
+                                                        const file = event.target.files?.[0];
+                                                        if (!file) return;
+                                                        if (!file.type.startsWith("image/") || file.size > 5 * 1024 * 1024) {
+                                                            toast.error("Choose an image up to 5 MB.");
+                                                            event.target.value = "";
+                                                            return;
+                                                        }
+                                                        updateVariantImage(index, file);
+                                                        event.target.value = "";
+                                                    }} />
+                                                    {(variant.imageFile || variant.image_url || variant.image) && <Button type="button" variant="ghost" size="sm" onClick={() => updateVariantImage(index, null)}><X className="mr-1 h-4 w-4" />Remove image</Button>}
+                                                </>}
+                                            </div>}
                                                     {editMode && <Button type="button" variant="ghost" size="sm" className="justify-self-start" aria-label="Remove variant" onClick={() => setLocalProduct({ ...localProduct, variants: (localProduct.variants || []).filter((_, variantIndex) => variantIndex !== index) })}><X className="mr-1 h-4 w-4" />Remove variant</Button>}
                                                 </div>
                                             ))}
-                                            {editMode && <Button type="button" variant="outline" size="sm" disabled={(localProduct.variants || []).length >= 100} onClick={() => setLocalProduct({ ...localProduct, variants: [...(localProduct.variants || []), { id: crypto.randomUUID(), name: "", size: "", color: "", sku: "", price: localProduct.sales, quantity: 0 }] })}><Plus className="h-4 w-4 mr-1" /> Add variant</Button>}
+                                            {editMode && <Button type="button" variant="outline" size="sm" disabled={(localProduct.variants || []).length >= 100} onClick={() => setLocalProduct({ ...localProduct, variants: [...(localProduct.variants || []), { id: crypto.randomUUID(), name: "", size: "", color: "", sku: "", price: null, quantity: 0 }] })}><Plus className="h-4 w-4 mr-1" /> Add variant</Button>}
                                         </AccordionContent>
                                     </AccordionItem>
                                 </Accordion>
