@@ -694,12 +694,12 @@ export default function FoodTable({ currency = "NGN", isAddModalOpen: controlled
                 <span className="rounded bg-muted px-2 py-1">{detailsFoodItem.availability}</span>
               </div>
               {detailsFoodItem.description && <p className="text-muted-foreground">{detailsFoodItem.description}</p>}
-              <div className="flex flex-wrap gap-2">{detailsFoodItem.product_images.map((src, index) => <Image key={`${src}-${index}`} src={src} alt={`${detailsFoodItem.name} ${index + 1}`} width={96} height={80} className="h-20 w-24 rounded object-cover" />)}</div>
-              <DetailSection title="Categories" values={detailsFoodItem.category} />
-              {detailsFoodItem.type === 'Simple' && <DetailSection title="Portions" values={detailsFoodItem.portion.map(option => `${option.name}: ${getCurrencySymbol(currency)}${Number(option.price).toLocaleString()}`)} />}
+              <div className="flex flex-wrap gap-2">{(detailsFoodItem.product_images || []).map((src, index) => <Image key={`${src}-${index}`} src={src} alt={`${detailsFoodItem.name} ${index + 1}`} width={96} height={80} className="h-20 w-24 rounded object-cover" />)}</div>
+              <DetailSection title="Categories" values={detailsFoodItem.category || []} />
+              {detailsFoodItem.type === 'Simple' && <DetailSection title="Portions" values={(detailsFoodItem.portion || []).map(option => `${option.name}: ${getCurrencySymbol(currency)}${Number(option.price).toLocaleString()}`)} />}
               {detailsFoodItem.type === 'Customizable' && <DetailSection title="Serving options" values={(detailsFoodItem.servingTypePricing || []).map(option => `${option.servingType}: ${getCurrencySymbol(currency)}${Number(option.price).toLocaleString()}`)} />}
-              {detailsFoodItem.type === 'Bundle' && <DetailSection title="Bundle options" values={detailsFoodItem.bundleConfig.map(option => `${option.name}${option.category ? ` (${option.category})` : ''}: ${getCurrencySymbol(currency)}${Number(option.price).toLocaleString()}`)} />}
-              {detailsFoodItem.addOnGroup.map(group => <DetailSection key={group.uid} title={group.name} values={group.addOnOptions.map((option: { name: string; price: number }) => `${option.name}: ${getCurrencySymbol(currency)}${Number(option.price).toLocaleString()}`)} />)}
+              {detailsFoodItem.type === 'Bundle' && <DetailSection title="Bundle options" values={(detailsFoodItem.bundleConfig || []).map(option => `${option.name}${option.category ? ` (${option.category})` : ''}: ${getCurrencySymbol(currency)}${Number(option.price).toLocaleString()}`)} />}
+              {(detailsFoodItem.addOnGroup || []).map(group => <DetailSection key={group.uid} title={group.name} values={group.addOnOptions.map((option: { name: string; price: number }) => `${option.name}: ${getCurrencySymbol(currency)}${Number(option.price).toLocaleString()}`)} />)}
               <Button type="button" onClick={() => { setDetailsFoodItem(null); openEditModal(detailsFoodItem); }}>Edit food item</Button>
             </div>
           </>}
