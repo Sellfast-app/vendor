@@ -10,6 +10,7 @@ type CatalogType = "retail" | "food";
 type CatalogRow = { catalog_type: "retail" | "food"; product_ref: string; option_ref: string; product_name: string; option_name: string; base_price: number; unit_price: string; is_available: boolean; stock_quantity: string };
 type RecordValue = Record<string, unknown>;
 type ExistingOverride = { catalog_type: string; product_ref: string; option_ref: string; unit_price: number | string | null; is_available: boolean; stock_quantity: number | null };
+type ProductScope = { catalog_type: string; product_ref: string; available_branch_ids: string[] };
 
 const valueString = (value: unknown) => typeof value === "string" || typeof value === "number" ? String(value) : "";
 const retailOptionRef = (variant: RecordValue) => {
@@ -39,17 +40,22 @@ export default function BranchCatalogSettings({ branches, catalogType }: { branc
         ]);
         const [catalogDataRaw, overrideDataRaw] = await Promise.all([catalogResponse.json(), overrideResponse.json()]);
         const catalogData = catalogDataRaw as { status?: string; message?: string; data?: { items?: RecordValue[] } | RecordValue[] };
-        const overrideData = overrideDataRaw as { message?: string; data?: ExistingOverride[] };
+        const overrideData = overrideDataRaw as { message?: string; data?: ExistingOverride[] | { overrides?: ExistingOverride[]; product_scopes?: ProductScope[] } };
         if (!catalogResponse.ok) throw new Error(catalogData.message || "Unable to load catalog");
         if (!overrideResponse.ok) throw new Error(overrideData.message || "Unable to load branch prices");
-        const overrides = new Map<string, ExistingOverride>((overrideData.data || []).map((entry) => [`${entry.catalog_type}:${entry.product_ref}:${entry.option_ref}`, entry]));
+        const overrideRows = Array.isArray(overrideData.data) ? overrideData.data : overrideData.data?.overrides || [];
+        const productScopes = Array.isArray(overrideData.data) ? [] : overrideData.data?.product_scopes || [];
+        const scopedProducts = new Map(productScopes.filter(entry => entry.catalog_type === catalogType).map(entry => [entry.product_ref, entry.available_branch_ids || []]));
+        const overrides = new Map<string, ExistingOverride>(overrideRows.map((entry) => [`${entry.catalog_type}:${entry.product_ref}:${entry.option_ref}`, entry]));
         const products: RecordValue[] = catalogType === "retail"
           ? (catalogData.data && !Array.isArray(catalogData.data) ? catalogData.data.items || [] : [])
           : (Array.isArray(catalogData.data) ? catalogData.data : []);
         const next: CatalogRow[] = [];
         const add = (productRef: string, optionRef: string, productName: string, optionName: string, basePrice: number) => {
           const override = overrides.get(`${catalogType}:${productRef}:${optionRef}`);
-          next.push({ catalog_type: catalogType, product_ref: productRef, option_ref: optionRef, product_name: productName, option_name: optionName, base_price: Number(basePrice || 0), unit_price: override?.unit_price == null ? "" : String(override.unit_price), is_available: override?.is_available ?? true, stock_quantity: override?.stock_quantity == null ? "" : String(override.stock_quantity) });
+          const assignedBranches = scopedProducts.get(productRef);
+          const assignedHere = assignedBranches ? assignedBranches.includes(branchId) : true;
+          next.push({ catalog_type: catalogType, product_ref: productRef, option_ref: optionRef, product_name: productName, option_name: optionName, base_price: Number(basePrice || 0), unit_price: override?.unit_price == null ? "" : String(override.unit_price), is_available: override?.is_available ?? assignedHere, stock_quantity: override?.stock_quantity == null ? "" : String(override.stock_quantity) });
         };
         for (const product of products) {
           const id = valueString(catalogType === "retail" ? product.id : product.uid);

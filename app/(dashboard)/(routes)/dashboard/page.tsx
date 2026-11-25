@@ -349,7 +349,7 @@ function DashboardPage() {
 
   if (isStaff) {
     const ordersHref = isTicketStore ? "/orders/tickets" : "/orders";
-    return <main className="mx-auto min-h-screen max-w-5xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+    return <main className="mx-auto min-h-screen w-full min-w-0 max-w-5xl space-y-6 overflow-x-hidden px-4 py-8 sm:px-6 lg:px-8">
       <header><p className="text-xs font-medium uppercase text-primary">Store operations</p><h1 className="mt-2 text-2xl font-semibold">Dashboard</h1><p className="mt-1 text-sm text-muted-foreground">Monitor incoming orders and continue fulfillment from the orders page.</p></header>
       <section className="grid gap-4 sm:grid-cols-2" aria-label="Order overview">
         <Card className="shadow-none"><CardContent className="p-5"><p className="text-sm text-muted-foreground">Total orders</p><p className="mt-2 text-2xl font-semibold">{isOverviewLoading ? "—" : overview?.total_orders ?? 0}</p></CardContent></Card>
@@ -366,7 +366,7 @@ function DashboardPage() {
       { label: "Attendee check-in", description: "Scan or enter ticket codes at the door.", href: "/events/attendees", icon: CheckCircle2 },
     ];
 
-    return <main className="mx-auto min-h-screen max-w-6xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+    return <main className="mx-auto min-h-screen w-full min-w-0 max-w-6xl space-y-6 overflow-x-hidden px-4 py-8 sm:px-6 lg:px-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs font-medium uppercase tracking-[0.16em] text-primary">Ticketing</p><h1 className="mt-2 text-2xl font-semibold">Hello {storeName || "there"}</h1><p className="mt-1 text-sm text-muted-foreground">Manage events, ticket sales and attendee admission.</p></div><Button variant="outline" onClick={() => setIsPosRequestOpen(true)}><MonitorSmartphone className="mr-2 h-4 w-4" />Request POS</Button></header>
       <section className="grid gap-4 md:grid-cols-3" aria-label="Ticketing workspace">
         {ticketActions.map(action => {
@@ -382,7 +382,7 @@ function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFBFA] px-4 py-6 sm:px-6 lg:px-8 dark:bg-background">
+    <div className="min-h-screen w-full min-w-0 overflow-x-hidden bg-[#FAFBFA] px-4 py-6 sm:px-6 lg:px-8 dark:bg-background">
       <div className="mb-5 rounded-lg bg-[#101820] px-4 py-3 text-white shadow-sm" data-tour="launch-banner">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <p className="text-sm font-medium">
@@ -475,28 +475,18 @@ function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-5">
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="-mx-4 max-w-[calc(100%+2rem)] overflow-x-auto px-4 pb-1 sm:mx-0 sm:max-w-none sm:overflow-visible sm:px-0 sm:pb-0">
+                <div className="grid w-max auto-cols-[minmax(9.5rem,1fr)] grid-flow-col gap-3 sm:w-full sm:auto-cols-auto sm:grid-flow-row sm:grid-cols-2 xl:grid-cols-4">
                 {isOverviewLoading
                   ? Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-20 rounded-lg" />)
                   : snapshotMetrics.map((metric) => <SnapshotCard key={metric.title} {...metric} />)}
+                </div>
               </div>
 
-              <div className="grid gap-5 border-t pt-5 lg:grid-cols-3">
-                <OverviewValue
-                  label="Total sales"
-                  value={formatCurrency(overview?.total_revenue)}
-                  icon={<Banknote className="h-5 w-5" />}
-                />
-                <OverviewValue
-                  label="Pending orders"
-                  value={`${overview?.pending_orders ?? 0}`}
-                  icon={<ReceiptText className="h-5 w-5" />}
-                />
-                <OverviewValue
-                  label="Completed orders"
-                  value={`${overview?.completed_orders ?? 0}`}
-                  icon={<CheckCircle2 className="h-5 w-5" />}
-                />
+              <div className="-mx-4 flex max-w-[calc(100%+2rem)] gap-5 overflow-x-auto border-t px-4 pt-5 sm:mx-0 sm:max-w-none sm:overflow-visible sm:px-0 lg:grid lg:grid-cols-3">
+                <div className="min-w-[9.5rem] flex-none lg:min-w-0"><OverviewValue label="Total sales" value={formatCurrency(overview?.total_revenue)} icon={<Banknote className="h-5 w-5" />} /></div>
+                <div className="min-w-[9.5rem] flex-none lg:min-w-0"><OverviewValue label="Pending orders" value={`${overview?.pending_orders ?? 0}`} icon={<ReceiptText className="h-5 w-5" />} /></div>
+                <div className="min-w-[9.5rem] flex-none lg:min-w-0"><OverviewValue label="Completed orders" value={`${overview?.completed_orders ?? 0}`} icon={<CheckCircle2 className="h-5 w-5" />} /></div>
               </div>
             </CardContent>
           </Card>

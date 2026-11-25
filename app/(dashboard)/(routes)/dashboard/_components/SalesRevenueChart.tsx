@@ -80,8 +80,8 @@ const SalesRevenueChart = () => {
     return (
         <Card className="w-full shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
             <CardHeader className="pb-4">
-                <div className="flex justify-between items-start">
-                    <div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
                         <CardTitle className="text-sm font-bold">
                             Sales Count vs Revenue Growth
                         </CardTitle>
@@ -89,13 +89,13 @@ const SalesRevenueChart = () => {
                             {loading ? 'Loading data...' : 'An overview of your sales count and revenue growth.'}
                         </p>
                     </div>
-                    <div className="flex bg-gray-100 dark:bg-background rounded-lg p-1">
+                    <div className="flex max-w-full shrink-0 gap-1 overflow-x-auto bg-gray-100 dark:bg-background rounded-lg p-1">
                         {periods.map((period) => (
                             <button
                                 key={period}
                                 onClick={() => setSelectedPeriod(period)}
                                 disabled={loading}
-                                className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                                className={`shrink-0 px-3 py-1 text-sm rounded-md transition-colors ${
                                     selectedPeriod === period
                                         ? 'bg-white text-gray-900 shadow-sm'
                                         : 'text-gray-600 hover:text-gray-900'
@@ -108,7 +108,7 @@ const SalesRevenueChart = () => {
                 </div>
             </CardHeader>
             <CardContent>
-                <div className="h-80">
+                <div className="h-64 sm:h-80">
                     {loading ? (
                         // Skeleton Loading State
                         <div className="h-full flex flex-col space-y-4">

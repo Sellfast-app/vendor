@@ -68,7 +68,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen w-full min-w-0 mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="min-h-screen mx-auto w-full min-w-0 max-w-full overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8">
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="text-sm font-bold">{isStaff ? "Store settings" : "Account Information"}</h3>
         <div className='relative w-full sm:w-64'>

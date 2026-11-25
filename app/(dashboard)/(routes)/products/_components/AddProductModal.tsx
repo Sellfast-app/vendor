@@ -312,6 +312,7 @@ export default function AddProductModal({ isOpen, onClose, onAddProduct, availab
       formData.append("est_prod_days_from", productionFrom);
       formData.append("est_prod_days_to", productionTo);
       formData.append("store_id", storeId);
+      if (selectedBranchId !== "all") formData.append("branch_id", selectedBranchId);
       formData.append("discount_type", discountMode === "percentage" ? "percentage" : discountMode === "none" ? "" : "fixed");
       formData.append("discount_mode", discountMode === "sale_price" ? "sale_price" : "amount_off");
       formData.append("discount_value", discountMode === "none" ? "" : discountValue);

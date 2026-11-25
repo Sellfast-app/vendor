@@ -134,6 +134,7 @@ interface UploadedImage {
     isUploading: boolean;
     id: string;
 }
+interface StoreBranchOption { id: string; name: string; city?: string; region?: string }
 
 const MAX_FOOD_IMAGE_BYTES = 700 * 1024;
 const MAX_FOOD_IMAGES_TOTAL_BYTES = 3.5 * 1024 * 1024;
@@ -175,6 +176,8 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
     const [discountValue, setDiscountValue] = useState('');
     const [productType, setProductType] = useState<'simple' | 'customizable' | 'bundle'>('simple');
     const [productName, setProductName] = useState('');
+    const [branches, setBranches] = useState<StoreBranchOption[]>([]);
+    const [selectedBranchId, setSelectedBranchId] = useState('all');
     const [description, setDescription] = useState('');
     const [status, setStatus] = useState('');
     const [timeAvailability, setTimeAvailability] = useState('');
@@ -220,6 +223,19 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
             });
         return () => { cancelled = true; };
     }, [isOpen]);
+
+    useEffect(() => {
+        if (!isOpen || isEditMode) return;
+        let active = true;
+        fetch('/api/branches', { cache: 'no-store' })
+            .then(async response => {
+                const result = await response.json();
+                if (!response.ok || result.status !== 'success') throw new Error(result.message || 'Unable to load branches');
+                if (active) setBranches(Array.isArray(result.data) ? result.data : []);
+            })
+            .catch(error => { if (active) setError(error instanceof Error ? error.message : 'Unable to load branches'); });
+        return () => { active = false; };
+    }, [isOpen, isEditMode]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -400,6 +416,7 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
             for (const [key, value] of Object.entries(fields)) {
                 formData.append(key, value == null ? 'null' : typeof value === 'object' ? JSON.stringify(value) : String(value));
             }
+            if (!isEditMode && selectedBranchId !== 'all') formData.append('branch_id', selectedBranchId);
             if (isEditMode) formData.append('existing_images', JSON.stringify(existingImages));
             uploadedImages.forEach((image) => formData.append('files', image.file, image.file.name));
 
@@ -452,6 +469,7 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
         setDiscountValue('');
         setProductType('simple');
         setProductName('');
+        setSelectedBranchId('all');
         setDescription('');
         setStatus('');
         setTimeAvailability('');
@@ -598,6 +616,16 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                                     disabled={isLoading}
                                 />
                             </div>
+                            {!isEditMode && branches.length > 0 && <div className="mt-4">
+                                <Label className="mb-1 block text-xs font-light" htmlFor="food-product-branch">Available at</Label>
+                                <Select value={selectedBranchId} onValueChange={setSelectedBranchId} disabled={isLoading}>
+                                    <SelectTrigger id="food-product-branch"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All branches</SelectItem>
+                                        {branches.map(branch => <SelectItem key={branch.id} value={branch.id}>{[branch.name, branch.city, branch.region].filter(Boolean).join(' · ')}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>}
                             <div>
                                 <Label className='text-xs font-light mt-4 mb-1' htmlFor='description'>
                                     Description
