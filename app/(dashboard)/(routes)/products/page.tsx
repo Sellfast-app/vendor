@@ -176,7 +176,7 @@ function ProductsPageContent() {
           </p>
         </div>
         <div className="flex gap-2">
-          {!isStaff && <Button variant="outline" onClick={() => setIsCouponsOpen(true)}>Coupons</Button>}
+          {!isStaff && <Button variant="outline" onClick={() => setIsCouponsOpen(true)}>Coupon codes</Button>}
           <Button variant="outline" onClick={() => setIsAddProductOpen(true)}>
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline ml-2">

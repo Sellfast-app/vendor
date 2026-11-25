@@ -35,6 +35,8 @@ import AddFoodModal, { EditableFoodItem } from "./AddFoodModal";
 import { getCurrencySymbol } from "@/lib/v2-currency";
 import Loading from "@/components/Loading";
 import { toast } from "sonner";
+import { Percent } from "lucide-react";
+import { StoreDiscountDialog } from "./StoreDiscountDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 interface FoodTableProps {
   currency?: string;
@@ -176,6 +178,7 @@ export default function FoodTable({ currency = "NGN", isAddModalOpen: controlled
   const [sortBy, setSortBy] = useState<string>("default");
   const [isLoading, setIsLoading] = useState(true);
   const [totalFoodItems, setTotalFoodItems] = useState(0);
+  const [isStoreDiscountOpen, setIsStoreDiscountOpen] = useState(false);
 
   // Fetch food items from API
   const fetchFoodItems = useCallback(async () => {
@@ -409,6 +412,9 @@ export default function FoodTable({ currency = "NGN", isAddModalOpen: controlled
           <SearchIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         </div>
         <div className="flex space-x-2">
+          {canManageProducts && <Button variant="outline" onClick={() => setIsStoreDiscountOpen(true)}>
+            <Percent className="h-4 w-4" /><span className="hidden sm:inline ml-2">Discounts</span>
+          </Button>}
           <Button
             variant="outline"
             className="border-[#F5F5F5] dark:border-[#1F1F1F] dark:bg-background"
@@ -683,6 +689,7 @@ export default function FoodTable({ currency = "NGN", isAddModalOpen: controlled
         editFoodItem={selectedFoodItem}
         currency={currency}
       />
+      {canManageProducts && <StoreDiscountDialog open={isStoreDiscountOpen} onOpenChange={setIsStoreDiscountOpen} onSaved={fetchFoodItems} currency={currency} catalogType="food" />}
       <Dialog open={!!detailsFoodItem} onOpenChange={open => { if (!open) setDetailsFoodItem(null); }}>
         <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
           {detailsFoodItem && <>

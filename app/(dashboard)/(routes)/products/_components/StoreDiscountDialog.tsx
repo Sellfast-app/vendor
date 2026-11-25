@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 type ProductChoice = { id: string; product_name: string; product_price: number; product_type: string };
 type Campaign = { discount_type: "fixed" | "percentage"; discount_value: number; applies_to_all: boolean; product_ids: string[] };
 
-export function StoreDiscountDialog({ open, onOpenChange, onSaved, currency = "NGN" }: { open: boolean; onOpenChange: (open: boolean) => void; onSaved?: () => void; currency?: string }) {
+export function StoreDiscountDialog({ open, onOpenChange, onSaved, currency = "NGN", catalogType = "retail" }: { open: boolean; onOpenChange: (open: boolean) => void; onSaved?: () => void; currency?: string; catalogType?: "retail" | "food" }) {
   const [products, setProducts] = useState<ProductChoice[]>([]);
   const [scope, setScope] = useState<"all" | "selected">("all");
   const [discountType, setDiscountType] = useState<"fixed" | "percentage">("fixed");
@@ -36,6 +36,18 @@ export function StoreDiscountDialog({ open, onOpenChange, onSaved, currency = "N
       setDiscountError("");
       try {
         const fetchProductPage = async (page: number) => {
+          if (catalogType === "food") {
+            const response = await fetch(`/api/products/food?page=${page}&pageSize=100&_t=${Date.now()}`, { cache: "no-store" });
+            const result = await response.json();
+            if (!response.ok || result.status !== "success") throw new Error(result.message || "Could not load the store food list.");
+            const items = Array.isArray(result.data) ? result.data.map((item: { uid: string; name: string; type?: string }) => ({
+              id: item.uid,
+              product_name: item.name,
+              product_price: 0,
+              product_type: item.type || "Food",
+            })) : [];
+            return { items, totalPages: 1 };
+          }
           const response = await fetch(`/api/products?page=${page}&pageSize=100&_t=${Date.now()}`, { cache: "no-store" });
           const result = await response.json();
           if (!response.ok || result.status !== "success") throw new Error(result.message || "Could not load the store product list.");
@@ -75,7 +87,7 @@ export function StoreDiscountDialog({ open, onOpenChange, onSaved, currency = "N
     };
     void load();
     return () => { cancelled = true; };
-  }, [open]);
+  }, [open, catalogType]);
 
   const save = async () => {
     const numericValue = Number(value);
@@ -128,8 +140,8 @@ export function StoreDiscountDialog({ open, onOpenChange, onSaved, currency = "N
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
       <DialogHeader>
-        <DialogTitle>Discounts</DialogTitle>
-        <DialogDescription>Use the same discount rules for product prices and store-wide offers. Each item receives one discount only: a product discount takes precedence over the store-wide rule. Coupon codes apply separately at checkout.</DialogDescription>
+        <DialogTitle>{catalogType === "food" ? "Food menu discounts" : "Store discounts"}</DialogTitle>
+        <DialogDescription>Apply a fixed amount or percentage discount to all {catalogType === "food" ? "food items" : "products"} or selected items. An item-level discount takes precedence. Coupon codes apply separately at checkout.</DialogDescription>
       </DialogHeader>
       <div className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
