@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Trash2 } from "lucide-react";
 
 type Coupon = {
   id: string;
@@ -66,6 +67,21 @@ export function CouponsDialog({ open, onOpenChange, currency = "NGN" }: { open: 
     toast.success("Coupon deactivated");
   };
 
+  const deleteCoupon = async (coupon: Coupon) => {
+    setBusy(true);
+    try {
+      const response = await fetch(`/api/vendor/coupons/${encodeURIComponent(coupon.id)}`, { method: "DELETE" });
+      const result = await response.json();
+      if (!response.ok || result.status !== "success") throw new Error(result.message || "Unable to delete coupon");
+      await load();
+      toast.success("Coupon deleted");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to delete coupon");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
       <DialogHeader><DialogTitle>Coupon codes</DialogTitle></DialogHeader>
@@ -81,7 +97,11 @@ export function CouponsDialog({ open, onOpenChange, currency = "NGN" }: { open: 
       <div className="space-y-2">
         {coupons.length === 0 ? <p className="py-4 text-sm text-muted-foreground">No coupons created for this store.</p> : coupons.map((coupon) => <div key={coupon.id} className="flex items-center justify-between gap-3 border-b py-3 last:border-0">
           <div className="min-w-0"><p className="truncate text-sm font-semibold">{coupon.code}</p><p className="text-xs text-muted-foreground">{currency} {coupon.amount.toLocaleString()} · {coupon.usageLimit} use(s) · ends {new Date(coupon.expiryDate).toLocaleDateString()}</p></div>
-          {coupon.active ? <Button variant="outline" size="sm" onClick={() => void deactivate(coupon)}>Deactivate</Button> : <span className="text-xs text-muted-foreground">Inactive</span>}
+          <div className="flex shrink-0 items-center gap-2">
+            {coupon.active
+              ? <Button variant="outline" size="sm" disabled={busy} onClick={() => void deactivate(coupon)}>Deactivate</Button>
+              : <><span className="text-xs text-muted-foreground">Inactive</span><Button variant="outline" size="sm" disabled={busy} onClick={() => void deleteCoupon(coupon)} aria-label={`Delete coupon ${coupon.code}`}><Trash2 className="mr-1 h-4 w-4" />Delete</Button></>}
+          </div>
         </div>)}
       </div>
     </DialogContent>

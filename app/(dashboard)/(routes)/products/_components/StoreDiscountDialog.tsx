@@ -145,8 +145,8 @@ export function StoreDiscountDialog({ open, onOpenChange, onSaved, currency = "N
       </DialogHeader>
       <div className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5"><Label>Discount type</Label><Select value={discountType} onValueChange={(next: "fixed" | "percentage") => setDiscountType(next)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="fixed">Amount off ({currency})</SelectItem><SelectItem value="percentage">Percentage off</SelectItem></SelectContent></Select></div>
-          <div className="space-y-1.5"><Label>{discountType === "fixed" ? `Amount off (${currency})` : "Discount percent"}</Label><Input type="number" min="0.01" max={discountType === "percentage" ? 100 : undefined} value={value} onChange={event => setValue(event.target.value)} placeholder={discountType === "fixed" ? "e.g. 1000" : "e.g. 10"} /></div>
+          <div className="space-y-1.5"><Label>Discount type</Label><Select value={discountType} onValueChange={(next: "fixed" | "percentage") => setDiscountType(next)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="fixed">Amount off ({currency})</SelectItem><SelectItem value="percentage">Percentage off (%)</SelectItem></SelectContent></Select></div>
+          <div className="space-y-1.5"><Label>{discountType === "fixed" ? `Amount off (${currency})` : "Discount percent (%)"}</Label><Input type="number" min="0.01" max={discountType === "percentage" ? 100 : undefined} value={value} onChange={event => setValue(event.target.value)} placeholder={discountType === "fixed" ? "e.g. 1000" : "e.g. 10%"} /></div>
         </div>
         <div className="space-y-1.5"><Label>Applies to</Label><Select value={scope} onValueChange={(next: "all" | "selected") => setScope(next)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All products</SelectItem><SelectItem value="selected">Selected products</SelectItem></SelectContent></Select></div>
         {scope === "selected" && <div className="space-y-2 rounded-md border p-3">
