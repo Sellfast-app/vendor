@@ -16,7 +16,16 @@ type OrderItem = {
   item_total?: number | string;
   price?: number | string;
   product_image?: string | null;
+  variant_label?: string;
+  variant?: { name?: string; size?: string; color?: string; sku?: string } | null;
 };
+
+function orderItemVariantLabel(item: OrderItem) {
+  if (item.variant_label?.trim()) return item.variant_label.trim();
+  const name = item.variant?.name?.trim();
+  if (name) return name;
+  return [item.variant?.size, item.variant?.color].map(value => value?.trim()).filter(Boolean).join(" / ");
+}
 
 type Order = {
   id: string;
@@ -163,7 +172,7 @@ function OrderDetailPageContent() {
                   <div className="flex items-center gap-2 border-b px-4 py-3"><Package className="h-4 w-4" /><h2 className="text-sm font-semibold">Items ({order.order_items?.length || 0})</h2></div>
                   <div className="divide-y px-4">
                     {(order.order_items || []).map((item, index) => <div key={`${item.product_name || item.name}-${index}`} className="flex items-center justify-between gap-4 py-4">
-                      <div className="flex min-w-0 items-center gap-3">{item.product_image ? <Image src={item.product_image} alt="" width={48} height={48} unoptimized className="h-12 w-12 rounded border object-cover" /> : <div className="h-12 w-12 rounded border bg-muted" />}<div className="min-w-0"><p className="truncate text-sm font-medium">{item.product_name || item.name || "Item"}</p><p className="text-xs text-muted-foreground">Qty {Number(item.quantity || 1)} · {money(item.price, order.currency)}</p></div></div>
+                      <div className="flex min-w-0 items-center gap-3">{item.product_image ? <Image src={item.product_image} alt="" width={48} height={48} unoptimized className="h-12 w-12 rounded border object-cover" /> : <div className="h-12 w-12 rounded border bg-muted" />}<div className="min-w-0"><p className="truncate text-sm font-medium">{item.product_name || item.name || "Item"}</p>{orderItemVariantLabel(item) && <p className="mt-0.5 text-xs font-medium text-foreground">Option: {orderItemVariantLabel(item)}</p>}<p className="text-xs text-muted-foreground">Qty {Number(item.quantity || 1)} · {money(item.price, order.currency)}</p></div></div>
                       <p className="shrink-0 text-sm font-medium tabular-nums">{money(item.item_total ?? Number(item.price || 0) * Number(item.quantity || 1), order.currency)}</p>
                     </div>)}
                     {!order.order_items?.length && <p className="py-8 text-center text-sm text-muted-foreground">No item details were returned for this order.</p>}
