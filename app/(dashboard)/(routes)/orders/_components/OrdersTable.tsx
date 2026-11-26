@@ -1,713 +1,258 @@
 "use client";
 
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  ChevronLeft,
-  ChevronRight,
-  FilterIcon,
-  PlusIcon,
-  SearchIcon,
-} from "lucide-react";
-import { useState, useEffect } from "react";
-import { BsThreeDots } from "react-icons/bs";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import MarkIcon from "@/components/svgIcons/MarkIcon";
-import MessageIcon from "@/components/svgIcons/MessageIcon";
-import Cancelcon from "@/components/svgIcons/Cancelcon";
-import EyeIcon from "@/components/svgIcons/EyeIcon";
-import Allcon from "@/components/svgIcons/Allcon";
-import Pending from "@/components/svgIcons/Pending";
-import Processing from "@/components/svgIcons/Processing";
-import Shipped from "@/components/svgIcons/Shipped";
-import Fulfilled from "@/components/svgIcons/Fulfilled";
-import Cancelled from "@/components/svgIcons/Cancelled";
-import { CalendarIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
-import { Label } from "@/components/ui/label";
-import { useRouter } from "next/navigation";
-import CreateOrderModal from "./CreateOrderModal";
-import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { CalendarDays, Filter, MessageCircle, MonitorSmartphone, Search, ShoppingBag, X } from "lucide-react";
+import { ReportDownload } from "@/components/report-download";
+import { useStoreBusiness } from "@/components/store-business-context";
+import { isFoodBusinessType } from "@/lib/store";
 
-interface Order {
+type Order = {
   id: string;
   order_number: string;
   order_status: string;
-  order_total: number;
+  order_total: number | string;
   order_total_quantity: number;
   payment_status: string;
   payment_method: string;
+  sales_channel: "website" | "whatsapp" | "web_chat";
   customer_name: string;
-  customer_phone: string;
-  customer_email: string;
-  customer_address: string;
-  delivery_notee: string;
-  delivery_fee: number;
+  customer_phone?: string;
+  customer_email?: string;
   delivery_method: string;
-  order_items: Array<{
-    name: string;
-    price: number;
-    discount: number;
-    quantity: number;
-    product_id: string;
-    store_id: string;
-    product_name?: string;
-    product_image?: string;
-  }>;
+  delivery_fee?: number | string;
   created_at: string;
-  updated_at: string;
-}
+  order_items?: Array<{ name?: string; product_name?: string; quantity?: number }>;
+};
 
-interface ApiResponse {
+type Summary = {
+  total: number;
+  pending: number;
+  processing: number;
+  ready: number;
+  shipped: number;
+  delivered: number;
+  cancelled: number;
+  website: number;
+  whatsapp: number;
+  web_chat: number;
+};
+
+type OrdersResponse = {
   status: string;
-  message: string;
-  data: {
-    items: Order[];
-    total: number;
-    totalPages: number;
-  };
+  message?: string;
+  data?: { items: Order[]; total: number; totalPages: number; summary?: Summary };
+};
+
+const channels = [
+  { id: "all", label: "All channels", icon: ShoppingBag },
+  { id: "website", label: "Website", icon: ShoppingBag },
+  { id: "whatsapp", label: "WhatsApp AI", icon: MessageCircle },
+  { id: "web_chat", label: "Web chat", icon: MonitorSmartphone },
+] as const;
+
+const statuses = [
+  { id: "all", label: "All" },
+  { id: "pending", label: "Pending" },
+  { id: "processing", label: "Processing" },
+  { id: "ready", label: "Ready" },
+  { id: "shipped", label: "Shipped" },
+  { id: "delivered", label: "Delivered" },
+  { id: "cancelled", label: "Cancelled" },
+] as const;
+
+const emptySummary: Summary = {
+  total: 0, pending: 0, processing: 0, ready: 0, shipped: 0,
+  delivered: 0, cancelled: 0, website: 0, whatsapp: 0, web_chat: 0,
+};
+
+function money(value: number | string) {
+  return `NGN ${Number(value || 0).toLocaleString("en-NG", { maximumFractionDigits: 2 })}`;
 }
 
-export default function OrderTable() {
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 6;
-  const [searchTerm, setSearchTerm] = useState("");
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState("all");
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [filterDateRange, setFilterDateRange] = useState<{
-    from: Date | undefined;
-    to: Date | undefined;
-  }>({ from: undefined, to: undefined });
-  const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>("all");
-  const [filterDeliveryPartner, setFilterDeliveryPartner] =
-    useState<string>("all");
-  const [filterEscrow, setFilterEscrow] = useState<string>("all");
-  const [isLoading, setIsLoading] = useState(true);
-  const [totalCount, setTotalCount] = useState(0);
+function channelLabel(channel: Order["sales_channel"]) {
+  if (channel === "whatsapp") return "WhatsApp AI";
+  if (channel === "web_chat") return "Web chat";
+  return "Website";
+}
+
+function statusTone(status: string) {
+  switch (status.toLowerCase()) {
+    case "delivered": return "border-green-200 bg-green-50 text-green-800";
+    case "cancelled": return "border-red-200 bg-red-50 text-red-800";
+    case "processing": case "ready": case "shipped": return "border-blue-200 bg-blue-50 text-blue-800";
+    default: return "border-amber-200 bg-amber-50 text-amber-800";
+  }
+}
+
+export default function OrdersTable() {
   const router = useRouter();
-  const [isCreateOrderModalOpen, setIsCreateOrderModalOpen] = useState(false);
-
-  // Fetch orders from API
-  const fetchOrders = async () => {
-    setIsLoading(true);
-    try {
-      const queryParams = new URLSearchParams({
-        page: currentPage.toString(),
-        pageSize: pageSize.toString(),
-      });
-  
-      // Add search if present
-      if (searchTerm) {
-        queryParams.append('search', searchTerm);
-        console.log('🔍 Search term:', searchTerm);
-      }
-  
-      // Handle status filter - activeTab takes precedence
-      const statusToUse = activeTab !== 'all' ? activeTab : (filterStatus !== 'all' ? filterStatus : '');
-      if (statusToUse) {
-        queryParams.append('status', statusToUse);
-        console.log('📊 Status filter:', statusToUse);
-      }
-  
-      // Add payment status filter
-      if (filterPaymentStatus && filterPaymentStatus !== 'all') {
-        queryParams.append('paymentStatus', filterPaymentStatus);
-        console.log('💳 Payment status filter:', filterPaymentStatus);
-      }
-  
-      // Add delivery method filter
-      if (filterDeliveryPartner && filterDeliveryPartner !== 'all') {
-        queryParams.append('deliveryMethod', filterDeliveryPartner);
-        console.log('🚚 Delivery method filter:', filterDeliveryPartner);
-      }
-  
-      // Add date range filters
-      if (filterDateRange.from) {
-        const startDate = filterDateRange.from.toISOString().split('T')[0];
-        queryParams.append('startDate', startDate);
-        console.log('📅 Start date:', startDate);
-      }
-      if (filterDateRange.to) {
-        const endDate = filterDateRange.to.toISOString().split('T')[0];
-        queryParams.append('endDate', endDate);
-        console.log('📅 End date:', endDate);
-      }
-  
-      console.log('🌐 Full API URL:', `/api/orders?${queryParams.toString()}`);
-  
-      const response = await fetch(`/api/orders?${queryParams}`);
-      const result: ApiResponse = await response.json();
-  
-      console.log("📦 Full API Response:", JSON.stringify(result, null, 2));
-  
-      if (result.status === "success") {
-        const ordersData = result.data.items || [];
-        setOrders(ordersData);
-        setTotalCount(result.data.total || 0);
-        console.log(`✅ Loaded ${ordersData.length} orders out of ${result.data.total} total`);
-      } else {
-        console.error('❌ API returned error:', result.message);
-        toast.error(result.message || "Failed to fetch orders");
-        setOrders([]);
-        setTotalCount(0);
-      }
-    } catch (error) {
-      console.error("❌ Error fetching orders:", error);
-      toast.error("Failed to load orders");
-      setOrders([]);
-      setTotalCount(0);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-useEffect(() => {
-  fetchOrders();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [
-  currentPage,
-  searchTerm,
-  activeTab,
-  filterStatus,
-  filterPaymentStatus,
-  filterDeliveryPartner, // <- ADD THIS
-  filterDateRange.from,
-  filterDateRange.to,
-]);
+  const { businessType } = useStoreBusiness();
+  const isFoodStore = isFoodBusinessType(businessType);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [summary, setSummary] = useState<Summary>(emptySummary);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [channel, setChannel] = useState<string>("all");
+  const [status, setStatus] = useState<string>("all");
+  const [paymentStatus, setPaymentStatus] = useState("all");
+  const [deliveryMethod, setDeliveryMethod] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    localStorage.setItem("filteredOrders", JSON.stringify(orders));
-  }, [orders]);
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 250);
+    return () => clearTimeout(timer);
+  }, [search]);
 
-  const totalPages = Math.ceil(totalCount / pageSize);
+  const fetchOrders = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    const params = new URLSearchParams({ page: String(page), pageSize: "20" });
+    if (debouncedSearch) params.set("search", debouncedSearch);
+    if (channel !== "all") params.set("sales_channel", channel);
+    if (status !== "all") params.set("order_status", status);
+    if (paymentStatus !== "all") params.set("payment_status", paymentStatus);
+    if (deliveryMethod !== "all") params.set("delivery_method", deliveryMethod);
+    if (dateFrom) params.set("date_from", new Date(`${dateFrom}T00:00:00`).toISOString());
+    if (dateTo) params.set("date_to", new Date(`${dateTo}T23:59:59.999`).toISOString());
 
-  const getPageNumbers = () => {
-    const pages = [];
-    if (totalPages <= 3) {
-      for (let i = 1; i <= totalPages; i++) pages.push(i);
-    } else {
-      pages.push(1);
-      if (currentPage > 3) pages.push("...");
-      else pages.push(2);
-      if (currentPage < totalPages - 1) pages.push("...");
-      pages.push(totalPages);
-    }
-    return pages;
-  };
-
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedOrders(orders.map((order) => order.id));
-    } else {
-      setSelectedOrders([]);
-    }
-  };
-
-  const handleSelectOrder = (orderId: string, checked: boolean) => {
-    if (checked) {
-      setSelectedOrders((prev) => [...prev, orderId]);
-    } else {
-      setSelectedOrders((prev) => prev.filter((id) => id !== orderId));
-    }
-  };
-
-  const getPaymentClass = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case "paid":
-        return "bg-[#53DC19]";
-      case "pending":
-        return "bg-[#FFB347]";
-      case "failed":
-        return "bg-[#E40101]";
-      default:
-        return "bg-gray-400";
-    }
-  };
-
-  const getDeliveryClass = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case "fulfilled":
-        return "bg-[#EFFFE9] text-[#065F46]";
-      case "pending":
-        return "bg-[#FFF5E8] text-[#9A3412]";
-      case "shipped":
-        return "bg-[#F9E4FF] text-[#86198F]";
-      case "processing":
-        return "bg-[#E6F6FF] text-[#075985]";
-      case "cancelled":
-        return "bg-[#FFEFEF] text-[#991B1B]";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleCreateOrder = (order: any) => {
-    console.log("Creating order:", order);
-    toast.success("Order created successfully");
-    fetchOrders(); // Refresh the orders list
-  };
-
-  const clearFilters = () => {
-    setFilterDateRange({ from: undefined, to: undefined });
-    setFilterStatus("all");
-    setFilterPaymentStatus("all");
-    setFilterDeliveryPartner("all");
-    setFilterEscrow("all");
-    setIsFilterOpen(false);
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setCurrentPage(1);
-    fetchOrders();
-  };
-
-  const handleUpdateOrderStatus = async (
-    orderId: string,
-    status: "ready" | "cancelled",
-  ) => {
     try {
-      const response = await fetch(`/api/orders/${orderId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ status }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        toast.error(result.message || `Failed to update order status`);
-        return;
+      const response = await fetch(`/api/orders?${params}`, { cache: "no-store" });
+      const result = await response.json() as OrdersResponse;
+      if (!response.ok || result.status !== "success" || !result.data) {
+        throw new Error(result.message || "Unable to load orders");
       }
-
-      toast.success(`Order marked as ${status}`);
-      fetchOrders(); // Refresh the orders list
-    } catch (error) {
-      console.error("Error updating order status:", error);
-      toast.error("Failed to update order status");
+      setOrders(Array.isArray(result.data.items) ? result.data.items : []);
+      setTotal(Number(result.data.total || 0));
+      setTotalPages(Number(result.data.totalPages || 0));
+      setSummary({ ...emptySummary, ...result.data.summary });
+    } catch (fetchError) {
+      setOrders([]);
+      setTotal(0);
+      setTotalPages(0);
+      setError(fetchError instanceof Error ? fetchError.message : "Unable to load orders");
+    } finally {
+      setLoading(false);
     }
+  }, [page, debouncedSearch, channel, status, paymentStatus, deliveryMethod, dateFrom, dateTo]);
+
+  useEffect(() => { void fetchOrders(); }, [fetchOrders]);
+
+  const resetFilters = () => {
+    setSearch("");
+    setChannel("all");
+    setStatus("all");
+    setPaymentStatus("all");
+    setDeliveryMethod("all");
+    setDateFrom("");
+    setDateTo("");
+    setPage(1);
   };
+
+  const metrics = [
+    { label: "Total orders", value: summary.total },
+    { label: "Pending", value: summary.pending },
+    { label: "Delivered", value: summary.delivered },
+    { label: "Cancelled", value: summary.cancelled },
+  ];
+  const deliveryMethods = [
+    { value: "vendor", label: "Vendor delivery" },
+    { value: "pickup", label: "Pickup" },
+    { value: "platform", label: "Platform delivery" },
+    { value: "gig", label: "GIG" },
+    { value: "sendbox", label: "Sendbox" },
+    ...(isFoodStore ? [{ value: "relay", label: "Relay" }] : []),
+  ];
 
   return (
-    <div className="w-full">
-      {/* Search and Filter Section */}
-      <div className="flex justify-between mb-4 space-x-4">
-        <form
-          onSubmit={handleSearch}
-          className="relative flex items-center pb-2"
-        >
-          <Input
-            type="text"
-            placeholder="Search by Order ID/Customer..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full sm:w-64 md:w-84 pr-8 py-2 text-xs sm:text-sm dark:bg-background rounded-lg border-[#F5F5F5] dark:border-[#1F1F1F]"
-          />
-          <SearchIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        </form>
-        <div className="flex space-x-2">
-          <Button
-            variant="outline"
-            className="border-[#F5F5F5] dark:border-[#1F1F1F] dark:bg-background"
-            onClick={() => {
-              setIsFilterOpen(!isFilterOpen);
-              if (isFilterOpen) clearFilters();
-            }}
-          >
-            <FilterIcon />
-            <span className="hidden sm:inline ml-2">
-              {isFilterOpen ? "Clear Filter" : "Filter"}
-            </span>
-          </Button>
-          <Button
-            variant="outline"
-            className="border-primary text-primary dark:bg-background"
-            onClick={() => setIsCreateOrderModalOpen(true)}
-            disabled
-          >
-            <PlusIcon className="text-primary" />
-            <span className="hidden sm:inline ml-2">Add Order</span>
-          </Button>
+    <div className="space-y-5">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {metrics.map((metric) => <div key={metric.label} className="rounded-md border p-4">
+          <p className="text-xs text-muted-foreground">{metric.label}</p>
+          {loading && total === 0 ? <Skeleton className="mt-2 h-7 w-16" /> : <p className="mt-2 text-xl font-semibold tabular-nums">{metric.value.toLocaleString()}</p>}
+        </div>)}
+      </div>
+
+      <div className="flex flex-wrap gap-2 border-b">
+        {channels.map(({ id, label, icon: Icon }) => {
+          const count = id === "website" ? summary.website : id === "whatsapp" ? summary.whatsapp : id === "web_chat" ? summary.web_chat : summary.total;
+          return <Button key={id} variant="ghost" onClick={() => { setChannel(id); setPage(1); }} className={`h-10 shrink-0 rounded-none border-b-2 px-3 text-xs ${channel === id ? "border-primary text-foreground" : "border-transparent text-muted-foreground"}`}>
+            <Icon className="mr-2 h-4 w-4" />{label}<span className="ml-2 tabular-nums">{count}</span>
+          </Button>;
+        })}
+      </div>
+
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="relative w-full max-w-sm">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Search order number or customer" className="pl-9 pr-9" />
+          {search && <Button aria-label="Clear search" title="Clear search" variant="ghost" size="icon" className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2" onClick={() => setSearch("")}><X className="h-4 w-4" /></Button>}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground">{total.toLocaleString()} orders</span>
+          <ReportDownload endpoint="/api/exports/orders" filename="swiftree-orders" compact />
+          <Button variant="outline" onClick={() => setShowFilters((current) => !current)}><Filter className="mr-2 h-4 w-4" />Filters</Button>
         </div>
       </div>
 
-      {isFilterOpen && (
-        <div className="mb-4 p-4 bg-white dark:bg-[#1F1F1F] rounded-lg border border-[#F5F5F5] dark:border-[#2D2D2D]">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="dateFilter">Filter by Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      (!filterDateRange.from || !filterDateRange.to) &&
-                      "text-muted-foreground",
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {filterDateRange.from && filterDateRange.to ? (
-                      `${format(filterDateRange.from, "dd-MM-yyyy")} to ${format(filterDateRange.to, "dd-MM-yyyy")}`
-                    ) : (
-                      <span>Pick a date range</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="range"
-                    selected={{
-                      from: filterDateRange.from,
-                      to: filterDateRange.to,
-                    }}
-                    onSelect={(range) =>
-                      setFilterDateRange({ from: range?.from, to: range?.to })
-                    }
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="statusFilter">Status</Label>
-              <Select onValueChange={setFilterStatus} value={filterStatus}>
-                <SelectTrigger className="w-full dark:bg-background">
-                  <SelectValue placeholder="All statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="processing">Processing</SelectItem>
-                  <SelectItem value="shipped">Shipped</SelectItem>
-                  <SelectItem value="fulfilled">Fulfilled</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="paymentFilter">Payment Status</Label>
-              <Select
-                onValueChange={setFilterPaymentStatus}
-                value={filterPaymentStatus}
-              >
-                <SelectTrigger className="w-full dark:bg-background">
-                  <SelectValue placeholder="All payment statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="paid">Paid</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="failed">Failed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="deliveryFilter">Delivery Method</Label>
-              <Select
-                onValueChange={setFilterDeliveryPartner}
-                value={filterDeliveryPartner}
-              >
-                <SelectTrigger className="w-full dark:bg-background">
-                  <SelectValue placeholder="All methods" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="pickup">Pickup</SelectItem>
-                  <SelectItem value="sendbox">Sendbox</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="escrowFilter">Escrow</Label>
-              <Select onValueChange={setFilterEscrow} value={filterEscrow}>
-                <SelectTrigger className="w-full dark:bg-background">
-                  <SelectValue placeholder="All escrow statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="held">Held</SelectItem>
-                  <SelectItem value="released">Released</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="flex justify-end mt-4">
-            <Button onClick={clearFilters} variant="outline" size="sm">
-              Clear All Filters
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Filter Tabs */}
-      <div className="flex space-x-2 mb-4 px-2 pb-4 overflow-x-auto">
-        {[
-          { key: "all", label: "All", icon: <Allcon /> },
-          { key: "pending", label: "Pending", icon: <Pending /> },
-          { key: "processing", label: "Processing", icon: <Processing /> },
-          { key: "shipped", label: "Shipped", icon: <Shipped /> },
-          { key: "fulfilled", label: "Fulfilled", icon: <Fulfilled /> },
-          { key: "cancelled", label: "Cancelled", icon: <Cancelled /> },
-        ].map((tab) => (
-          <Button
-            key={tab.key}
-            variant="ghost"
-            className={`px-4 rounded-none text-[#A0A0A0] whitespace-nowrap ${activeTab === tab.key
-                ? "border-b-2 border-primary text-black dark:text-white"
-                : ""
-              }`}
-            onClick={() => {
-              setActiveTab(tab.key);
-              setCurrentPage(1);
-            }}
-          >
-            {tab.icon}
-            <span className="hidden sm:inline ml-2">{tab.label}</span>
-          </Button>
-        ))}
-      </div>
+      {showFilters && <div className="grid gap-3 rounded-md border p-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Select value={status} onValueChange={(value) => { setStatus(value); setPage(1); }}>
+          <SelectTrigger><SelectValue placeholder="Order status" /></SelectTrigger><SelectContent>{statuses.map((item) => <SelectItem key={item.id} value={item.id}>{item.id === "all" ? "All order statuses" : item.label}</SelectItem>)}</SelectContent>
+        </Select>
+        <Select value={paymentStatus} onValueChange={(value) => { setPaymentStatus(value); setPage(1); }}>
+          <SelectTrigger><SelectValue placeholder="Payment status" /></SelectTrigger><SelectContent>
+            <SelectItem value="all">All payment statuses</SelectItem><SelectItem value="completed">Paid</SelectItem><SelectItem value="pending">Pending</SelectItem><SelectItem value="failed">Failed</SelectItem><SelectItem value="refunded">Refunded</SelectItem><SelectItem value="free">Fully covered</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={deliveryMethod} onValueChange={(value) => { setDeliveryMethod(value); setPage(1); }}>
+          <SelectTrigger><SelectValue placeholder="Delivery method" /></SelectTrigger><SelectContent>
+            <SelectItem value="all">All delivery methods</SelectItem>{deliveryMethods.map((method) => <SelectItem key={method.value} value={method.value}>{method.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <div className="flex items-center gap-2"><CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" /><Input aria-label="From date" type="date" value={dateFrom} onChange={(event) => { setDateFrom(event.target.value); setPage(1); }} /><Input aria-label="To date" type="date" value={dateTo} onChange={(event) => { setDateTo(event.target.value); setPage(1); }} /></div>
+        <Button type="button" variant="ghost" className="sm:col-span-2 xl:col-span-4 sm:justify-self-end" onClick={resetFilters}>Clear filters</Button>
+      </div>}
 
       <div className="rounded-md border">
         <Table>
-          <TableHeader className="bg-[#F5F5F5] dark:bg-background">
-            <TableRow>
-              <TableHead className="w-[50px]">
-                <Checkbox
-                  checked={
-                    selectedOrders.length === orders.length && orders.length > 0
-                  }
-                  onCheckedChange={handleSelectAll}
-                />
-              </TableHead>
-              <TableHead className="font-semibold text-[#A0A0A0] text-sm">
-                Order ID
-              </TableHead>
-              <TableHead className="font-semibold text-[#A0A0A0] text-sm">
-                Date
-              </TableHead>
-              <TableHead className="font-semibold text-[#A0A0A0] text-sm">
-                Customer Name
-              </TableHead>
-              <TableHead className="font-semibold text-[#A0A0A0] text-sm">
-                Payment
-              </TableHead>
-              <TableHead className="font-semibold text-[#A0A0A0] text-sm">
-                Total
-              </TableHead>
-              <TableHead className="font-semibold text-[#A0A0A0] text-sm">
-                Items
-              </TableHead>
-              <TableHead className="font-semibold text-[#A0A0A0] text-sm">
-                Status
-              </TableHead>
-              <TableHead className="font-semibold text-[#A0A0A0] text-sm">
-                Actions
-              </TableHead>
-            </TableRow>
-          </TableHeader>
+          <TableHeader><TableRow>
+            <TableHead>Order</TableHead><TableHead>Customer</TableHead><TableHead>Items</TableHead><TableHead>Channel</TableHead><TableHead>Date</TableHead><TableHead>Payment</TableHead><TableHead>Delivery</TableHead><TableHead className="text-right">Total</TableHead><TableHead>Status</TableHead>
+          </TableRow></TableHeader>
           <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={9} className="text-center py-8">
-                  <div className="flex justify-center items-center">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-                    <span className="ml-2">Loading orders...</span>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : orders.length > 0 ? (
-              orders.map((order) => (
-                <TableRow
-                  key={order.id}
-                  className="hover:bg-gray-50 dark:hover:bg-gray-900"
-                >
-                  <TableCell className="py-4">
-                    <Checkbox
-                      checked={selectedOrders.includes(order.id)}
-                      onCheckedChange={(checked) =>
-                        handleSelectOrder(order.id, checked as boolean)
-                      }
-                    />
-                  </TableCell>
-                  <TableCell
-                    className="text-primary underline cursor-pointer"
-                    onClick={() => {
-                      localStorage.setItem(
-                        "selectedOrder",
-                        JSON.stringify(order),
-                      );
-                      router.push(`/orders/${order.id}`);
-                    }}
-                  >
-                    {order.order_number}
-                  </TableCell>
-                  <TableCell>
-                    {format(new Date(order.created_at), "dd/MM/yyyy")}
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {order.customer_name}
-                  </TableCell>
-                  <TableCell>
-                    <span className="flex items-center">
-                      <span
-                        className={`w-2 h-2 rounded-full mr-2 ${getPaymentClass(order.payment_status)}`}
-                      ></span>
-                      <span className="capitalize">{order.payment_status}</span>
-                    </span>
-                  </TableCell>
-                  <TableCell className="font-semibold">
-                    ₦{(order.order_total)}
-                  </TableCell>
-                  <TableCell>{order.order_total_quantity}</TableCell>
-                  <TableCell>
-                    <span
-                      className={`flex items-center px-3 py-1 rounded-full text-xs font-medium ${getDeliveryClass(order.order_status)}`}
-                    >
-                      <span
-                        className={`w-2 h-2 rounded-full mr-2 ${getPaymentClass(order.order_status)}`}
-                      ></span>
-                      <span className="capitalize">{order.order_status}</span>
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <BsThreeDots className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => {
-                            localStorage.setItem(
-                              "selectedOrder",
-                              JSON.stringify(order),
-                            );
-                            router.push(`/orders/${order.id}`);
-                          }}
-                        >
-                          <EyeIcon className="mr-2 h-4 w-4" />
-                          View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() =>
-                            handleUpdateOrderStatus(order.id, "ready")
-                          }
-                        >
-                          <MarkIcon className="mr-2 h-4 w-4" />
-                          Mark as Ready
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <MessageIcon className="mr-2 h-4 w-4" />
-                          Message Customer
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-[#E40101]"
-                          onClick={() =>
-                            handleUpdateOrderStatus(order.id, "cancelled")
-                          }
-                        >
-                          <Cancelcon className="mr-2 h-4 w-4" />
-                          Cancel Order
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={9}
-                  className="text-center py-8 text-muted-foreground"
-                >
-                  No orders found
-                </TableCell>
-              </TableRow>
-            )}
+            {loading ? Array.from({ length: 6 }).map((_, index) => <TableRow key={`skeleton-${index}`}>{Array.from({ length: 9 }).map((__, cell) => <TableCell key={cell}><Skeleton className="h-4 w-20" /></TableCell>)}</TableRow>)
+              : error ? <TableRow><TableCell colSpan={9} className="h-40 text-center"><p className="text-sm font-medium">Orders could not be loaded</p><p className="mt-1 text-xs text-muted-foreground">{error}</p><Button className="mt-3" variant="outline" size="sm" onClick={() => void fetchOrders()}>Retry</Button></TableCell></TableRow>
+              : orders.length === 0 ? <TableRow><TableCell colSpan={9} className="h-40 text-center"><p className="text-sm font-medium">{total === 0 && channel === "all" && status === "all" && !search ? "No orders yet" : "No matching orders"}</p><p className="mt-1 text-xs text-muted-foreground">{total === 0 && channel === "all" && status === "all" && !search ? "Completed sales from your store channels will appear here." : "Try changing or clearing the selected filters."}</p></TableCell></TableRow>
+              : orders.map((order) => <TableRow key={order.id} role="link" tabIndex={0} className="cursor-pointer" onClick={() => router.push(`/orders/${order.id}`)} onKeyDown={(event) => { if (event.key === "Enter") router.push(`/orders/${order.id}`); }}>
+                <TableCell><span className="font-medium">{order.order_number}</span></TableCell>
+                <TableCell><div className="max-w-48 truncate font-medium">{order.customer_name || "Customer"}</div><div className="text-xs text-muted-foreground">{order.customer_phone || order.customer_email || ""}</div></TableCell>
+                <TableCell>{Number(order.order_total_quantity || 0)} items</TableCell>
+                <TableCell>{channelLabel(order.sales_channel || "website")}</TableCell>
+                <TableCell>{new Date(order.created_at).toLocaleDateString()}</TableCell>
+                <TableCell><span className="capitalize">{order.payment_status === "completed" ? "Paid" : order.payment_status}</span></TableCell>
+                <TableCell className="capitalize">{order.delivery_method === "platform" ? "Platform" : order.delivery_method}</TableCell>
+                <TableCell className="text-right font-medium tabular-nums">{money(order.order_total)}</TableCell>
+                <TableCell><Badge variant="outline" className={`capitalize ${statusTone(order.order_status)}`}>{order.order_status}</Badge></TableCell>
+              </TableRow>)}
           </TableBody>
         </Table>
+        <div className="flex flex-col gap-2 border-t px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-muted-foreground">Page {totalPages === 0 ? 0 : page} of {totalPages}</p>
+          <div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page <= 1 || loading}>Previous</Button><Button size="sm" variant="outline" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page >= totalPages || loading}>Next</Button></div>
+        </div>
       </div>
-
-      {/* Pagination */}
-      <div className="flex justify-center mt-4 space-x-2">
-        <span className="text-sm">
-          {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount}`}
-        </span>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-          disabled={currentPage === 1}
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        {getPageNumbers().map((page, index) => (
-          <span key={index}>
-            {page === "..." ? (
-              <span className="px-2 text-sm">...</span>
-            ) : (
-              <Button
-                variant={currentPage === page ? "default" : "outline"}
-                size="sm"
-                onClick={() => setCurrentPage(Number(page))}
-                disabled={page === "..." || page === currentPage}
-              >
-                {Number(page)}
-              </Button>
-            )}
-          </span>
-        ))}
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-          disabled={currentPage >= totalPages}
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
-
-      <CreateOrderModal
-        isOpen={isCreateOrderModalOpen}
-        onClose={() => setIsCreateOrderModalOpen(false)}
-        onCreateOrder={handleCreateOrder}
-      />
     </div>
   );
 }

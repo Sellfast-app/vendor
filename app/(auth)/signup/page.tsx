@@ -6,20 +6,32 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
-import { useState } from 'react';
-import { Eye, EyeOff, ChevronDown, ArrowLeft, Download, Copy, Mail, RefreshCw } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Eye, EyeOff, ArrowLeft, Download, Copy, Mail, RefreshCw, UserCircle, Briefcase, CreditCard, MessageSquare, CheckCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Label } from '@radix-ui/react-label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import Logo from '@/components/svgIcons/Logo';
 import { FaArrowRightLong } from 'react-icons/fa6';
-import AccountIcon from '@/components/svgIcons/AccountIcon';
-import { LuBriefcaseBusiness } from 'react-icons/lu';
-import { PiPlugs } from 'react-icons/pi';
 import StoreFrontIcon from '@/components/svgIcons/StoreFrontIcon';
 import { ThemeName, themes } from '@/lib/themes';
 import Image from 'next/image';
+import {
+  V2BusinessType,
+  V2Country,
+  V2BillingInterval,
+  V2PlanModel,
+  V2SubscriptionPricing,
+  V2_BUSINESS_TYPE_INFO,
+  V2_COUNTRIES,
+  V2_COUNTRY_INFO,
+  v2SelectionToMetadata,
+} from '@/lib/v2';
+import V2BusinessTypeStep, {
+  isV2BusinessTypeStepValid,
+} from './_components/V2BusinessTypeStep';
+import V2PlanStep, { isV2PlanStepValid } from './_components/V2PlanStep';
 
 // Updated TypeScript interfaces to match API documentation
 interface UserDetails {
@@ -39,6 +51,13 @@ interface BrandColor {
 interface BusinessMetadata {
   brand_color: BrandColor;
   whatsapp_phone_number?: string;
+  /** V2 onboarding selection (vertical, country, plan model). */
+  v2?: {
+    business_type: string;
+    country: string;
+    plan_model: string;
+    billing_interval?: string;
+  };
 }
 
 interface BusinessDetails {
@@ -92,57 +111,81 @@ async function readApiResponse(response: Response) {
 // Step indicator component
 const StepIndicator = ({ currentStep }: { currentStep: number }) => {
   const steps = [
-    { number: 1, title: 'Account', icon: <AccountIcon /> },
-    { number: 2, title: 'Business Info', icon: <LuBriefcaseBusiness /> },
-    { number: 3, title: 'WhatsApp Setup', icon: <PiPlugs /> },
+    { number: 1, title: 'Account', icon: <UserCircle className="h-5 w-5" /> },
+    { number: 2, title: 'Business', icon: <Briefcase className="h-5 w-5" /> },
+    { number: 3, title: 'Plan', icon: <CreditCard className="h-5 w-5" /> },
+    { number: 4, title: 'WhatsApp', icon: <MessageSquare className="h-5 w-5" /> },
   ];
+  const currentStepInfo = steps.find((step) => step.number === currentStep) ?? steps[0];
+  const nextStepInfo = steps.find((step) => step.number === currentStep + 1);
 
   return (
-    <div className="flex items-center justify-center mb-8 space-x-4">
-      {steps.map((step, index) => (
-        <div key={step.number} className="flex items-center px-5 md:px-0">
-          <div
-            className={`flex items-center justify-center w-12 h-12 mr-6 md:mr-0 rounded-full transition-all duration-200 ${
-              step.number === currentStep
-                ? 'bg-primary border-primary text-primary-foreground'
-                : step.number < currentStep
-                ? 'bg-primary border-primary text-primary-foreground'
-                : 'bg-primary-tertiary text-gray-400'
-            }`}
-          >
-            <span
-              className={`text-sm font-medium ${
-                step.number <= currentStep ? 'text-primary-foreground' : 'text-foreground'
-              }`}
-            >
-              {step.icon}
+    <div className="mb-6 w-full">
+      <div className="md:hidden">
+        <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
+          <span>Step {currentStep} of {steps.length}</span>
+          <span className="font-medium text-foreground">{currentStepInfo.title}</span>
+        </div>
+        <div className="grid grid-cols-[minmax(0,1fr)_24px_minmax(0,1fr)] items-start gap-2">
+          <div className="flex flex-col items-start">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+              {currentStepInfo.icon}
+            </div>
+            <span className="mt-1.5 max-w-full truncate text-xs font-medium text-foreground">
+              {currentStepInfo.title}
             </span>
           </div>
-          <div className="hidden sm:inline ml-3 text-left">
-            <p
-              className={`text-sm font-medium ${
-                step.number <= currentStep ? 'text-foreground' : 'text-gray-400'
-              }`}
-            >
-              <span className=" ml-2">{step.title}</span> 
-            </p>
+          <div className="pt-3">
+            <div className="h-0.5 w-full rounded-full bg-primary/20" />
           </div>
-          {index < steps.length - 1 && (
-            <ChevronDown className="w-4 h-4 mx-1 sm:mx-4 transform rotate-[-90deg]" />
-          )}
+          <div className="flex flex-col items-end">
+            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+              nextStepInfo ? 'bg-primary-tertiary text-gray-400' : 'bg-primary/10 text-primary'
+            }`}>
+              {nextStepInfo ? nextStepInfo.icon : <CheckCircle className="h-4 w-4 text-primary" />}
+            </div>
+            <span className={`mt-1.5 max-w-full truncate text-right text-xs font-medium ${
+              nextStepInfo ? 'text-gray-400' : 'text-primary'
+            }`}>
+              {nextStepInfo ? nextStepInfo.title : 'Complete'}
+            </span>
+          </div>
         </div>
-      ))}
+      </div>
+      <div className="hidden w-full items-start md:flex">
+        {steps.map((step, index) => {
+          const isDone = step.number < currentStep;
+          const isActive = step.number === currentStep;
+          const isReached = step.number <= currentStep;
+          return (
+            <div key={step.number} className="flex min-w-0 flex-1 items-start last:flex-none">
+              <div className="flex min-w-0 flex-col items-center">
+                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all duration-200 ${
+                  isReached ? 'bg-primary text-primary-foreground' : 'bg-primary-tertiary text-gray-400'
+                }`}>
+                  {step.icon}
+                </div>
+                <span className={`mt-2 hidden text-xs font-medium leading-tight xl:block ${
+                  isReached ? 'text-foreground' : 'text-gray-400'
+                }`}>
+                  {step.title}
+                </span>
+              </div>
+              {index < steps.length - 1 && (
+                <div className="flex min-w-0 flex-1 items-center px-1 pt-[14px] sm:px-2 xl:pt-5">
+                  <div className={`h-0.5 w-full rounded-full ${isDone || isActive ? 'bg-primary' : 'bg-primary-tertiary'}`} />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
-
 // Country code selector component
 const CountryCodeSelect = ({ value, onValueChange }: { value: string; onValueChange: (value: string) => void }) => {
-  const countryCodes = [
-    { code: '+234', country: 'NG', flag: '🇳🇬' },
-    { code: '+1', country: 'US', flag: '🇺🇸' },
-    { code: '+44', country: 'GB', flag: '🇬🇧' }, 
-  ];
+  const countryCodes = V2_COUNTRIES.map((country) => V2_COUNTRY_INFO[country]);
 
   return (
     <Select value={value} onValueChange={onValueChange}>
@@ -151,9 +194,9 @@ const CountryCodeSelect = ({ value, onValueChange }: { value: string; onValueCha
       </SelectTrigger>
       <SelectContent>
         {countryCodes.map((country) => (
-          <SelectItem key={country.code} value={country.code}>
+          <SelectItem key={country.code} value={country.dialCode}>
             <span className="flex items-center gap-2">{country.flag}</span>
-            <span className="flex items-center gap-2">{country.code}</span>
+            <span className="flex items-center gap-2">{country.dialCode}</span>
           </SelectItem>
         ))}
       </SelectContent>
@@ -204,6 +247,18 @@ export default function MultiStepSignupPage() {
   const [otp, setOtp] = useState('');
   const router = useRouter();
 
+  // V2 onboarding selection
+  const [v2BusinessType, setV2BusinessType] = useState<V2BusinessType | null>(null);
+  const [v2Country, setV2Country] = useState<V2Country | null>(null);
+  const [v2PlanModel, setV2PlanModel] = useState<V2PlanModel | null>(null);
+  const [v2BillingInterval, setV2BillingInterval] = useState<V2BillingInterval>('quarterly');
+  const [subscriptionPricing, setSubscriptionPricing] = useState<V2SubscriptionPricing | null>(null);
+  const [subscriptionPricingLoading, setSubscriptionPricingLoading] = useState(false);
+  const [subscriptionPricingError, setSubscriptionPricingError] = useState<string | null>(null);
+  const selectedV2PlanModel: V2PlanModel | null = v2BusinessType === 'ticketing'
+    ? 'markup'
+    : v2PlanModel;
+
   // Updated form data state with metadata wrapper
   const [formData, setFormData] = useState<{ user_details: UserDetails; business_details: BusinessDetails; agreeToTerms: boolean; countryCode: string; colorScheme: ThemeName }>({
     user_details: {
@@ -230,6 +285,49 @@ export default function MultiStepSignupPage() {
     colorScheme: 'surge-green',
   });
 
+  useEffect(() => {
+    if (!v2Country) return;
+    setFormData((prev) => ({
+      ...prev,
+      countryCode: V2_COUNTRY_INFO[v2Country].dialCode,
+    }));
+  }, [v2Country]);
+
+  useEffect(() => {
+    if (!v2Country) {
+      setSubscriptionPricing(null);
+      setSubscriptionPricingError(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    const currency = V2_COUNTRY_INFO[v2Country].currency;
+    setSubscriptionPricingLoading(true);
+    setSubscriptionPricingError(null);
+
+    fetch(`/api/onboarding/pricing?currency=${encodeURIComponent(currency)}`, {
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok || result.status !== 'success') {
+          throw new Error(result.message || 'Unable to load subscription pricing');
+        }
+        setSubscriptionPricing(result.data ?? null);
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        setSubscriptionPricing(null);
+        setSubscriptionPricingError(error instanceof Error ? error.message : 'Unable to load subscription pricing');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setSubscriptionPricingLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [v2Country]);
+
   // UI state
   const [showPassword, setShowPassword] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
@@ -240,6 +338,26 @@ export default function MultiStepSignupPage() {
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
+  };
+
+  const handleV2BusinessTypeChange = (value: V2BusinessType) => {
+    setV2BusinessType(value);
+    setFormData((prev) => ({
+      ...prev,
+      business_details: {
+        ...prev.business_details,
+        type: value,
+      },
+    }));
+
+    if (value === 'ticketing') {
+      setV2PlanModel('markup');
+      return;
+    }
+  };
+
+  const handleV2PlanModelChange = (value: V2PlanModel) => {
+    setV2PlanModel(value);
   };
 
   const validateStep = (step: number) => {
@@ -271,12 +389,18 @@ export default function MultiStepSignupPage() {
         }
         return true;
       case 2:
-        if (!formData.business_details.store_name.trim()) {
-          toast.error('Business name is required');
+        if (!isV2BusinessTypeStepValid(v2BusinessType, v2Country)) {
+          if (!v2BusinessType) {
+            toast.error('Please select your business type');
+          } else {
+            toast.error('Please select the country your business operates in');
+          }
           return false;
         }
-        if (!formData.business_details.type) {
-          toast.error('Please select a business type');
+        return true;
+      case 3:
+        if (!formData.business_details.store_name.trim()) {
+          toast.error('Business name is required');
           return false;
         }
         if (!formData.business_details.description?.trim()) {
@@ -284,7 +408,23 @@ export default function MultiStepSignupPage() {
           return false;
         }
         return true;
-      case 3:
+      case 4:
+        if (!isV2PlanStepValid(v2BusinessType ?? 'retail', selectedV2PlanModel)) {
+          if (!selectedV2PlanModel) {
+            toast.error('Please choose how you want to pay for Swiftree');
+          } else {
+            toast.error('Please select a subscription plan');
+          }
+          return false;
+        }
+        if (selectedV2PlanModel === 'subscription' && !subscriptionPricing?.payment_ready) {
+          toast.error(subscriptionPricingError || (subscriptionPricing
+            ? 'Subscription checkout is not ready for this currency'
+            : 'Subscription pricing is not configured for this currency'));
+          return false;
+        }
+        return true;
+      case 5:
         if (!formData.user_details.phone_number.trim()) {
           toast.error('WhatsApp business number is required');
           return false;
@@ -461,7 +601,7 @@ export default function MultiStepSignupPage() {
   };
 
   const handleSubmit = async () => {
-    if (!validateStep(3)) return;
+    if (!validateStep(5)) return;
   
     setIsLoading(true);
   
@@ -470,14 +610,37 @@ export default function MultiStepSignupPage() {
       const payload: OnboardCreateRequest = {
         business_details: {
           ...formData.business_details,
+          type: v2BusinessType ?? formData.business_details.type,
           metadata: {
             ...formData.business_details.metadata,
             whatsapp_phone_number: phone_number,
+            ...(v2BusinessType && v2Country
+              ? v2SelectionToMetadata({
+                  businessType: v2BusinessType,
+                  country: v2Country,
+                  planModel: selectedV2PlanModel ?? 'subscription',
+                  ...(selectedV2PlanModel === 'subscription' ? { billingInterval: v2BillingInterval } : {}),
+                })
+              : {}),
           },
         },
       };
-  
-  
+
+      if (selectedV2PlanModel === 'subscription') {
+        sessionStorage.setItem('v2_subscription_signup_payload', JSON.stringify(payload));
+        const paymentResponse = await fetch('/api/auth/onboard/subscription/initialize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const paymentResult = await readApiResponse(paymentResponse);
+        if (!paymentResponse.ok || !paymentResult.success || !paymentResult.data?.authorization_url) {
+          throw new Error(paymentResult.message || 'Unable to start subscription payment');
+        }
+        window.location.assign(paymentResult.data.authorization_url);
+        return;
+      }
+
       const response = await fetch('/api/auth/onboard/create', {
         method: 'POST',
         headers: {
@@ -536,20 +699,6 @@ export default function MultiStepSignupPage() {
   const togglePasswordVisibility = () => {
     setShowPassword((prev) => !prev);
   };
-
-  const businessTypes = [
-    'Fashion',
-    'Restaurant/Food Service',
-    'Retail Store',
-    'E-commerce',
-    'Professional Services',
-    'Health & Beauty',
-    'Technology',
-    'Education',
-    'Real Estate',
-    'Electronics',
-    'Other',
-  ];
 
   // Step 1 - Account Creation
   const renderStep1 = () => (
@@ -797,23 +946,20 @@ export default function MultiStepSignupPage() {
         </div>
         <div className="space-y-2">
           <Label htmlFor="businessType" className="text-sm font-medium">
-            Business Type <span className="text-destructive">*</span>
+            Business Type
           </Label>
-          <Select
-            value={formData.business_details.type}
-            onValueChange={(value) => handleInputChange('business_details', value, 'type')}
-          >
-            <SelectTrigger className="w-full h-11 bg-muted border-0 rounded-lg">
-              <SelectValue placeholder="Select your business type" />
-            </SelectTrigger>
-            <SelectContent>
-              {businessTypes.map((type) => (
-                <SelectItem key={type} value={type}>
-                  {type}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Input
+            id="businessType"
+            type="text"
+            readOnly
+            value={
+              v2BusinessType ? V2_BUSINESS_TYPE_INFO[v2BusinessType].label : ''
+            }
+            className="w-full h-11 bg-muted border-0 rounded-lg"
+          />
+          <p className="text-xs text-muted-foreground">
+            Chosen in the previous step — it shapes your dashboard and storefront.
+          </p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="businessDescription" className="text-sm font-medium">
@@ -909,9 +1055,32 @@ export default function MultiStepSignupPage() {
           disabled={isLoading}
           className="w-[67%] py-2 rounded-lg transition-colors duration-200"
         >
-          {isLoading ? 'Creating Storefront...' : 'Create Storefront'}
+          {isLoading
+            ? (selectedV2PlanModel === 'subscription' ? 'Starting payment...' : 'Creating Storefront...')
+            : (selectedV2PlanModel === 'subscription' ? 'Continue to payment' : 'Create Storefront')}
         </Button>
       </div>
+    </div>
+  );
+
+  const renderWizardActions = () => (
+    <div className="flex space-x-4 pt-2">
+      <Button
+        type="button"
+        variant="outline"
+        onClick={handleBack}
+        className="w-[30%] py-2 rounded-lg transition-colors duration-200"
+      >
+        <ArrowLeft className="w-4 h-4 mr-2" />
+        Back
+      </Button>
+      <Button
+        type="button"
+        onClick={handleNext}
+        className="w-[67%] py-2 rounded-lg transition-colors duration-200"
+      >
+        Next <FaArrowRightLong />
+      </Button>
     </div>
   );
 
@@ -1031,8 +1200,37 @@ export default function MultiStepSignupPage() {
         }
         return renderStep1();
       case 2:
-        return renderStep2();
+        return (
+          <div className="space-y-6">
+            <V2BusinessTypeStep
+              businessType={v2BusinessType}
+              country={v2Country}
+              onBusinessTypeChange={handleV2BusinessTypeChange}
+              onCountryChange={setV2Country}
+            />
+            {renderWizardActions()}
+          </div>
+        );
       case 3:
+        return renderStep2();
+      case 4:
+        return (
+          <div className="space-y-6">
+            <V2PlanStep
+              businessType={v2BusinessType ?? 'retail'}
+              currency={V2_COUNTRY_INFO[v2Country ?? 'NG'].currency}
+              planModel={v2PlanModel}
+              billingInterval={v2BillingInterval}
+              subscriptionPricing={subscriptionPricing}
+              pricingLoading={subscriptionPricingLoading}
+              pricingError={subscriptionPricingError}
+              onPlanModelChange={handleV2PlanModelChange}
+              onBillingIntervalChange={setV2BillingInterval}
+            />
+            {renderWizardActions()}
+          </div>
+        );
+      case 5:
         return renderStep3();
       default:
         return renderStep1();
@@ -1040,12 +1238,8 @@ export default function MultiStepSignupPage() {
   };
 
   return (
-    <div className="w-full max-w-lg space-y-6">
-      {!isSuccess && (
-        <div className="absolute top-6">
-          <StepIndicator currentStep={currentStep} />
-        </div>
-      )}
+    <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-xl flex-col space-y-5 overflow-y-auto px-1 py-2 sm:max-h-[calc(100vh-3rem)]">
+      {!isSuccess && <StepIndicator currentStep={currentStep} />}
       {!isSuccess && <Logo />}
       {renderCurrentStep()}
       {!isSuccess && (

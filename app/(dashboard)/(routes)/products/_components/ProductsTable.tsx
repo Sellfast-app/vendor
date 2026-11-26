@@ -3,7 +3,7 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronLeft, ChevronRight, FilterIcon, PlusIcon, SearchIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, FilterIcon, Percent, PlusIcon, SearchIcon } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { BsThreeDots } from "react-icons/bs";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,10 +11,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import EyeIcon from "@/components/svgIcons/EyeIcon";
 import AddProductModal from "./AddProductModal";
 import EditIcon from "@/components/svgIcons/EditIcon";
-import ArchiveIcon from "@/components/svgIcons/ArchiveIcon";
 import DeleteIcon from "@/components/svgIcons/DeleteIcon";
 import ActionModal from "@/components/ActionModal";
-import ArchiveIcon2 from "@/components/svgIcons/ArchiveIcon2";
 import DeleteIcon2 from "@/components/svgIcons/DeleteIcon2";
 import Image from "next/image";
 import { CalendarIcon } from "lucide-react";
@@ -32,17 +30,25 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
+import { endOfDay, format, startOfDay } from "date-fns";
 import { Label } from "@/components/ui/label";
 import ProductDetailsModal from "./ProductDetailsModal";
 import Loading from "@/components/Loading";
 import { toast } from "sonner";
+import { formatStoreCurrency } from "@/lib/v2-currency";
+import { StoreDiscountDialog } from "./StoreDiscountDialog";
+
+interface ProductsTableProps {
+  currency?: string;
+  isAddModalOpen?: boolean;
+  onAddModalOpenChange?: (open: boolean) => void;
+  canManageProducts?: boolean;
+}
 
 interface Product {
   id: string;
   store_id: string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any 
-  variants: any[];
+  variants: Array<{ id?: string; name?: string; size?: string | number; color?: string; sku?: string; price?: number | string | null; quantity?: number | string; image?: string; image_url?: string; image_file_index?: number }>;
   created_at: string;
   updated_at: string;
   product_sku: string;
@@ -55,6 +61,23 @@ interface Product {
   product_quantity: number;
   est_prod_days_from: number;
   product_description: string;
+  effective_discount_type?: "fixed" | "percentage" | null;
+  effective_discount_mode?: "amount_off" | "sale_price" | null;
+  effective_discount_value?: number | null;
+  discount_amount?: number;
+  discounted_product_price?: number;
+  short_description?: string | null;
+  discount_type?: "fixed" | "percentage" | null;
+  discount_mode?: "amount_off" | "sale_price" | null;
+  discount_value?: number | string | null;
+  product_weight?: number | string;
+  product_unit?: string | null;
+  barcode?: string | null;
+  collection_name?: string | null;
+  size_chart_url?: string | null;
+  min_order_quantity?: number | null;
+  max_order_quantity?: number | null;
+  store_location?: string | null;
 }
 
 interface ApiResponse {
@@ -78,7 +101,26 @@ interface FrontendProduct {
   status: string;
   createdAt: string;
   thumbnail: string | string[];
-  variants?: { id: string; size: string | number; color: string; price: number; quantity: number }[];
+  variants?: { id: string; name?: string; size: string | number; color: string; sku?: string; price: number | null; quantity: number; image?: string }[];
+  bundleItems?: { productId: string; productName: string; sku: string; quantity: number }[];
+  product_type?: string;
+  productType?: string;
+  shortDescription?: string;
+  discountType?: "fixed" | "percentage" | null;
+  discountMode?: "amount_off" | "sale_price" | null;
+  discountValue?: number | null;
+  discountAmount?: number;
+  discountedPrice?: number;
+  unit?: string;
+  barcode?: string;
+  collection?: string;
+  sizeChartUrl?: string;
+  minOrderQuantity?: number | null;
+  maxOrderQuantity?: number | null;
+  location?: string;
+  product_weight?: number;
+  est_prod_days_from?: number;
+  est_prod_days_to?: number;
 }
 
 // Transform API product to frontend format
@@ -92,8 +134,35 @@ const transformProduct = (product: Product): FrontendProduct => ({
   sales: product.product_price,
   status: mapStatusFromApi(product.product_status),
   createdAt: product.created_at,
-  thumbnail: product.product_images?.[0] || '/thumbnails/default.png',
-  variants: Array.isArray(product.variants) ? product.variants : [],
+  thumbnail: product.product_images?.length ? product.product_images : [],
+  shortDescription: product.short_description || "",
+  discountType: product.discount_type ?? null,
+  discountMode: product.discount_mode ?? null,
+  discountValue: product.discount_value == null ? null : Number(product.discount_value),
+  discountAmount: Number(product.discount_amount || 0),
+  discountedPrice: Number(product.discounted_product_price ?? product.product_price),
+  unit: product.product_unit || "",
+  barcode: product.barcode || "",
+  collection: product.collection_name || "",
+  sizeChartUrl: product.size_chart_url || "",
+  minOrderQuantity: product.min_order_quantity ?? null,
+  maxOrderQuantity: product.max_order_quantity ?? null,
+  location: product.store_location || "",
+  product_weight: product.product_weight == null ? undefined : Number(product.product_weight),
+  est_prod_days_from: product.est_prod_days_from,
+  est_prod_days_to: product.est_prod_days_to,
+  variants: Array.isArray(product.variants) ? product.variants.map((variant, index) => ({
+    id: String(variant.id || `${product.id}-variant-${index}`),
+    name: String(variant.name || variant.size || ""),
+    size: variant.size || "",
+    color: String(variant.color || ""),
+    sku: String(variant.sku || ""),
+    price: variant.price == null ? null : Number(variant.price),
+    quantity: Number(variant.quantity || 0),
+    image: String(variant.image_url || variant.image || product.product_images?.[Number(variant.image_file_index)] || ""),
+  })) : [],
+  productType: product.product_type,
+  product_type: product.product_type,
 });
 
 const mapStatusFromApi = (status: string): string => {
@@ -102,7 +171,7 @@ const mapStatusFromApi = (status: string): string => {
     'made-to-order': 'Made-to-order',
     'out-of-stock': 'Out of Stock'
   };
-  return statusMap[status] || 'Ready Stock';
+  return statusMap[status] || status || 'Unknown';
 };
 
 const mapStatusToApi = (status: string): string => {
@@ -111,18 +180,20 @@ const mapStatusToApi = (status: string): string => {
     'Made-to-order': 'made-to-order',
     'Out of Stock': 'out-of-stock'
   };
-  return statusMap[status] || 'ready';
+  return statusMap[status] || status;
 };
 
-export default function ProductTable() {
+export default function ProductTable({ currency = "NGN", isAddModalOpen: controlledAddModalOpen, onAddModalOpenChange, canManageProducts = true }: ProductsTableProps) {
+  const [localAddModalOpen, setLocalAddModalOpen] = useState(false);
+  const isAddModalOpen = controlledAddModalOpen ?? localAddModalOpen;
+  const setAddModalOpen = onAddModalOpenChange ?? setLocalAddModalOpen;
   const [currentPage, setCurrentPage] = useState(0);
   const pageSize = 6;
   const [searchTerm, setSearchTerm] = useState("");
   const [products, setProducts] = useState<FrontendProduct[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
-  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [isStoreDiscountOpen, setIsStoreDiscountOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<FrontendProduct | null>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [filterDateRange, setFilterDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined });
@@ -143,14 +214,17 @@ export default function ProductTable() {
       const queryParams = new URLSearchParams({
         page: (currentPage + 1).toString(),
         pageSize: pageSize.toString(),
+        _t: Date.now().toString(),
         ...(searchTerm && { search: searchTerm }),
         ...(filterStatus && { status: mapStatusToApi(filterStatus) }),
         ...(sortBy !== "default" && { 
-          sort: sortBy.includes("product name") ? "product_name" : "product_quantity",
+          sort: sortBy.includes("product name") ? "product_name" : sortBy.includes("stock") ? "product_quantity" : "created_at",
           dir: sortBy.includes("(A-Z)") || sortBy.includes("(Low-High)") ? "asc" : "desc"
         }),
-        ...(filterStockRange.min > 0 && { minPrice: filterStockRange.min.toString() }),
-        ...(filterStockRange.max < Infinity && { maxPrice: filterStockRange.max.toString() }),
+        ...(filterStockRange.min > 0 && { minStock: filterStockRange.min.toString() }),
+        ...(filterStockRange.max < Infinity && { maxStock: filterStockRange.max.toString() }),
+        ...(filterDateRange.from && { created_from: startOfDay(filterDateRange.from).toISOString() }),
+        ...(filterDateRange.to && { created_to: endOfDay(filterDateRange.to).toISOString() }),
       });
 
       const response = await fetch(`/api/products?${queryParams}`);
@@ -175,7 +249,7 @@ export default function ProductTable() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, searchTerm, filterStatus, filterStockRange, sortBy, pageSize]);
+  }, [currentPage, searchTerm, filterStatus, filterStockRange, filterDateRange.from, filterDateRange.to, sortBy, pageSize]);
 
   // Fetch products when filters or page changes
   useEffect(() => {
@@ -287,23 +361,9 @@ export default function ProductTable() {
     }
   };
 
-  const handleArchiveConfirm = () => {
-    if (selectedProduct) {
-      console.log(`Archiving product: ${selectedProduct.sku}`);
-      setIsArchiveModalOpen(false);
-      setSelectedProduct(null);
-      toast.info('Archive functionality coming soon!');
-    }
-  };
-
   const openDeleteModal = (product: FrontendProduct) => {
     setSelectedProduct(product);
     setIsDeleteModalOpen(true);
-  };
-
-  const openArchiveModal = (product: FrontendProduct) => {
-    setSelectedProduct(product);
-    setIsArchiveModalOpen(true);
   };
 
   const clearFilters = () => {
@@ -313,6 +373,7 @@ export default function ProductTable() {
     setSortBy("default");
     setIsFilterOpen(false);
     setSearchTerm("");
+    setCurrentPage(0);
     toast.info('Filters cleared');
   };
 
@@ -335,7 +396,7 @@ export default function ProductTable() {
   };
 
   const handleEdit = (product: FrontendProduct) => {
-    setProducts((prev) => prev.map((p) => (p.sku === product.sku ? product : p)));
+    setProducts((prev) => prev.map((p) => (p.id === product.id ? product : p)));
     setIsDetailsModalOpen(false);
     toast.success('Product updated successfully!');
   };
@@ -381,12 +442,15 @@ export default function ProductTable() {
             type="text"
             placeholder="Search by name/SKU..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(0); }}
             className="w-full sm:w-64 md:w-84 pr-8 py-2 text-xs sm:text-sm dark:bg-background rounded-lg border-[#F5F5F5] dark:border-[#1F1F1F]"
           />
           <SearchIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         </div>
         <div className="flex space-x-2">
+          {canManageProducts && <Button variant="outline" className="border-[#F5F5F5] dark:border-[#1F1F1F] dark:bg-background" onClick={() => setIsStoreDiscountOpen(true)}>
+            <Percent className="h-4 w-4" /><span className="hidden sm:inline ml-2">Discounts</span>
+          </Button>}
           <Button
             variant="outline"
             className="border-[#F5F5F5] dark:border-[#1F1F1F] dark:bg-background"
@@ -403,7 +467,7 @@ export default function ProductTable() {
           <Button
             variant="outline"
             className="border-primary text-primary dark:bg-background"
-            onClick={() => setIsProductModalOpen(true)}
+            onClick={() => setAddModalOpen(true)}
           >
             <PlusIcon className="text-primary" />
             <span className="hidden sm:inline ml-2">Add Product</span>
@@ -438,7 +502,7 @@ export default function ProductTable() {
                       from: filterDateRange.from,
                       to: filterDateRange.to,
                     }}
-                    onSelect={(range) => setFilterDateRange({ from: range?.from, to: range?.to })}
+                    onSelect={(range) => { setFilterDateRange({ from: range?.from, to: range?.to }); setCurrentPage(0); }}
                     initialFocus
                   />
                 </PopoverContent>
@@ -451,7 +515,7 @@ export default function ProductTable() {
                   type="number"
                   id="stockMin"
                   value={filterStockRange.min === 0 ? "" : filterStockRange.min}
-                  onChange={(e) => setFilterStockRange((prev) => ({ ...prev, min: e.target.value ? parseInt(e.target.value) : 0 }))}
+                  onChange={(e) => { setFilterStockRange((prev) => ({ ...prev, min: e.target.value ? Number(e.target.value) : 0 })); setCurrentPage(0); }}
                   placeholder="From"
                   className="dark:bg-background"
                 />
@@ -459,7 +523,7 @@ export default function ProductTable() {
                   type="number"
                   id="stockMax"
                   value={filterStockRange.max === Infinity ? "" : filterStockRange.max}
-                  onChange={(e) => setFilterStockRange((prev) => ({ ...prev, max: e.target.value ? parseInt(e.target.value) : Infinity }))}
+                  onChange={(e) => { setFilterStockRange((prev) => ({ ...prev, max: e.target.value ? Number(e.target.value) : Infinity })); setCurrentPage(0); }}
                   placeholder="To"
                   className="dark:bg-background"
                 />
@@ -467,7 +531,7 @@ export default function ProductTable() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="statusFilter">Status</Label>
-              <Select onValueChange={setFilterStatus} value={filterStatus}>
+              <Select onValueChange={(value) => { setFilterStatus(value); setCurrentPage(0); }} value={filterStatus}>
                 <SelectTrigger className="w-full dark:bg-background">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
@@ -480,7 +544,7 @@ export default function ProductTable() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="sortFilter">Sort By</Label>
-              <Select onValueChange={setSortBy} value={sortBy}>
+              <Select onValueChange={(value) => { setSortBy(value); setCurrentPage(0); }} value={sortBy}>
                 <SelectTrigger className="w-full dark:bg-background">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
@@ -497,6 +561,7 @@ export default function ProductTable() {
         </div>
       )}
 
+      <div className="hidden md:block">
       <Table>
         <TableHeader className="bg-[#F5F5F5] dark:bg-background">
           <TableRow>
@@ -511,7 +576,7 @@ export default function ProductTable() {
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Product Name</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Stock</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Remnant</TableHead>
-            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Sales</TableHead>
+            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Price</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Status</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Actions</TableHead>
             
@@ -549,7 +614,11 @@ export default function ProductTable() {
                 <TableCell>{product.productName}</TableCell>
                 <TableCell>{product.stock}</TableCell>
                 <TableCell>{product.remanent}</TableCell>
-                <TableCell>₦{product.sales.toLocaleString()}</TableCell>
+                <TableCell><div className="flex flex-col items-start">
+                  {product.discountAmount ? <span className="text-xs text-muted-foreground line-through">{formatStoreCurrency(product.sales, currency)}</span> : null}
+                  <span>{formatStoreCurrency(product.discountedPrice ?? product.sales, currency)}</span>
+                  {product.discountAmount ? <span className="text-[11px] text-muted-foreground">-{formatStoreCurrency(product.discountAmount, currency)}</span> : null}
+                </div></TableCell>
                 <TableCell>
                   <span className={`flex items-center px-2 py-1 text-black rounded text-sm ${getStatusClass(product.status)}`}>
                     <span className={`w-2 h-2 rounded-full mr-2 ${product.status === "Ready Stock" ? "bg-[#53DC19]" :
@@ -570,15 +639,10 @@ export default function ProductTable() {
                       <DropdownMenuItem onClick={() => openDetailsModal(product)}>
                         <EyeIcon /> View Details
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => openEditModal(product)}>
-                        <EditIcon /> Edit Product
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => openDeleteModal(product)}>
-                        <DeleteIcon /> <span className="text-[#E40101]">Delete Product</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => openArchiveModal(product)}>
-                        <ArchiveIcon /> Archive Product
-                      </DropdownMenuItem>
+                      {canManageProducts && <>
+                        <DropdownMenuItem onClick={() => openEditModal(product)}><EditIcon /> Edit Product</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openDeleteModal(product)}><DeleteIcon /> <span className="text-[#E40101]">Delete Product</span></DropdownMenuItem>
+                      </>}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -593,6 +657,38 @@ export default function ProductTable() {
           )}
         </TableBody>
       </Table>
+      </div>
+
+      <div className="space-y-3 md:hidden">
+        {isLoading ? Array.from({ length: 4 }).map((_, index) => <div key={index} className="h-24 animate-pulse rounded-md border bg-muted/40" />)
+          : displayedProducts.length ? displayedProducts.map(product => (
+            <article key={product.id} className="flex min-w-0 items-start gap-3 rounded-md border bg-card p-3">
+              <Checkbox checked={selectedProducts.includes(product.sku)} onCheckedChange={checked => handleSelectProduct(product.sku, checked as boolean)} aria-label={`Select ${product.productName}`} />
+              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded border bg-muted">
+                <Image src={getFirstThumbnail(product.thumbnail)} alt={product.productName} fill className="object-cover" sizes="56px" onError={event => { (event.target as HTMLImageElement).src = "/thumbnails/default.png"; }} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="break-words text-sm font-medium">{product.productName}</p>
+                <p className="truncate text-xs text-muted-foreground">{product.sku}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                  <span className="font-semibold">{formatStoreCurrency(product.discountedPrice ?? product.sales, currency)}</span>
+                  <span className="text-muted-foreground">Stock: {product.stock}</span>
+                  <span className="text-muted-foreground">{product.status}</span>
+                </div>
+              </div>
+              {canManageProducts && <Button type="button" size="sm" variant="outline" className="min-h-9 shrink-0 px-2" onClick={() => openEditModal(product)} aria-label={`Edit ${product.productName}`}><EditIcon /><span className="ml-1">Edit</span></Button>}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon" className="h-9 w-8 shrink-0" aria-label={`More actions for ${product.productName}`}><BsThreeDots className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => openDetailsModal(product)}><EyeIcon /> View details</DropdownMenuItem>
+                  {canManageProducts && <>
+                    <DropdownMenuItem onClick={() => openDeleteModal(product)}><DeleteIcon /> Delete product</DropdownMenuItem>
+                  </>}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </article>
+          )) : <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">No products found</p>}
+      </div>
 
       <div className="flex justify-center mt-4 space-x-2">
         <span className="text-sm">
@@ -633,9 +729,11 @@ export default function ProductTable() {
       </div>
 
       <AddProductModal
-        isOpen={isProductModalOpen}
-        onClose={() => setIsProductModalOpen(false)}
+        isOpen={isAddModalOpen}
+        onClose={() => setAddModalOpen(false)}
         onAddProduct={handleAddProduct}
+        availableProducts={products}
+        currency={currency}
       />
       <ProductDetailsModal
         isOpen={isDetailsModalOpen}
@@ -646,8 +744,12 @@ export default function ProductTable() {
         onEdit={handleEdit}
         onDelete={handleDelete}
         product={selectedProduct}
+        availableProducts={products.map((product) => ({ id: product.id, productName: product.productName, sku: product.sku, stock: product.stock, productType: product.productType }))}
         isEditMode={isEditMode}
+        currency={currency}
+        canManage={canManageProducts}
       />
+      <StoreDiscountDialog open={isStoreDiscountOpen} onOpenChange={setIsStoreDiscountOpen} onSaved={fetchProducts} currency={currency} />
       <ActionModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
@@ -663,23 +765,6 @@ export default function ProductTable() {
         productStock={selectedProduct?.stock.toString() || "0"}
         confirmButtonColor="#E40101"
         confirmText="Delete"
-        cancelText="Cancel"
-      />
-      <ActionModal
-        isOpen={isArchiveModalOpen}
-        onClose={() => setIsArchiveModalOpen(false)}
-        onConfirm={handleArchiveConfirm}
-        titleText="Confirm Action"
-        icon={<ArchiveIcon2 />}
-        heading="Archive Product"
-        description="Are you sure you want to archive this product?"
-        productImage={selectedProduct ? getFirstThumbnail(selectedProduct.thumbnail) : '/thumbnails/default.png'}
-        productName={selectedProduct?.productName || ""}
-        productId={selectedProduct?.sku || ""}
-        productPrice={selectedProduct?.sales.toLocaleString() || "0"}
-        productStock={selectedProduct?.stock.toString() || "0"}
-        confirmButtonColor="#3B82F6"
-        confirmText="Archive"
         cancelText="Cancel"
       />
     </div>

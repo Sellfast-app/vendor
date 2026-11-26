@@ -159,19 +159,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Debug: log what we're sending
-    console.log("🍔 Forwarding food POST request with fields:");
-    let totalSize = 0;
-    for (const [key, value] of newFormData.entries()) {
-      if (value instanceof File) {
-        totalSize += value.size;
-        console.log(`  📁 ${key}: ${value.name} (${(value.size / 1024).toFixed(1)}KB, ${value.type})`);
-      } else {
-        const str = String(value);
-        console.log(`  📝 ${key}: ${str.substring(0, 100)}`);
-      }
-    }
-    console.log(`  📦 Total size: ${(totalSize / 1024 / 1024).toFixed(2)}MB`);
+    const files = [...newFormData.values()].filter((value): value is File => value instanceof File);
+    console.info("Forwarding food product create", {
+      storeId,
+      imageCount: files.length,
+      totalImageBytes: files.reduce((total, file) => total + file.size, 0),
+    });
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 120000);
@@ -200,8 +193,6 @@ export async function POST(request: NextRequest) {
       }
 
       const result = await response.json();
-      console.log("🍔 Food API response:", result.status, result.message || "");
-
       if (!response.ok) {
         return NextResponse.json(
           { status: "error", message: result.message || "Failed to add food item" },
@@ -256,17 +247,19 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ status: "error", message: "Store ID not found" }, { status: 400 });
     }
 
-    const body = await request.json();
+    const incoming = await request.formData();
+    const body = new FormData();
+    body.append("store_id", storeId);
+    for (const [key, value] of incoming.entries()) {
+      if (key === "store_id") continue;
+      if (value instanceof File) body.append(key, value, value.name);
+      else body.append(key, value);
+    }
     const response = await fetch(`${API_BASE_URL}/api/products/food`, {
       method: "PATCH",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        ...body,
-        store_id: storeId,
-      }),
+      headers: { "Authorization": `Bearer ${token}` },
+      body,
+      cache: "no-store",
     });
 
     const contentType = response.headers.get("content-type") || "";

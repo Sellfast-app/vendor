@@ -13,7 +13,7 @@ interface LoginResponse {
   status: string;
   message: string;
   success: boolean;
-  data: { store_name: string };
+  data: { store_name: string; password_reset_required?: boolean; user_email?: string };
 }
 
 export default function LoginPage() {
@@ -25,7 +25,20 @@ export default function LoginPage() {
   const [passwordFocused, setPasswordFocused] = useState(false);
   // const router = useRouter();
   const searchParams = useSearchParams();
-  const from = searchParams.get("from") || "/dashboard";
+  const requestedPath = searchParams.get("from");
+  const from = (() => {
+    if (!requestedPath || !requestedPath.startsWith("/") || requestedPath.startsWith("//") || requestedPath.includes("\\")) {
+      return "/dashboard";
+    }
+    try {
+      const target = new URL(requestedPath, "https://vendor.swiftree.app");
+      return target.origin === "https://vendor.swiftree.app"
+        ? `${target.pathname}${target.search}${target.hash}`
+        : "/dashboard";
+    } catch {
+      return "/dashboard";
+    }
+  })();
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -67,6 +80,10 @@ export default function LoginPage() {
       const data: LoginResponse = await res.json();
 
       if (res.ok && data.success) {
+        if (data.data.password_reset_required) {
+          window.location.href = `/staff/first-login-password?email=${encodeURIComponent(data.data.user_email || email)}`;
+          return;
+        }
         // Store store_name in localStorage
         if (data.data.store_name) {
           localStorage.setItem("store_name", data.data.store_name);

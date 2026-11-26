@@ -17,6 +17,11 @@ import ProductsTable from "./_components/ProductsTable";
 import FoodTable from "./_components/FoodTable";
 import { ExportModal } from "@/components/ExportModal";
 import { isFoodBusinessType } from "@/lib/store";
+import { Plus } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { getStoreCurrency } from "@/lib/v2-currency";
+import { BusinessTypeGuard } from "@/components/business-type-guard";
+import { CouponsDialog } from "./_components/CouponsDialog";
 
 interface OverviewMetric {
   id: string;
@@ -28,16 +33,20 @@ interface OverviewMetric {
   icon2: JSX.Element;
 }
 
-function ProductsPage() {
+function ProductsPageContent() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isCouponsOpen, setIsCouponsOpen] = useState(false);
+  const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [businessType, setBusinessType] = useState<string>("");
+  const [currency, setCurrency] = useState("NGN");
   const [isLoading, setIsLoading] = useState(true);
-  const [storeTypeError, setStoreTypeError] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [isStaff, setIsStaff] = useState(false);
 
   useEffect(() => {
+    setIsStaff(document.cookie.split("; ").some(cookie => cookie === "user_role=vendor_staff"));
     const fetchStoreData = async () => {
       try {
-        setStoreTypeError(false);
         const response = await fetch('/api/store', { cache: 'no-store' });
         if (!response.ok) throw new Error('Failed to fetch store data');
         
@@ -47,11 +56,11 @@ function ProductsPage() {
           throw new Error(result.message || 'Store details were not returned');
         }
 
-        setBusinessType(storeDetails.business_type || "");
+        setBusinessType(storeDetails.metadata?.v2?.business_type || storeDetails.business_type || "");
+        setCurrency(getStoreCurrency(storeDetails));
       } catch (error) {
         console.error('Error fetching store data:', error);
-        setBusinessType("");
-        setStoreTypeError(true);
+        setLoadError(error instanceof Error ? error.message : "Could not load store details.");
       } finally {
         setIsLoading(false);
       }
@@ -117,35 +126,63 @@ function ProductsPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Loading...</p>
+        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-28" />
+            <Skeleton className="h-5 w-36" />
+            <Skeleton className="h-4 w-80 max-w-full" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-28" />
+            <Skeleton className="h-10 w-24" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-28 rounded-2xl" />
+          ))}
+        </div>
+        <div className="mt-6 rounded-2xl border bg-card p-4">
+          <div className="mb-4 flex items-center justify-between">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-9 w-28" />
+          </div>
+          <div className="space-y-3">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <Skeleton key={index} className="h-12 w-full" />
+            ))}
+          </div>
         </div>
       </div>
     );
   }
 
-  if (storeTypeError) {
-    return (
-      <div className="min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex h-64 flex-col items-center justify-center gap-3 text-center">
-          <p className="text-sm font-medium">Unable to load your store type.</p>
-          <p className="text-sm text-muted-foreground">
-            Refresh the page to try again. Product tools are unavailable until the store type is confirmed.
-          </p>
-        </div>
-      </div>
-    );
+  if (loadError) {
+    return <main className="mx-auto max-w-3xl px-4 py-12 sm:px-6"><h1 className="text-lg font-semibold">Products are unavailable</h1><p className="mt-2 text-sm text-muted-foreground">{loadError}</p><Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>Try again</Button></main>;
   }
 
   return (
     <div className="min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex-col">
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary">
+            {isRestaurant ? "Food catalog" : "Retail catalog"}
+          </p>
           <h3 className="text-sm font-bold">
-            {isRestaurant ? "Food Items" : "Products"}
+            {isRestaurant ? "Menu" : "Products"}
           </h3>
+          <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
+            Manage items that can sell through website storefront, web chat and WhatsApp AI.
+          </p>
         </div>
         <div className="flex gap-2">
+          {!isStaff && <Button variant="outline" onClick={() => setIsCouponsOpen(true)}>Coupon codes</Button>}
+          <Button variant="outline" onClick={() => setIsAddProductOpen(true)}>
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline ml-2">
+              {isRestaurant ? "New food item" : "New product"}
+            </span>
+          </Button>
           <Button onClick={() => setIsExportModalOpen(true)}>
             <RiShare2Fill /> <span className="hidden sm:inline ml-2">Export</span>
           </Button>
@@ -159,7 +196,9 @@ function ProductsPage() {
         </div>
         <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
           <CardContent>
-            {isRestaurant ? <FoodTable /> : <ProductsTable />}
+            {isRestaurant
+              ? <FoodTable currency={currency} isAddModalOpen={isAddProductOpen} onAddModalOpenChange={setIsAddProductOpen} canManageProducts={!isStaff} />
+              : <ProductsTable currency={currency} isAddModalOpen={isAddProductOpen} onAddModalOpenChange={setIsAddProductOpen} canManageProducts={!isStaff} />}
           </CardContent>
         </Card>
       </div>
@@ -170,8 +209,11 @@ function ProductsPage() {
         fieldOptions={fieldOptions}
         dataName={isRestaurant ? "Food Items" : "Products"}
       />
+      {!isStaff && <CouponsDialog open={isCouponsOpen} onOpenChange={setIsCouponsOpen} currency={currency} />}
     </div>
   );
 }
 
-export default ProductsPage;
+export default function ProductsPage() {
+  return <BusinessTypeGuard allow={["retail", "food"]} redirectTo="/events"><ProductsPageContent /></BusinessTypeGuard>;
+}

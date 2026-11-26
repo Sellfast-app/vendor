@@ -12,8 +12,8 @@ export default function Home() {
  
   useEffect(() => {
     const timer = setTimeout(() => {
-      router.push("/login");
-    }, 5000); 
+      router.push("/dashboard");
+    }, 500);
 
 
     return () => clearTimeout(timer);

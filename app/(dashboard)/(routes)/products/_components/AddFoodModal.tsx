@@ -1,4 +1,6 @@
 "use client";
+import ProductMarkupPreview from '@/components/product-markup-preview';
+import { getCurrencySymbol } from '@/lib/v2-currency';
 
 import ImageIcon from '@/components/svgIcons/Image';
 import { Button } from '@/components/ui/button';
@@ -24,6 +26,8 @@ export interface PortionSize {
     prepTimeEnd: string;
     servings: string;
     servingUnit: string;
+    stockQuantity: string;
+    lowStockThreshold: string;
 }
 
 export interface AddOnOption {
@@ -48,6 +52,8 @@ export interface BundleSlot {
     category: string;
     maxItems: number;
     isRequired: boolean;
+    stockQuantity: string;
+    lowStockThreshold: string;
 }
 
 interface ApiServingTypePrice {
@@ -55,6 +61,8 @@ interface ApiServingTypePrice {
     name?: string;
     type?: string;
     price?: number | string;
+    stockQuantity?: number | string | null;
+    lowStockThreshold?: number | string | null;
 }
 
 interface AvailabilityPeriod {
@@ -69,6 +77,8 @@ export interface EditableFoodItem {
     uid: string;
     name: string;
     description?: string;
+    discount_type?: 'fixed' | 'percentage' | null;
+    discount_value?: number | string | null;
     product_images?: string[];
     type: string;
     status: string;
@@ -115,6 +125,7 @@ interface AddFoodModalProps {
     onFoodAdded?: () => void;
     onFoodUpdated?: () => void;
     editFoodItem?: EditableFoodItem | null;
+    currency?: string;
 }
 
 interface UploadedImage {
@@ -123,27 +134,62 @@ interface UploadedImage {
     isUploading: boolean;
     id: string;
 }
+interface StoreBranchOption { id: string; name: string; city?: string; region?: string }
+
+const MAX_FOOD_IMAGE_BYTES = 700 * 1024;
+const MAX_FOOD_IMAGES_TOTAL_BYTES = 3.5 * 1024 * 1024;
+
+async function compressFoodImage(file: File) {
+    const bitmap = await createImageBitmap(file);
+    try {
+        let scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+        let quality = 0.82;
+        for (let attempt = 0; attempt < 8; attempt += 1) {
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+            canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+            const context = canvas.getContext('2d');
+            if (!context) throw new Error('Could not process this image.');
+            context.fillStyle = '#fff';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+            const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+            if (!blob) throw new Error('Could not process this image.');
+            if (blob.size <= MAX_FOOD_IMAGE_BYTES) return new File([blob], 'food-image.jpg', { type: 'image/jpeg' });
+            scale *= 0.82;
+            quality = Math.max(0.5, quality - 0.06);
+        }
+        throw new Error('This image could not be compressed enough. Choose a smaller image.');
+    } finally {
+        bitmap.close();
+    }
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdated, editFoodItem }: AddFoodModalProps) {
+export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdated, editFoodItem, currency = 'NGN' }: AddFoodModalProps) {
+    const currencySymbol = getCurrencySymbol(currency);
     // ── Basic fields ──────────────────────────────────────────────────────────
     const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
     const [existingImages, setExistingImages] = useState<string[]>([]);
+    const [discountType, setDiscountType] = useState<'' | 'fixed' | 'percentage'>('');
+    const [discountValue, setDiscountValue] = useState('');
     const [productType, setProductType] = useState<'simple' | 'customizable' | 'bundle'>('simple');
     const [productName, setProductName] = useState('');
+    const [branches, setBranches] = useState<StoreBranchOption[]>([]);
+    const [selectedBranchId, setSelectedBranchId] = useState('all');
     const [description, setDescription] = useState('');
     const [status, setStatus] = useState('');
     const [timeAvailability, setTimeAvailability] = useState('');
-    const [availabilityStartTime, setAvailabilityStartTime] = useState('09:00');
-    const [availabilityEndTime, setAvailabilityEndTime] = useState('21:00');
     const [servingType, setServingType] = useState('');
     const [servingTypeCustom, setServingTypeCustom] = useState('');
     const [servingTypes, setServingTypes] = useState<string[]>([]);
     const [servingTypePrices, setServingTypePrices] = useState<Record<string, string>>({});
+    const [servingTypeStock, setServingTypeStock] = useState<Record<string, { quantity: string; threshold: string }>>({});
     const [foodCategory, setFoodCategory] = useState('');
-    const [foodCategoryCustom, setFoodCategoryCustom] = useState('');
     const [foodCategories, setFoodCategories] = useState<string[]>([]);
+    const [savedCategoryOptions, setSavedCategoryOptions] = useState<string[]>([]);
+    const [savedUnitOptions, setSavedUnitOptions] = useState<string[]>([]);
     const [dietaryLabel, setDietaryLabel] = useState('');
     const [dietaryLabelCustom, setDietaryLabelCustom] = useState('');
     const [dietaryLabels, setDietaryLabels] = useState<string[]>([]);
@@ -163,6 +209,36 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
 
     useEffect(() => {
         if (!isOpen) return;
+        let cancelled = false;
+        fetch('/api/food-taxonomy', { cache: 'no-store' })
+            .then(async response => {
+                const result = await response.json();
+                if (!response.ok || result.status !== 'success') throw new Error(result.message || 'Unable to load food categories and units');
+                if (cancelled) return;
+                setSavedCategoryOptions((result.data?.categories || []).map((entry: { name?: string }) => entry.name).filter((name: unknown): name is string => typeof name === 'string'));
+                setSavedUnitOptions((result.data?.units || []).map((entry: { name?: string }) => entry.name).filter((name: unknown): name is string => typeof name === 'string'));
+            })
+            .catch(error => {
+                if (!cancelled) setError(error instanceof Error ? error.message : 'Unable to load food categories and units');
+            });
+        return () => { cancelled = true; };
+    }, [isOpen]);
+
+    useEffect(() => {
+        if (!isOpen || isEditMode) return;
+        let active = true;
+        fetch('/api/branches', { cache: 'no-store' })
+            .then(async response => {
+                const result = await response.json();
+                if (!response.ok || result.status !== 'success') throw new Error(result.message || 'Unable to load branches');
+                if (active) setBranches(Array.isArray(result.data) ? result.data : []);
+            })
+            .catch(error => { if (active) setError(error instanceof Error ? error.message : 'Unable to load branches'); });
+        return () => { active = false; };
+    }, [isOpen, isEditMode]);
+
+    useEffect(() => {
+        if (!isOpen) return;
 
         if (!editFoodItem) {
             resetForm();
@@ -171,19 +247,19 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
 
         setUploadedImages([]);
         setExistingImages(editFoodItem.product_images || []);
+        setDiscountType(editFoodItem.discount_type || '');
+        setDiscountValue(editFoodItem.discount_value == null ? '' : String(editFoodItem.discount_value));
         setProductType(mapFoodTypeToForm(editFoodItem.type));
         setProductName(editFoodItem.name || '');
         setDescription(editFoodItem.description || '');
         setStatus(editFoodItem.status || '');
         setTimeAvailability(editFoodItem.availability || '');
-        setAvailabilityStartTime(formatTimeValue(editFoodItem.availabilityPeriod?.startTime) || '09:00');
-        setAvailabilityEndTime(formatTimeValue(editFoodItem.availabilityPeriod?.endTime) || '21:00');
         setServingType('');
         setServingTypeCustom('');
         setServingTypes(editFoodItem.servingType || []);
         setServingTypePrices(mapApiServingTypePricesToForm(editFoodItem));
+        setServingTypeStock(mapApiServingTypeStockToForm(editFoodItem));
         setFoodCategory('');
-        setFoodCategoryCustom('');
         setFoodCategories(editFoodItem.category || []);
         setDietaryLabel('');
         setDietaryLabelCustom('');
@@ -200,46 +276,59 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
     const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = event.target.files;
         if (!files) return;
-        if (uploadedImages.length + files.length > 5) return;
+        setError(null);
+        if (existingImages.length + uploadedImages.length + files.length > 5) {
+            setError('A food item can have up to 5 images. Remove an image before adding another.');
+            event.target.value = '';
+            return;
+        }
 
         const validFiles: File[] = [];
+        const uploadErrors: string[] = [];
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
-            if (!file.type.startsWith('image/')) continue;
-            if (file.size > 10 * 1024 * 1024) continue;
-            validFiles.push(file);
+            if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+                uploadErrors.push(`${file.name} is not a supported image. Use JPEG, PNG, or WebP.`);
+                continue;
+            }
+            if (file.size > 10 * 1024 * 1024) {
+                uploadErrors.push(`${file.name} is larger than 10 MB.`);
+                continue;
+            }
+            try {
+                validFiles.push(await compressFoodImage(file));
+            } catch (compressionError) {
+                uploadErrors.push(compressionError instanceof Error ? compressionError.message : `Could not process ${file.name}.`);
+            }
         }
-        if (validFiles.length === 0) return;
+        if (uploadErrors.length) setError(uploadErrors.join(' '));
+        if (validFiles.length === 0) { event.target.value = ''; return; }
+
+        const queuedBytes = uploadedImages.reduce((total, image) => total + image.file.size, 0);
+        const incomingBytes = validFiles.reduce((total, file) => total + file.size, 0);
+        if (queuedBytes + incomingBytes > MAX_FOOD_IMAGES_TOTAL_BYTES) {
+            setError('The optimized food images exceed the 3.5 MB upload limit. Select fewer images or use smaller photos.');
+            event.target.value = '';
+            return;
+        }
 
         const newImages: UploadedImage[] = validFiles.map((file) => ({
             file,
-            progress: 0,
-            isUploading: true,
+            progress: 100,
+            isUploading: false,
             id: Math.random().toString(36).substr(2, 9),
         }));
 
         setUploadedImages(prev => [...prev, ...newImages]);
 
-        newImages.forEach((image, index) => {
-            const timer = setInterval(() => {
-                setUploadedImages(prev => prev.map(img => {
-                    if (img.id === image.id) {
-                        const newProgress = img.progress + 20;
-                        if (newProgress >= 100) {
-                            clearInterval(timer);
-                            return { ...img, progress: 100, isUploading: false };
-                        }
-                        return { ...img, progress: newProgress };
-                    }
-                    return img;
-                }));
-            }, 300 + (index * 100));
-        });
+        event.target.value = '';
     };
 
     const handleRemoveImage = (id: string) => {
         setUploadedImages(prev => prev.filter(img => img.id !== id));
     };
+
+    const handleRemoveExistingImage = (url: string) => setExistingImages((images) => images.filter((image) => image !== url));
 
     const addServingType = () => {
         const val = (servingTypeCustom.trim() || servingType).trim();
@@ -262,12 +351,11 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
     };
     
     const addFoodCategory = () => {
-        const val = (foodCategoryCustom.trim() || foodCategory).trim();
+        const val = foodCategory.trim();
         if (!val) return;
         if (!foodCategories.includes(val)) {
             setFoodCategories(prev => [...prev, val]);
         }
-        setFoodCategoryCustom('');
         setFoodCategory('');
     };
     
@@ -288,42 +376,52 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
 
         // Basic validation
         if (!productName.trim()) return setError('Food name is required.');
-        if (!description.trim()) return setError('Description is required.');
         if (!status) return setError('Product status is required.');
         if (!timeAvailability) return setError('Time-based availability is required.');
-        if (timeAvailability === 'Custom') {
-            if (!availabilityStartTime || !availabilityEndTime) {
-                return setError('Custom availability start and end time are required.');
-            }
-            if (availabilityStartTime >= availabilityEndTime) {
-                return setError('Custom availability end time must be after the start time.');
-            }
-        }
-        if (servingTypes.length === 0) return setError('At least one serving type is required.');
+        if (productType === 'customizable' && servingTypes.length === 0) return setError('At least one serving type is required.');
         if (foodCategories.length === 0) return setError('At least one food category is required.');
         if (!isEditMode && uploadedImages.length === 0) return setError('At least one image is required.');
         if (isEditMode && existingImages.length === 0 && uploadedImages.length === 0) return setError('At least one image is required.');
-        if (isEditMode && uploadedImages.length > 0) return setError('Image updates are not supported for food edits yet.');
+        if (existingImages.length + uploadedImages.length > 5) return setError('A food item can have up to 5 images.');
         if (uploadedImages.some(img => img.isUploading)) return setError('Please wait for images to finish uploading.');
+        if ((discountType && (!discountValue || Number(discountValue) <= 0)) || (!discountType && discountValue)) return setError('Choose a discount type and enter a discount value, or clear both fields.');
+        if (discountType === 'percentage' && Number(discountValue) > 100) return setError('Percentage discount cannot exceed 100%.');
 
         // Type-specific validation
         if (productType === 'simple' && portions.length === 0) return setError('Add at least one portion size.');
+        if (productType === 'simple' && portions.some(portion => {
+            const existing = editFoodItem?.portion?.some((entry: { uid?: string }) => entry.uid === portion.id);
+            return (portion.stockQuantity === '' && !existing) || Number(portion.stockQuantity) < 0;
+        })) return setError('Enter stock quantity for every new portion.');
         if (productType === 'customizable' && savedGroups.length === 0) return setError('Add at least one customization group.');
         if (productType === 'customizable' && servingTypes.some(type => !servingTypePrices[type] || parseFloat(servingTypePrices[type]) <= 0)) {
             return setError('Add a valid base price for each serving type.');
         }
+        if (productType === 'customizable' && servingTypes.some(type => {
+            const existing = (editFoodItem?.servingTypePricing || editFoodItem?.servingTypePrices || []).some(entry => (entry.servingType || entry.name || entry.type) === type);
+            return (servingTypeStock[type]?.quantity === '' && !existing) || Number(servingTypeStock[type]?.quantity) < 0;
+        })) return setError('Enter stock quantity for every new serving type.');
         if (productType === 'bundle' && bundleSlots.length === 0) return setError('Add at least one bundle slot.');
+        if (productType === 'bundle' && bundleSlots.some(slot => {
+            const existing = editFoodItem?.bundleConfig?.some((entry: { uid?: string }) => entry.uid === slot.id);
+            return (slot.stockQuantity === '' && !existing) || Number(slot.stockQuantity) < 0;
+        })) return setError('Enter stock quantity for every new bundle option.');
 
         setIsLoading(true);
 
         try {
+            const payload = isEditMode ? buildUpdatePayload() : null;
+            const formData = new FormData();
+            const fields = isEditMode ? payload! : buildCreatePayload();
+            for (const [key, value] of Object.entries(fields)) {
+                formData.append(key, value == null ? 'null' : typeof value === 'object' ? JSON.stringify(value) : String(value));
+            }
+            if (!isEditMode && selectedBranchId !== 'all') formData.append('branch_id', selectedBranchId);
+            if (isEditMode) formData.append('existing_images', JSON.stringify(existingImages));
+            uploadedImages.forEach((image) => formData.append('files', image.file, image.file.name));
+
             if (isEditMode) {
-                const payload = buildUpdatePayload();
-                const response = await fetch('/api/products/food', {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                });
+                const response = await fetch('/api/products/food', { method: 'PATCH', body: formData });
 
                 const result = await response.json();
 
@@ -337,84 +435,6 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                 onClose();
                 return;
             }
-
-            const formData = new FormData();
-
-            // Scalar fields
-            formData.append('name', productName);
-            formData.append('type', productType === 'simple' ? 'Simple' : productType === 'customizable' ? 'Customizable' : 'Bundle');
-            formData.append('description', description);
-            formData.append('status', status);
-            formData.append('availability', timeAvailability);
-            if (timeAvailability === 'Custom') {
-                formData.append('availabilityPeriod', JSON.stringify(buildAvailabilityPeriod()));
-            }
-
-            // Array fields — API expects JSON strings
-            formData.append('category', JSON.stringify(foodCategories));
-            formData.append('labels', JSON.stringify(dietaryLabels));
-            formData.append('servingType', JSON.stringify(servingTypes));
-
-            // Type-specific payload
-            if (productType === 'simple') {
-                const portionPayload = portions.map(p => ({
-                    name: p.name,
-                    price: parseFloat(p.price) || 0,
-                    startPrepTime: parseInt(p.prepTimeStart) || 0,
-                    endPrepTime: parseInt(p.prepTimeEnd) || 0,
-                    servingType: p.servingUnit,
-                    servingPerServingType: parseInt(p.servings) || 0,
-                }));
-                formData.append('portion', JSON.stringify(portionPayload));
-            }
-
-            if (productType === 'customizable') {
-                const servingTypePricingPayload = servingTypes.map(type => ({
-                    servingType: type,
-                    price: parseFloat(servingTypePrices[type]) || 0,
-                }));
-                const addOnPayload = savedGroups.map(g => ({
-                    name: g.groupName,
-                    selection: g.selection,
-                    maxSelection: g.maxSelections,
-                    isRequired: g.isRequired,
-                    options: g.options.map(o => ({
-                        name: o.name,
-                        price: parseFloat(o.price) || 0,
-                    })),
-                }));
-                formData.append('addOnGroup', JSON.stringify(addOnPayload));
-                formData.append('servingTypePricing', JSON.stringify(servingTypePricingPayload));
-            }
-
-            if (productType === 'bundle') {
-                const bundlePayload = bundleSlots.map(s => ({
-                    name: s.name,
-                    price: parseFloat(s.price) || 0,
-                    category: s.category,
-                    maxCount: s.maxItems,
-                }));
-                
-                // Build addOnGroup from bundleAddOnGroups
-                const addOnPayload = bundleAddOnGroups.map(g => ({
-                    name: g.groupName,
-                    selection: g.selection,
-                    maxSelection: g.maxSelections,
-                    isRequired: g.isRequired,
-                    options: g.options.map(o => ({
-                        name: o.name,
-                        price: parseFloat(o.price) || 0,
-                    })),
-                }));
-                
-                formData.append('addOnGroup', JSON.stringify(addOnPayload));
-                formData.append('bundleConfig', JSON.stringify(bundlePayload));
-            }
-
-            // Images
-            uploadedImages.forEach(img => {
-                formData.append('files', img.file);
-            });
 
             const response = await fetch('/api/products/food', {
                 method: 'POST',
@@ -445,19 +465,20 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
     const resetForm = () => {
         setUploadedImages([]);
         setExistingImages([]);
+        setDiscountType('');
+        setDiscountValue('');
         setProductType('simple');
         setProductName('');
+        setSelectedBranchId('all');
         setDescription('');
         setStatus('');
         setTimeAvailability('');
-        setAvailabilityStartTime('09:00');
-        setAvailabilityEndTime('21:00');
         setServingType('');
         setServingTypeCustom('');
         setServingTypes([]);
         setServingTypePrices({});
+        setServingTypeStock({});
         setFoodCategory('');
-        setFoodCategoryCustom('');
         setFoodCategories([]);
         setDietaryLabel('');
         setDietaryLabelCustom('');
@@ -469,34 +490,29 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
         setError(null);
     };
 
-    const buildAvailabilityPeriod = () => {
-        const existingPeriod = editFoodItem?.availabilityPeriod;
-
-        return {
-            ...(existingPeriod?.uid && { uid: existingPeriod.uid }),
-            ...(isEditMode && editFoodItem?.uid && { foodProductId: editFoodItem.uid }),
-            startTime: buildDailyAvailabilityIso(availabilityStartTime),
-            endTime: buildDailyAvailabilityIso(availabilityEndTime),
-        };
-    };
+    const existingAvailabilityPeriod = Array.isArray(editFoodItem?.availabilityPeriod)
+        ? editFoodItem.availabilityPeriod[0]
+        : editFoodItem?.availabilityPeriod;
 
     const buildUpdatePayload = () => ({
         uid: editFoodItem?.uid,
         type: productType === 'simple' ? 'Simple' : productType === 'customizable' ? 'Customizable' : 'Bundle',
         name: productName,
         description,
+        discount_type: discountType || null,
+        discount_value: discountType ? Number(discountValue) : null,
         status,
         availability: timeAvailability,
         category: foodCategories,
         labels: dietaryLabels,
         servingType: servingTypes,
-        ...(timeAvailability === 'Custom' && {
-            availabilityPeriod: buildAvailabilityPeriod(),
-        }),
+        ...(timeAvailability === 'Custom' && existingAvailabilityPeriod && { availabilityPeriod: existingAvailabilityPeriod }),
         ...(productType === 'customizable' && {
             servingTypePricing: servingTypes.map(type => ({
                 servingType: type,
                 price: parseFloat(servingTypePrices[type]) || 0,
+                stockQuantity: servingTypeStock[type]?.quantity === '' ? null : Number(servingTypeStock[type]?.quantity),
+                lowStockThreshold: servingTypeStock[type]?.threshold === '' ? null : Number(servingTypeStock[type]?.threshold),
             })),
         }),
         ...(productType === 'simple' && {
@@ -509,6 +525,8 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                 endPrepTime: parseInt(p.prepTimeEnd) || 0,
                 servingType: p.servingUnit,
                 servingPerServingType: parseInt(p.servings) || 0,
+                stockQuantity: p.stockQuantity === '' ? null : Number(p.stockQuantity),
+                lowStockThreshold: p.lowStockThreshold === '' ? null : Number(p.lowStockThreshold),
             })),
         }),
         ...(productType === 'customizable' && {
@@ -524,7 +542,31 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                 category: s.category,
                 maxCount: s.maxItems,
                 isRequired: s.isRequired,
+                stockQuantity: s.stockQuantity === '' ? null : Number(s.stockQuantity),
+                lowStockThreshold: s.lowStockThreshold === '' ? null : Number(s.lowStockThreshold),
             })),
+        }),
+    });
+
+    const buildCreatePayload = () => ({
+        name: productName,
+        type: productType === 'simple' ? 'Simple' : productType === 'customizable' ? 'Customizable' : 'Bundle',
+        description,
+        status,
+        availability: timeAvailability,
+        category: foodCategories,
+        labels: dietaryLabels,
+        servingType: servingTypes,
+        discount_type: discountType || null,
+        discount_value: discountType ? Number(discountValue) : null,
+        ...(productType === 'simple' && { portion: portions.map((p) => ({ name: p.name, price: Number(p.price) || 0, startPrepTime: Number(p.prepTimeStart) || 0, endPrepTime: Number(p.prepTimeEnd) || 0, servingType: p.servingUnit, servingPerServingType: Number(p.servings) || 0, stockQuantity: p.stockQuantity === '' ? null : Number(p.stockQuantity), lowStockThreshold: p.lowStockThreshold === '' ? null : Number(p.lowStockThreshold) })) }),
+        ...(productType === 'customizable' && {
+            servingTypePricing: servingTypes.map((type) => ({ servingType: type, price: Number(servingTypePrices[type]) || 0, stockQuantity: servingTypeStock[type]?.quantity === '' ? null : Number(servingTypeStock[type]?.quantity), lowStockThreshold: servingTypeStock[type]?.threshold === '' ? null : Number(servingTypeStock[type]?.threshold) })),
+            addOnGroup: savedGroups.map((group) => ({ name: group.groupName, selection: group.selection, maxSelection: group.maxSelections, isRequired: group.isRequired, options: group.options.map((option) => ({ name: option.name, price: Number(option.price) || 0 })) })),
+        }),
+        ...(productType === 'bundle' && {
+            bundleConfig: bundleSlots.map((slot) => ({ name: slot.name, price: Number(slot.price) || 0, category: slot.category, maxCount: slot.maxItems, stockQuantity: slot.stockQuantity === '' ? null : Number(slot.stockQuantity), lowStockThreshold: slot.lowStockThreshold === '' ? null : Number(slot.lowStockThreshold) })),
+            addOnGroup: bundleAddOnGroups.map((group) => ({ name: group.groupName, selection: group.selection, maxSelection: group.maxSelections, isRequired: group.isRequired, options: group.options.map((option) => ({ name: option.name, price: Number(option.price) || 0 })) })),
         }),
     });
 
@@ -536,17 +578,17 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[50] flex justify-end my-3 mr-3">
+        <div className="fixed inset-0 z-[50] flex justify-end p-2 sm:p-3">
             <div
                 className="fixed inset-0 backdrop-blur-xs bg-[#06140033] dark:bg-black/50"
                 onClick={handleClose}
             />
             <div
-                className="h-full w-[85%] md:w-[65%] bg-background shadow-lg overflow-x-auto transform transition-transform duration-300 ease-in-out rounded-xl"
+                className="h-full w-full max-w-[960px] overflow-hidden rounded-xl bg-background shadow-lg transition-transform duration-300 ease-in-out sm:w-[85%] md:w-[65%]"
                 style={{ transform: isOpen ? "translateX(0)" : "translateX(100%)" }}
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="h-full p-4 overflow-y-auto">
+                <div className="h-full overscroll-contain overflow-y-auto p-4 pb-6 sm:p-6">
                     <div className="flex justify-between py-2 items-center border-b border-[#F8F8F8] dark:border-[#2A2A2A]">
                         <div className="flex flex-col gap-0">
                             <h2 className="text-sm font-semibold">{isEditMode ? 'Edit Food Item' : 'Add Food Item'}</h2>
@@ -574,9 +616,19 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                                     disabled={isLoading}
                                 />
                             </div>
+                            {!isEditMode && branches.length > 0 && <div className="mt-4">
+                                <Label className="mb-1 block text-xs font-light" htmlFor="food-product-branch">Available at</Label>
+                                <Select value={selectedBranchId} onValueChange={setSelectedBranchId} disabled={isLoading}>
+                                    <SelectTrigger id="food-product-branch"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All branches</SelectItem>
+                                        {branches.map(branch => <SelectItem key={branch.id} value={branch.id}>{[branch.name, branch.city, branch.region].filter(Boolean).join(' · ')}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>}
                             <div>
                                 <Label className='text-xs font-light mt-4 mb-1' htmlFor='description'>
-                                    Description<span className="text-destructive">*</span>
+                                    Description
                                 </Label>
                                 <Textarea
                                     id='description'
@@ -588,6 +640,29 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                                     disabled={isLoading}
                                 />
                                 <div className="text-right text-xs">{description.length}/500</div>
+                            </div>
+                            <div className="mt-4 rounded-md border p-3 space-y-3">
+                                <div>
+                                    <p className="text-sm font-medium">Product discount</p>
+                                    <p className="text-xs text-muted-foreground">Applied to this food item’s base price before checkout fees.</p>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <Label className="text-xs">Discount type</Label>
+                                        <Select value={discountType || 'none'} onValueChange={(value) => { setDiscountType(value === 'none' ? '' : value as 'fixed' | 'percentage'); if (value === 'none') setDiscountValue(''); }} disabled={isLoading}>
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="none">No discount</SelectItem>
+                                                <SelectItem value="fixed">Amount off ({currencySymbol})</SelectItem>
+                                                <SelectItem value="percentage">Percentage off (%)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    {discountType && <div className="space-y-1">
+                                        <Label className="text-xs">Discount value</Label>
+                                        <Input type="number" min="0.01" step="0.01" max={discountType === 'percentage' ? 100 : undefined} value={discountValue} onChange={(event) => setDiscountValue(event.target.value)} placeholder={discountType === 'percentage' ? 'e.g. 10' : 'e.g. 500'} disabled={isLoading} />
+                                    </div>}
+                                </div>
                             </div>
 
                             <h2 className="text-sm font-semibold pt-4">Food Type & Status</h2>
@@ -643,37 +718,9 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                                         <SelectItem value='Lunch'>Lunch</SelectItem>
                                         <SelectItem value='Dinner'>Dinner</SelectItem>
                                         <SelectItem value='All Day'>All Day</SelectItem>
-                                        <SelectItem value='Custom'>Custom</SelectItem>
+                                        {isEditMode && editFoodItem?.availability === 'Custom' && <SelectItem value='Custom'>Custom (existing)</SelectItem>}
                                     </SelectContent>
                                 </Select>
-                                {timeAvailability === 'Custom' && (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-                                        <div>
-                                            <Label className='text-xs font-light mb-1' htmlFor='availability-start'>
-                                                Start Time<span className="text-destructive">*</span>
-                                            </Label>
-                                            <Input
-                                                id='availability-start'
-                                                type='time'
-                                                value={availabilityStartTime}
-                                                onChange={(e) => setAvailabilityStartTime(e.target.value)}
-                                                disabled={isLoading}
-                                            />
-                                        </div>
-                                        <div>
-                                            <Label className='text-xs font-light mb-1' htmlFor='availability-end'>
-                                                End Time<span className="text-destructive">*</span>
-                                            </Label>
-                                            <Input
-                                                id='availability-end'
-                                                type='time'
-                                                value={availabilityEndTime}
-                                                onChange={(e) => setAvailabilityEndTime(e.target.value)}
-                                                disabled={isLoading}
-                                            />
-                                        </div>
-                                    </div>
-                                )}
                             </div>
                             <div>
                                 <Label className='text-xs font-light mt-4 mb-2'>
@@ -736,12 +783,12 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                                         </div>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             {servingTypes.map((type) => (
-                                                <div key={type}>
+                                                <div key={type} className="space-y-2">
                                                     <Label className="text-xs font-light mb-1 capitalize">
                                                         {type} price<span className="text-destructive">*</span>
                                                     </Label>
                                                     <div className="flex items-center border rounded-md bg-background overflow-hidden">
-                                                        <span className="px-3 py-2 text-sm text-muted-foreground border-r">₦</span>
+                                                        <span className="px-3 py-2 text-sm text-muted-foreground border-r">{currencySymbol}</span>
                                                         <input
                                                             type="number"
                                                             min={0}
@@ -753,6 +800,17 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                                                             disabled={isLoading}
                                                         />
                                                     </div>
+                                                    <ProductMarkupPreview basePrice={servingTypePrices[type] || ''} />
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        <div>
+                                                            <Label className="text-xs">Quantity in stock</Label>
+                                                            <Input type="number" min={0} step={1} value={servingTypeStock[type]?.quantity ?? ''} onChange={event => setServingTypeStock(prev => ({ ...prev, [type]: { quantity: event.target.value, threshold: prev[type]?.threshold ?? '' } }))} placeholder="Required for new items" disabled={isLoading} />
+                                                        </div>
+                                                        <div>
+                                                            <Label className="text-xs">Low stock alert at</Label>
+                                                            <Input type="number" min={0} step={1} value={servingTypeStock[type]?.threshold ?? ''} onChange={event => setServingTypeStock(prev => ({ ...prev, [type]: { quantity: prev[type]?.quantity ?? '', threshold: event.target.value } }))} placeholder="Optional" disabled={isLoading} />
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
@@ -763,35 +821,18 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                                 <Label className='text-xs font-light mt-4 mb-2'>
                                     Food Category<span className="text-destructive">*</span>
                                 </Label>
-                                <Select value={foodCategory} onValueChange={setFoodCategory} disabled={isLoading}>
+                                <Select value={foodCategory} onValueChange={setFoodCategory} disabled={isLoading || savedCategoryOptions.length === 0}>
                                     <SelectTrigger className='w-full'>
-                                        <SelectValue placeholder="Select category" />
+                                        <SelectValue placeholder={savedCategoryOptions.length ? "Select a saved category" : "Create a category first"} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value='Rice Dishes'>Rice Dishes</SelectItem>
-                                        <SelectItem value='Snacks'>Snacks</SelectItem>
-                                        <SelectItem value='Drinks'>Drinks</SelectItem>
-                                        <SelectItem value='Desserts'>Desserts</SelectItem>
-                                        <SelectItem value='custom'>Custom</SelectItem>
+                                        {savedCategoryOptions.map(category => <SelectItem key={category} value={category}>{category}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
-                                <div className='flex items-center gap-2 mt-2'>
-                                    <Input
-                                        value={foodCategoryCustom}
-                                        onChange={(e) => setFoodCategoryCustom(e.target.value)}
-                                        placeholder="or type a custom category"
-                                        disabled={isLoading}
-                                    />
-                                    <Button
-                                        type="button"
-                                        size={'sm'}
-                                        className='bg-white text-black border hover:bg-black hover:text-white'
-                                        onClick={addFoodCategory}
-                                        disabled={isLoading}
-                                    >
-                                        <CircleCheck /> Add
-                                    </Button>
-                                </div>
+                                <Button type="button" size="sm" variant="outline" className="mt-2" onClick={addFoodCategory} disabled={isLoading || !foodCategory || foodCategories.includes(foodCategory)}>
+                                    <CircleCheck className="mr-1 h-4 w-4" /> Add category
+                                </Button>
+                                {savedCategoryOptions.length === 0 && <p className="mt-2 text-xs text-muted-foreground">Add categories in Inventory → Categories before creating food items.</p>}
                                 {foodCategories.length > 0 && (
                                     <div className="flex flex-wrap gap-1 mt-2">
                                         {foodCategories.map(c => (
@@ -856,21 +897,21 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
 
                             {/* Type-specific sections — state lifted up via onChange props */}
                             {productType === 'simple' && (
-                                <PortionSetup portions={portions} onChange={setPortions} />
+                                <PortionSetup portions={portions} onChange={setPortions} currency={currency} customUnits={savedUnitOptions} />
                             )}
                             {productType === 'customizable' && (
-                                <CustomizationOptions savedGroups={savedGroups} onChange={setSavedGroups} />
+                                <CustomizationOptions savedGroups={savedGroups} onChange={setSavedGroups} currency={currency} />
                             )}
                             {productType === 'bundle' && (
                                 <BundleConfiguration slots={bundleSlots} onSlotsChange={setBundleSlots}    addOnGroups={bundleAddOnGroups}
-                                onAddOnGroupsChange={setBundleAddOnGroups}/>
+                                onAddOnGroupsChange={setBundleAddOnGroups} currency={currency}/>
                             )}
                         </div>
 
                         {/* Right - Image Upload */}
                         <div className='w-full md:w-[50%]'>
                             <h2 className="text-sm font-semibold">Food Image</h2>
-                            <p className="text-xs text-muted-foreground">Upload food images (max 5)</p>
+                                    <p className="text-xs text-muted-foreground">Select up to 5 JPEG, PNG, or WebP images. Photos are optimized before upload.</p>
                             <div className='border border-dashed border-primary rounded-lg w-full h-75 mt-4 flex flex-col items-center justify-center gap-3 py-3'>
                                 <ImageIcon />
                                 <Label
@@ -883,12 +924,12 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                                     id="picture"
                                     type="file"
                                     multiple
-                                    accept="image/*"
+                                    accept="image/jpeg,image/png,image/webp"
                                     className="hidden"
                                     onChange={handleImageUpload}
                                     disabled={isLoading}
                                 />
-                                <p className='text-xs text-[#A0A0A0]'>PNG, JPG, GIF up to 10MB, max 5 images</p>
+                                <p className='text-xs text-[#A0A0A0]'>Original image up to 10 MB; optimized upload up to 3.5 MB total</p>
                             </div>
 
                             {existingImages.length > 0 && (
@@ -906,6 +947,7 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                                                         sizes="40px"
                                                     />
                                                 </div>
+                                                <button type="button" onClick={() => handleRemoveExistingImage(image)} className="absolute -top-2 -right-2 bg-red-500 rounded-full p-0.5" disabled={isLoading} aria-label="Remove existing image"><X className="w-3 h-3 text-white" /></button>
                                             </div>
                                         ))}
                                     </div>
@@ -926,19 +968,6 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                                                         sizes="40px"
                                                     />
                                                 </div>
-                                                {image.isUploading && (
-                                                    <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded">
-                                                        <Loader2 className="w-4 h-4 text-green-500 animate-spin" />
-                                                    </div>
-                                                )}
-                                                {image.isUploading && (
-                                                    <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50">
-                                                        <div
-                                                            className="h-1 bg-green-500 transition-all duration-300"
-                                                            style={{ width: `${image.progress}%` }}
-                                                        />
-                                                    </div>
-                                                )}
                                                 <button
                                                     onClick={() => handleRemoveImage(image.id)}
                                                     className="absolute -top-2 -right-2 bg-red-500 rounded-full p-0.5 hover:bg-red-600 transition-colors"
@@ -961,7 +990,7 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
                         <p className="text-xs text-destructive mt-3 text-right">{error}</p>
                     )}
 
-                    <div className='flex justify-end gap-2 border-t mt-4 pt-4'>
+                    <div className='sticky bottom-0 -mx-4 mt-4 flex justify-end gap-2 border-t bg-background px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6'>
                         <Button variant="outline" className="px-4 py-2 text-sm" onClick={handleClose} disabled={isLoading}>
                             Cancel
                         </Button>
@@ -986,18 +1015,6 @@ export default function AddFoodModal({ isOpen, onClose, onFoodAdded, onFoodUpdat
     );
 }
 
-function buildDailyAvailabilityIso(time: string) {
-    return new Date(`1970-01-01T${time}:00.000Z`).toISOString();
-}
-
-function formatTimeValue(value?: string) {
-    if (!value) return '';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
-
-    return date.toISOString().slice(11, 16);
-}
-
 function mapFoodTypeToForm(type: string): 'simple' | 'customizable' | 'bundle' {
     const normalized = type.toLowerCase();
     if (normalized === 'customizable') return 'customizable';
@@ -1019,6 +1036,14 @@ function mapApiServingTypePricesToForm(item: EditableFoodItem): Record<string, s
     return prices;
 }
 
+function mapApiServingTypeStockToForm(item: EditableFoodItem): Record<string, { quantity: string; threshold: string }> {
+    const entries = item.servingTypePricing || item.servingTypePrices || [];
+    return Object.fromEntries(entries.map(entry => {
+        const type = entry?.servingType || entry?.name || entry?.type || '';
+        return [type, { quantity: entry?.stockQuantity == null ? '' : String(entry.stockQuantity), threshold: entry?.lowStockThreshold == null ? '' : String(entry.lowStockThreshold) }];
+    }).filter(([type]) => Boolean(type)));
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapApiPortionToForm(portion: any): PortionSize {
     return {
@@ -1029,6 +1054,8 @@ function mapApiPortionToForm(portion: any): PortionSize {
         prepTimeEnd: String(portion.endPrepTime ?? portion.prepTimeEnd ?? ''),
         servings: String(portion.servingPerServingType ?? portion.servings ?? ''),
         servingUnit: portion.servingType || portion.servingUnit || 'plate',
+        stockQuantity: portion.stockQuantity == null ? '' : String(portion.stockQuantity),
+        lowStockThreshold: portion.lowStockThreshold == null ? '' : String(portion.lowStockThreshold),
     };
 }
 
@@ -1066,6 +1093,8 @@ function mapApiBundleSlotToForm(slot: any): BundleSlot {
         category: slot.category || '',
         maxItems: slot.maxCount || slot.maxItems || 1,
         isRequired: !!slot.isRequired,
+        stockQuantity: slot.stockQuantity == null ? '' : String(slot.stockQuantity),
+        lowStockThreshold: slot.lowStockThreshold == null ? '' : String(slot.lowStockThreshold),
     };
 }
 

@@ -11,7 +11,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import EyeIcon from "@/components/svgIcons/EyeIcon";
 import EditIcon from "@/components/svgIcons/EditIcon";
-import ArchiveIcon from "@/components/svgIcons/ArchiveIcon";
 import DeleteIcon from "@/components/svgIcons/DeleteIcon";
 import DeleteIcon2 from "@/components/svgIcons/DeleteIcon2";
 import ActionModal from "@/components/ActionModal";
@@ -33,8 +32,18 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import AddFoodModal, { EditableFoodItem } from "./AddFoodModal";
+import { getCurrencySymbol } from "@/lib/v2-currency";
 import Loading from "@/components/Loading";
 import { toast } from "sonner";
+import { Percent } from "lucide-react";
+import { StoreDiscountDialog } from "./StoreDiscountDialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+interface FoodTableProps {
+  currency?: string;
+  isAddModalOpen?: boolean;
+  onAddModalOpenChange?: (open: boolean) => void;
+  canManageProducts?: boolean;
+}
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -45,6 +54,8 @@ interface FoodApiItem {
   name: string;
   description: string;
   product_images: string[];
+  discount_type?: 'fixed' | 'percentage' | null;
+  discount_value?: number | string | null;
   type: string;
   status: string;
   availability: string;
@@ -92,6 +103,8 @@ const transformFoodItem = (item: FoodApiItem): FrontendFoodItem => ({
   productName: item.name,
   description: item.description,
   product_images: item.product_images || [],
+  discount_type: item.discount_type ?? null,
+  discount_value: item.discount_value ?? null,
   stock: 0,
   remanent: 0,
   sales: 0,
@@ -119,23 +132,53 @@ const mapStatusFromApi = (status: string): string => {
   return statusMap[status] || 'Available Today';
 };
 
+function foodPriceRange(item: FrontendFoodItem, currency: string) {
+  const options = item.type === "Simple" ? item.portion
+    : item.type === "Customizable" ? item.servingTypePricing || []
+      : item.bundleConfig;
+  const prices = (options || []).map((option: { price?: number | string }) => Number(option.price)).filter(Number.isFinite);
+  if (!prices.length) return null;
+  const discount = Number(item.discount_value || 0);
+  const applyDiscount = (price: number) => item.discount_type === "percentage"
+    ? Math.max(0, price * (1 - discount / 100))
+    : item.discount_type === "fixed" ? Math.max(0, price - discount) : price;
+  const sorted = prices.map(applyDiscount).sort((a, b) => a - b);
+  const symbol = getCurrencySymbol(currency);
+  return sorted.length > 1 ? `${symbol}${sorted[0]!.toLocaleString()} - ${symbol}${sorted.at(-1)!.toLocaleString()}` : `${symbol}${sorted[0]!.toLocaleString()}`;
+}
+
+function foodInventorySummary(item: FrontendFoodItem) {
+  const options = item.type === "Simple" ? item.portion
+    : item.type === "Customizable" ? item.servingTypePricing || []
+      : item.bundleConfig;
+  const tracked = (options || []).filter((option: { stockQuantity?: number | string | null }) => option.stockQuantity != null);
+  if (!tracked.length) return "Not tracked";
+  const available = tracked.reduce((sum: number, option: { stockQuantity: number | string }) => sum + Number(option.stockQuantity), 0);
+  const low = tracked.some((option: { stockQuantity: number | string; lowStockThreshold?: number | string | null }) => option.lowStockThreshold != null && Number(option.stockQuantity) <= Number(option.lowStockThreshold));
+  return `${available} ${low ? "· Low stock" : "available"}`;
+}
+
 // ─── Component ──────────────────────────────────────────────────────────────
 
-export default function FoodTable() {
+export default function FoodTable({ currency = "NGN", isAddModalOpen: controlledAddModalOpen, onAddModalOpenChange, canManageProducts = true }: FoodTableProps) {
+  const [localAddModalOpen, setLocalAddModalOpen] = useState(false);
+  const isAddModalOpen = controlledAddModalOpen ?? localAddModalOpen;
+  const setAddModalOpen = onAddModalOpenChange ?? setLocalAddModalOpen;
   const [currentPage, setCurrentPage] = useState(0);
   const pageSize = 6;
   const [searchTerm, setSearchTerm] = useState("");
   const [foodItems, setFoodItems] = useState<FrontendFoodItem[]>([]);
   const [selectedFoodItems, setSelectedFoodItems] = useState<string[]>([]);
-  const [isAddFoodModalOpen, setIsAddFoodModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedFoodItem, setSelectedFoodItem] = useState<FrontendFoodItem | null>(null);
+  const [detailsFoodItem, setDetailsFoodItem] = useState<FrontendFoodItem | null>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [filterDateRange, setFilterDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined });
   const [filterStatus, setFilterStatus] = useState<string>("");
   const [sortBy, setSortBy] = useState<string>("default");
   const [isLoading, setIsLoading] = useState(true);
   const [totalFoodItems, setTotalFoodItems] = useState(0);
+  const [isStoreDiscountOpen, setIsStoreDiscountOpen] = useState(false);
 
   // Fetch food items from API
   const fetchFoodItems = useCallback(async () => {
@@ -165,7 +208,17 @@ export default function FoodTable() {
         }
 
         if (filterStatus) {
-          items = items.filter(item => item.status === filterStatus);
+          items = items.filter(item => item.status.toLowerCase() === filterStatus.toLowerCase());
+        }
+
+        if (filterDateRange.from || filterDateRange.to) {
+          const from = filterDateRange.from ? new Date(filterDateRange.from).setHours(0, 0, 0, 0) : undefined;
+          const to = filterDateRange.to ? new Date(filterDateRange.to).setHours(23, 59, 59, 999) : undefined;
+          items = items.filter((item) => {
+            const createdAt = new Date(item.createdAt).getTime();
+            if (!Number.isFinite(createdAt)) return false;
+            return (from === undefined || createdAt >= from) && (to === undefined || createdAt <= to);
+          });
         }
 
         // Client-side sorting
@@ -176,7 +229,7 @@ export default function FoodTable() {
                 ? a.productName.localeCompare(b.productName)
                 : b.productName.localeCompare(a.productName);
             }
-            if (sortBy.includes("stock")) {
+            if (sortBy.includes("created date")) {
               return sortBy.includes("(High-Low)")
                 ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
                 : new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
@@ -197,16 +250,12 @@ export default function FoodTable() {
     } finally {
       setIsLoading(false);
     }
-  }, [searchTerm, filterStatus, sortBy]);
+  }, [searchTerm, filterStatus, sortBy, filterDateRange]);
 
   // Fetch food items when filters or page changes
   useEffect(() => {
     fetchFoodItems();
   }, [fetchFoodItems]);
-
-  useEffect(() => {
-    setCurrentPage(0);
-  }, [searchTerm, filterStatus, sortBy]);
 
   // Add event listener for food item addition
   useEffect(() => {
@@ -290,6 +339,7 @@ export default function FoodTable() {
     setSortBy("default");
     setIsFilterOpen(false);
     setSearchTerm("");
+    setCurrentPage(0);
     toast.info('Filters cleared');
   };
 
@@ -302,14 +352,14 @@ export default function FoodTable() {
   const handleFoodUpdated = () => {
     window.dispatchEvent(new CustomEvent("foodAdded"));
     setSelectedFoodItem(null);
-    setIsAddFoodModalOpen(false);
+    setAddModalOpen(false);
     setCurrentPage(0);
     toast.success('Food item updated successfully!');
   };
 
   const openEditModal = (item: FrontendFoodItem) => {
     setSelectedFoodItem(item);
-    setIsAddFoodModalOpen(true);
+    setAddModalOpen(true);
   };
 
   const openDeleteModal = (item: FrontendFoodItem) => {
@@ -356,12 +406,15 @@ export default function FoodTable() {
             type="text"
             placeholder="Search by name..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(0); }}
             className="w-full sm:w-64 md:w-84 pr-8 py-2 text-xs sm:text-sm dark:bg-background rounded-lg border-[#F5F5F5] dark:border-[#1F1F1F]"
           />
           <SearchIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         </div>
         <div className="flex space-x-2">
+          {canManageProducts && <Button variant="outline" onClick={() => setIsStoreDiscountOpen(true)}>
+            <Percent className="h-4 w-4" /><span className="hidden sm:inline ml-2">Discounts</span>
+          </Button>}
           <Button
             variant="outline"
             className="border-[#F5F5F5] dark:border-[#1F1F1F] dark:bg-background"
@@ -380,7 +433,7 @@ export default function FoodTable() {
             className="border-primary text-primary dark:bg-background"
             onClick={() => {
               setSelectedFoodItem(null);
-              setIsAddFoodModalOpen(true);
+              setAddModalOpen(true);
             }}
           >
             <PlusIcon className="text-primary" />
@@ -416,7 +469,7 @@ export default function FoodTable() {
                       from: filterDateRange.from,
                       to: filterDateRange.to,
                     }}
-                    onSelect={(range) => setFilterDateRange({ from: range?.from, to: range?.to })}
+                    onSelect={(range) => { setFilterDateRange({ from: range?.from, to: range?.to }); setCurrentPage(0); }}
                     initialFocus
                   />
                 </PopoverContent>
@@ -424,7 +477,7 @@ export default function FoodTable() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="statusFilter">Status</Label>
-              <Select onValueChange={setFilterStatus} value={filterStatus}>
+              <Select onValueChange={(value) => { setFilterStatus(value); setCurrentPage(0); }} value={filterStatus}>
                 <SelectTrigger className="w-full dark:bg-background">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
@@ -437,7 +490,7 @@ export default function FoodTable() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="sortFilter">Sort By</Label>
-              <Select onValueChange={setSortBy} value={sortBy}>
+              <Select onValueChange={(value) => { setSortBy(value); setCurrentPage(0); }} value={sortBy}>
                 <SelectTrigger className="w-full dark:bg-background">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
@@ -445,8 +498,8 @@ export default function FoodTable() {
                   <SelectItem value="default">Default</SelectItem>
                   <SelectItem value="product name (A-Z)">Name (A-Z)</SelectItem>
                   <SelectItem value="product name (Z-A)">Name (Z-A)</SelectItem>
-                  <SelectItem value="stock (High-Low)">Newest First</SelectItem>
-                  <SelectItem value="stock (Low-High)">Oldest First</SelectItem>
+                  <SelectItem value="created date (High-Low)">Newest First</SelectItem>
+                  <SelectItem value="created date (Low-High)">Oldest First</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -454,6 +507,7 @@ export default function FoodTable() {
         </div>
       )}
 
+      <div className="hidden md:block">
       <Table>
         <TableHeader className="bg-[#F5F5F5] dark:bg-background">
           <TableRow>
@@ -468,7 +522,10 @@ export default function FoodTable() {
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Food Name</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Type</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Category</TableHead>
+            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Store price</TableHead>
+            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Inventory</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Availability</TableHead>
+            <TableHead className="font-semibold text-[#A0A0A0] text-sm">Discount</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Status</TableHead>
             <TableHead className="font-semibold text-[#A0A0A0] text-sm">Actions</TableHead>
           </TableRow>
@@ -476,7 +533,7 @@ export default function FoodTable() {
         <TableBody>
           {isLoading ? (
             <TableRow>
-              <TableCell colSpan={9} className="text-center py-8">
+              <TableCell colSpan={12} className="text-center py-8">
                 <Loading />
               </TableCell>
             </TableRow>
@@ -505,7 +562,10 @@ export default function FoodTable() {
                 <TableCell>{item.productName}</TableCell>
                 <TableCell>{item.type}</TableCell>
                 <TableCell>{item.category?.join(", ") || "-"}</TableCell>
+                <TableCell>{foodPriceRange(item, currency) || "-"}</TableCell>
+                <TableCell>{foodInventorySummary(item)}</TableCell>
                 <TableCell>{item.availability}</TableCell>
+                <TableCell>{item.discount_type && item.discount_value != null ? `${item.discount_type === 'percentage' ? `${item.discount_value}%` : `${getCurrencySymbol(currency)}${Number(item.discount_value).toLocaleString()}`} off` : '—'}</TableCell>
 
                 <TableCell>
                   <span className={`flex items-center px-2 py-1 text-black rounded text-sm ${getStatusClass(item.status)}`}>
@@ -524,18 +584,13 @@ export default function FoodTable() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setDetailsFoodItem(item)}>
                         <EyeIcon /> View Details
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => openEditModal(item)}>
-                        <EditIcon /> Edit Item
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => openDeleteModal(item)}>
-                        <DeleteIcon /> <span className="text-[#E40101]">Delete Item</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <ArchiveIcon /> Archive Item
-                      </DropdownMenuItem>
+                      {canManageProducts && <>
+                        <DropdownMenuItem onClick={() => openEditModal(item)}><EditIcon /> Edit Item</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openDeleteModal(item)}><DeleteIcon /> <span className="text-[#E40101]">Delete Item</span></DropdownMenuItem>
+                      </>}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -543,13 +598,45 @@ export default function FoodTable() {
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={9} className="text-center py-8">
+              <TableCell colSpan={12} className="text-center py-8">
                 No food items found
               </TableCell>
             </TableRow>
           )}
         </TableBody>
       </Table>
+      </div>
+
+      <div className="space-y-3 md:hidden">
+        {isLoading ? Array.from({ length: 4 }).map((_, index) => <div key={index} className="h-24 animate-pulse rounded-md border bg-muted/40" />)
+          : displayedFoodItems.length ? displayedFoodItems.map(item => (
+            <article key={item.uid} className="flex min-w-0 items-start gap-3 rounded-md border bg-card p-3">
+              <Checkbox checked={selectedFoodItems.includes(item.uid)} onCheckedChange={checked => handleSelectFoodItem(item.uid, checked as boolean)} aria-label={`Select ${item.productName}`} />
+              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded border bg-muted">
+                <Image src={getFirstThumbnail(item.thumbnail)} alt={item.productName} fill className="object-cover" sizes="56px" onError={event => { (event.target as HTMLImageElement).src = "/thumbnails/default.png"; }} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="break-words text-sm font-medium">{item.productName}</p>
+                <p className="truncate text-xs text-muted-foreground">{item.sku}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <span>{item.type}</span>
+                  <span className="font-medium text-foreground">{foodPriceRange(item, currency) || "Price not set"}</span>
+                  <span>{item.availability}</span>
+                  <span>{item.status}</span>
+                </div>
+              </div>
+              {canManageProducts && <Button type="button" size="sm" variant="outline" className="min-h-9 shrink-0 px-2" onClick={() => openEditModal(item)} aria-label={`Edit ${item.productName}`}><EditIcon /><span className="ml-1">Edit</span></Button>}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon" className="h-9 w-8 shrink-0" aria-label={`More actions for ${item.productName}`}><BsThreeDots className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {canManageProducts && <>
+                    <DropdownMenuItem onClick={() => openDeleteModal(item)}><DeleteIcon /> Delete item</DropdownMenuItem>
+                  </>}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </article>
+          )) : <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">No food items found</p>}
+      </div>
 
       <div className="flex justify-center mt-4 space-x-2">
         <span className="text-sm">
@@ -592,15 +679,39 @@ export default function FoodTable() {
       </div>
 
       <AddFoodModal
-        isOpen={isAddFoodModalOpen}
+        isOpen={isAddModalOpen}
         onClose={() => {
-          setIsAddFoodModalOpen(false);
+          setAddModalOpen(false);
           setSelectedFoodItem(null);
         }}
         onFoodAdded={handleFoodAdded}
         onFoodUpdated={handleFoodUpdated}
         editFoodItem={selectedFoodItem}
+        currency={currency}
       />
+      {canManageProducts && <StoreDiscountDialog open={isStoreDiscountOpen} onOpenChange={setIsStoreDiscountOpen} onSaved={fetchFoodItems} currency={currency} catalogType="food" />}
+      <Dialog open={!!detailsFoodItem} onOpenChange={open => { if (!open) setDetailsFoodItem(null); }}>
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
+          {detailsFoodItem && <>
+            <DialogHeader><DialogTitle>{detailsFoodItem.name}</DialogTitle></DialogHeader>
+            <div className="space-y-5 text-sm">
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span className="rounded bg-muted px-2 py-1">{detailsFoodItem.type}</span>
+                <span className="rounded bg-muted px-2 py-1">{detailsFoodItem.status}</span>
+                <span className="rounded bg-muted px-2 py-1">{detailsFoodItem.availability}</span>
+              </div>
+              {detailsFoodItem.description && <p className="text-muted-foreground">{detailsFoodItem.description}</p>}
+              <div className="flex flex-wrap gap-2">{(detailsFoodItem.product_images || []).map((src, index) => <Image key={`${src}-${index}`} src={src} alt={`${detailsFoodItem.name} ${index + 1}`} width={96} height={80} className="h-20 w-24 rounded object-cover" />)}</div>
+              <DetailSection title="Categories" values={detailsFoodItem.category || []} />
+              {detailsFoodItem.type === 'Simple' && <DetailSection title="Portions" values={(detailsFoodItem.portion || []).map(option => `${option.name}: ${getCurrencySymbol(currency)}${Number(option.price).toLocaleString()}`)} />}
+              {detailsFoodItem.type === 'Customizable' && <DetailSection title="Serving options" values={(detailsFoodItem.servingTypePricing || []).map(option => `${option.servingType}: ${getCurrencySymbol(currency)}${Number(option.price).toLocaleString()}`)} />}
+              {detailsFoodItem.type === 'Bundle' && <DetailSection title="Bundle options" values={(detailsFoodItem.bundleConfig || []).map(option => `${option.name}${option.category ? ` (${option.category})` : ''}: ${getCurrencySymbol(currency)}${Number(option.price).toLocaleString()}`)} />}
+              {(detailsFoodItem.addOnGroup || []).map(group => <DetailSection key={group.uid} title={group.name} values={group.addOnOptions.map((option: { name: string; price: number }) => `${option.name}: ${getCurrencySymbol(currency)}${Number(option.price).toLocaleString()}`)} />)}
+              <Button type="button" onClick={() => { setDetailsFoodItem(null); openEditModal(detailsFoodItem); }}>Edit food item</Button>
+            </div>
+          </>}
+        </DialogContent>
+      </Dialog>
       <ActionModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
@@ -620,4 +731,8 @@ export default function FoodTable() {
       />
     </div>
   );
+}
+
+function DetailSection({ title, values }: { title: string; values: string[] }) {
+  return <section><h3 className="mb-2 font-medium">{title}</h3>{values.length ? <ul className="space-y-1 text-muted-foreground">{values.map((value, index) => <li key={`${value}-${index}`}>{value}</li>)}</ul> : <p className="text-muted-foreground">None</p>}</section>;
 }

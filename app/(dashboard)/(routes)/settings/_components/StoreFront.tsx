@@ -7,31 +7,31 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Camera, Copy, ExternalLink, PlusIcon, Loader2, ImageIcon, CreditCard } from "lucide-react";
+import { Camera, Copy, ExternalLink, Loader2, ImageIcon, CreditCard, ArrowDown, ArrowUp, Trash2 } from "lucide-react";
 import EditIcon from "@/components/svgIcons/Edit";
 import SaveIcon from "@/components/svgIcons/SaveIcon";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import QrIcon from "@/components/svgIcons/QrIcon";
 import LinkIcon from "@/components/svgIcons/LinkIcon";
-import ThemeIcon from "@/components/svgIcons/ThemeIcon";
-import AddBankModal from "../../payouts/_components/AddBankModal";
-import Accessbank from "@/components/svgIcons/Accessbank";
+import PaymentMethods from "./PaymentMethods";
+import LogisticsSettings from "./LogisticsSettings";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-
-interface BankAccount {
-  id: string;
-  accountNumber: string;
-  bankName: string;
-  accountHolder: string;
-  icon: React.ReactNode;
-}
+import { isV2FoodBusiness, isV2TicketingBusiness } from "@/lib/v2";
 
 interface BrandColor {
   primary: string;
   secondary: string;
   accent: string;
+  text: string;
+}
+
+interface StorefrontAnnouncement {
+  enabled: boolean;
+  message: string;
+  background_color: string;
+  text_color: string;
 }
 
 interface StoreMetadata {
@@ -42,10 +42,25 @@ interface StoreMetadata {
   state?: string;
   post_code?: string;
   phone?: string;
+  email?: string;
+  instagram?: string;
+  facebook?: string;
+  twitter?: string;
+  x?: string;
   latitude?: number;
   longitude?: number;
   country?: string;
   brand_color?: BrandColor;
+  storefront_announcement?: StorefrontAnnouncement;
+  storefront_footer_image?: string;
+  storefront_about_us?: string;
+  storefront_carousel_slides?: CarouselSlide[];
+}
+
+interface CarouselSlide {
+  image: string;
+  title: string;
+  description: string;
 }
 
 interface StoreDetails {
@@ -59,6 +74,10 @@ interface StoreDetails {
   botUrl: string;
   logo?: string | null;
   banner?: string | null;
+  banner_style?: "portrait" | "carousel";
+  banner_images?: string[];
+  carouselSlides?: CarouselSlide[];
+  is_manually_closed?: boolean;
   metadata?: StoreMetadata;
   enabled_fulfillment_modes?: string[];
 }
@@ -73,6 +92,14 @@ type PaymentMethodKey = "paystack" | "klump" | "crypto";
 const isCryptoProvider = (provider: string) => {
   const normalizedProvider = provider.toLowerCase();
   return normalizedProvider === "crypto" || normalizedProvider === "kuvarpay";
+};
+
+const formatInternationalPhone = (phone: string, countryCode: string) => {
+  const digits = phone.replace(/\D/g, "");
+  const codeDigits = countryCode.replace(/\D/g, "");
+  if (!digits || !codeDigits) return "";
+  const localNumber = digits.startsWith(codeDigits) ? digits.slice(codeDigits.length) : digits;
+  return `+${codeDigits}${localNumber.replace(/^0+/, "")}`;
 };
 
 type Meridiem = "AM" | "PM";
@@ -190,24 +217,30 @@ const mapStoreAvailability = (
 
 function StorefrontComponent() {
   const [isEditingStorefront, setIsEditingStorefront] = useState(false);
-  const [isEditingTheme, setIsEditingTheme] = useState(false);
+  const [isEditingAppearance, setIsEditingAppearance] = useState(false);
   const [isEditingDeliveryMethod, setIsEditingDeliveryMethod] = useState(false);
   const [showDeleteSection, setShowDeleteSection] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
-  const [isAddBankModalOpen, setIsAddBankModalOpen] = useState(false);
   const [storefrontUrl, setStorefrontUrl] = useState("");
+  const [webchatUrl, setWebchatUrl] = useState("");
+  const [linkinbioUrl, setLinkinbioUrl] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
-  const [isSavingTheme, setIsSavingTheme] = useState(false);
+  const [isUploadingBannerImages, setIsUploadingBannerImages] = useState(false);
+  const [isUploadingFooterImage, setIsUploadingFooterImage] = useState(false);
+  const [isSavingAppearance, setIsSavingAppearance] = useState(false);
   const [isSavingDeliveryMethod, setIsSavingDeliveryMethod] = useState(false);
   const [isEditingPaymentMethod, setIsEditingPaymentMethod] = useState(false);
   const [isSavingPaymentMethod, setIsSavingPaymentMethod] = useState(false);
   const [isLoadingPaymentMethods, setIsLoadingPaymentMethods] = useState(false);
   const [isSavingAvailability, setIsSavingAvailability] = useState(false);
-  const [isFoodVendor, setIsFoodVendor] = useState(false); // ← NEW
+  const [isFoodVendor, setIsFoodVendor] = useState(false);
+  const [isTicketVendor, setIsTicketVendor] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
+  const bannerImagesInputRef = useRef<HTMLInputElement>(null);
+  const footerImageInputRef = useRef<HTMLInputElement>(null);
 
   const [storefrontData, setStorefrontData] = useState<StoreDetails>({
     storeName: "",
@@ -220,11 +253,25 @@ function StorefrontComponent() {
     botUrl: "",
     logo: null,
     banner: null,
+    banner_style: "portrait",
+    banner_images: [],
   });
 
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
-  const [themeColor, setThemeColor] = useState("Surge Green");
+  const [savedBrandColor, setSavedBrandColor] = useState<BrandColor>({
+    primary: "#005B14",
+    secondary: "#4FCA6A",
+    accent: "#E8F5E9",
+    text: "#111827",
+  });
+  const [savedAnnouncement, setSavedAnnouncement] = useState<StorefrontAnnouncement>({
+    enabled: false,
+    message: "",
+    background_color: "#005B14",
+    text_color: "#FFFFFF",
+  });
   const [availabilityEnabled, setAvailabilityEnabled] = useState(true);
+  const [isStoreManuallyClosed, setIsStoreManuallyClosed] = useState(false);
+  const [isUpdatingStoreStatus, setIsUpdatingStoreStatus] = useState(false);
   const [availability, setAvailability] =
     useState<AvailabilityDay[]>(defaultAvailability);
   const [paymentMethods, setPaymentMethods] = useState<Record<PaymentMethodKey, boolean>>({
@@ -245,16 +292,6 @@ function StorefrontComponent() {
     gig: false,
     relay: false, // ← NEW
   });
-
-  const getThemeColors = (themeName: string): BrandColor => {
-    const themeMap: Record<string, BrandColor> = {
-      'Surge Green': { primary: '#4FCA6A', secondary: '#45B862', accent: '#D1FFDB' },
-      'Ocean Blue': { primary: '#3B82F6', secondary: '#2563EB', accent: '#E7F2FF' },
-      'Sunset Orange': { primary: '#F97316', secondary: '#EA580C', accent: '#FFEDD5' },
-      'Purple Elegance': { primary: '#8B5CF6', secondary: '#7C3AED', accent: '#EDE8FF' }
-    };
-    return themeMap[themeName] || themeMap['Surge Green'];
-  };
 
   const updateAvailabilityDay = (
     index: number,
@@ -286,6 +323,28 @@ function StorefrontComponent() {
           : numericHour + 12;
 
     return `${String(convertedHour).padStart(2, "0")}:${minute}`;
+  };
+
+  const updateStoreClosure = async (closed: boolean) => {
+    if (isUpdatingStoreStatus) return;
+    setIsUpdatingStoreStatus(true);
+    try {
+      const response = await fetch("/api/store/manual-closure", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_manually_closed: closed }),
+      });
+      const result = await parseApiResponse(response);
+      if (!response.ok || result.status !== "success") {
+        throw new Error(result.message || "Could not update store status");
+      }
+      setIsStoreManuallyClosed(closed);
+      toast.success(closed ? "Store closed" : "Store reopened");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update store status");
+    } finally {
+      setIsUpdatingStoreStatus(false);
+    }
   };
 
   const saveAvailability = async () => {
@@ -342,15 +401,6 @@ function StorefrontComponent() {
     }
   };
 
-  const getThemeFromBrandColor = (brandColor?: BrandColor): string => {
-    if (!brandColor) return "Surge Green";
-    const { primary } = brandColor;
-    if (primary === '#3B82F6') return "Ocean Blue";
-    if (primary === '#F97316') return "Sunset Orange";
-    if (primary === '#8B5CF6') return "Purple Elegance";
-    return "Surge Green";
-  };
-
   useEffect(() => {
     const fetchStoreData = async () => {
       try {
@@ -371,45 +421,47 @@ function StorefrontComponent() {
 
         if (result.status === 'success' && result.data?.storeDetails) {
           const storeDetails = result.data.storeDetails;
+          setIsStoreManuallyClosed(Boolean(storeDetails.is_manually_closed));
+          if (storeDetails.store_url) {
+            setStorefrontUrl(storeDetails.store_url);
+            document.cookie = `store_url=${encodeURIComponent(storeDetails.store_url)}; path=/; max-age=2592000; SameSite=Lax`;
+          }
           const metadata = storeDetails.metadata || {};
           const brandColor = metadata.brand_color || {};
+          const resolvedBrandColor: BrandColor = {
+            primary: brandColor.primary || "#005B14",
+            secondary: brandColor.secondary || "#4FCA6A",
+            accent: brandColor.accent || "#E8F5E9",
+            text: brandColor.text || "#111827",
+          };
+          const resolvedAnnouncement: StorefrontAnnouncement = {
+            enabled: metadata.storefront_announcement?.enabled || false,
+            message: metadata.storefront_announcement?.message || "",
+            background_color: metadata.storefront_announcement?.background_color || resolvedBrandColor.primary,
+            text_color: metadata.storefront_announcement?.text_color || "#FFFFFF",
+          };
+          metadata.brand_color = resolvedBrandColor;
+          metadata.storefront_announcement = resolvedAnnouncement;
+          setSavedBrandColor(resolvedBrandColor);
+          setSavedAnnouncement(resolvedAnnouncement);
 
           // ── Detect food vendor ──────────────────────────────────────────
-          const businessType: string = storeDetails.business_type || '';
-          const isFood = businessType === 'Restaurant/Food Service';
+          const businessType: string = metadata.v2?.business_type || storeDetails.business_type || '';
+          const isFood = isV2FoodBusiness(businessType);
+          setIsTicketVendor(isV2TicketingBusiness(businessType));
           setIsFoodVendor(isFood);
-          console.log('🍔 Is food vendor:', isFood);
-
-          const currentTheme = getThemeFromBrandColor(brandColor);
-          setThemeColor(currentTheme);
-
-          if (!brandColor.primary && typeof window !== 'undefined') {
-            const storedTheme = localStorage.getItem('colorScheme');
-            if (storedTheme) {
-              const themeDisplayMap: Record<string, string> = {
-                'surge-green': 'Surge Green',
-                'ocean-blue': 'Ocean Blue',
-                'sunset-orange': 'Sunset Orange',
-                'purple-elegance': 'Purple Elegance'
-              };
-              setThemeColor(themeDisplayMap[storedTheme] || 'Surge Green');
-            }
-          }
 
           let countryCode = "+234";
-          if (metadata.phone) {
-            if (metadata.phone.startsWith('+1')) countryCode = "+1";
-            else if (metadata.phone.startsWith('+254')) countryCode = "+254";
-            else if (metadata.phone.startsWith('0') || metadata.phone.startsWith('+234')) countryCode = "+234";
-          }
+          const registeredPhone = String(storeDetails.vendor_whatsapp_number || metadata.phone || "");
+          const countryCodes = ["+234", "+254", "+233", "+27"];
+          countryCode = countryCodes.find((code) => registeredPhone.startsWith(code)) || "+234";
+          let formattedPhone = registeredPhone.replace(/^\+/, "");
+          const countryDigits = countryCode.slice(1);
+          if (formattedPhone.startsWith(countryDigits)) formattedPhone = formattedPhone.slice(countryDigits.length);
+          if (formattedPhone.startsWith("0")) formattedPhone = formattedPhone.slice(1);
 
-          let formattedPhone = metadata.phone || "";
-          if (formattedPhone.startsWith('+234')) formattedPhone = formattedPhone.replace('+234', '0');
-          else if (formattedPhone.startsWith('234')) formattedPhone = '0' + formattedPhone.slice(3);
-          else if (formattedPhone.startsWith('+1')) formattedPhone = formattedPhone.slice(2);
-          else if (formattedPhone.startsWith('+254')) formattedPhone = formattedPhone.slice(4);
-
-          const enabledModes = storeDetails.enabled_fulfillment_modes || [];
+          const storedModes = storeDetails.enabled_fulfillment_modes || [];
+          const enabledModes = isFood ? storedModes : storedModes.filter((mode: string) => mode !== 'relay');
           const storeAvailability = Array.isArray(storeDetails.availability)
             ? storeDetails.availability.filter(
                 (entry: unknown): entry is StoreAvailabilityEntry => {
@@ -432,7 +484,7 @@ function StorefrontComponent() {
             sendbox: enabledModes.includes('sendbox'),
             vendor: enabledModes.includes('vendor'),
             gig: enabledModes.includes('gig'),
-            relay: enabledModes.includes('relay'), // ← NEW
+            relay: isFood && enabledModes.includes('relay'),
           });
 
           console.log('✅ Loaded delivery methods:', enabledModes);
@@ -447,6 +499,17 @@ function StorefrontComponent() {
             location: metadata.city || "Lagos",
             logo: storeDetails.logo || null,
             banner: storeDetails.banner || null,
+            banner_images: Array.isArray(storeDetails.banner_images)
+              ? storeDetails.banner_images
+              : Array.isArray(metadata.storefront_banner_images)
+                ? metadata.storefront_banner_images
+                : storeDetails.banner
+                  ? [storeDetails.banner]
+                : [],
+            carouselSlides: Array.isArray(metadata.storefront_carousel_slides)
+              ? metadata.storefront_carousel_slides
+              : [],
+            banner_style: storeDetails.banner_style || metadata.storefront_banner_style || "portrait",
             botUrl: storeDetails.bot_url || "",
             metadata: metadata,
             enabled_fulfillment_modes: enabledModes
@@ -544,6 +607,17 @@ function StorefrontComponent() {
         setStorefrontUrl(urlFromCookie);
       }
     }
+
+    const storeId = getCookie("store_id");
+    if (storeId) {
+      const decodedStoreId = decodeURIComponent(storeId);
+      const webchatBase =
+        process.env.NEXT_PUBLIC_WEBCHAT_BASE_URL || "https://webchat.swiftree.app";
+      const linkinbioBase =
+        process.env.NEXT_PUBLIC_LINKINBIO_BASE_URL || "https://linkinbio.swiftree.app";
+      setWebchatUrl(`${webchatBase}/?vendor=${decodedStoreId}`);
+      setLinkinbioUrl(`${linkinbioBase}/${decodedStoreId}`);
+    }
   }, []);
 
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -588,7 +662,15 @@ function StorefrontComponent() {
       const result = await parseApiResponse(response);
       if (!response.ok) throw new Error(result.error || 'Failed to upload banner');
       const newBanner = result.data?.banner || result.data?.store?.banner;
-      if (newBanner) setStorefrontData(prev => ({ ...prev, banner: newBanner }));
+      if (newBanner) {
+        setStorefrontData(prev => ({
+          ...prev,
+          banner: newBanner,
+          // Portrait fallback: keep banner as the first image in the carousel
+          banner_images: prev.banner_images?.length ? prev.banner_images : [newBanner],
+          banner_style: "portrait",
+        }));
+      }
       toast.success('Banner uploaded successfully!');
       if (bannerInputRef.current) bannerInputRef.current.value = '';
     } catch (error) {
@@ -599,22 +681,102 @@ function StorefrontComponent() {
     }
   };
 
+  const handleFooterImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      toast.error('Please select a JPEG, PNG, or WebP image file');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Footer image must be 10MB or smaller');
+      return;
+    }
+
+    setIsUploadingFooterImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('footer_image', file);
+      const response = await fetch('/api/store/footer-image', { method: 'POST', body: formData });
+      const result = await parseApiResponse(response);
+      if (!response.ok) throw new Error(result.error || result.message || 'Failed to upload footer image');
+      const footerImage = result.data?.footer_image;
+      if (footerImage) {
+        setStorefrontData((previous) => ({
+          ...previous,
+          metadata: { ...previous.metadata, storefront_footer_image: footerImage },
+        }));
+      }
+      toast.success('Footer image updated');
+      if (footerImageInputRef.current) footerImageInputRef.current.value = '';
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to upload footer image');
+    } finally {
+      setIsUploadingFooterImage(false);
+    }
+  };
+
+  const handleBannerImagesUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const invalid = files.some((f) => !allowedTypes.includes(f.type));
+    if (invalid) { toast.error('All banner images must be JPEG, PNG, or WebP'); return; }
+
+    const tooLarge = files.some((f) => f.size > 10 * 1024 * 1024);
+    if (tooLarge) { toast.error('Each banner image must be less than 10MB'); return; }
+
+    setIsUploadingBannerImages(true);
+    try {
+      const formData = new FormData();
+      files.forEach((file) => formData.append('banner_images', file));
+      (storefrontData.banner_images || []).forEach((image) => formData.append('existing_images', image));
+      formData.append('carousel_slides', JSON.stringify(storefrontData.carouselSlides || []));
+
+      const response = await fetch('/api/store/banner-images', { method: 'POST', body: formData });
+      const result = await parseApiResponse(response);
+      if (!response.ok) throw new Error(result.error || 'Failed to upload banner images');
+
+      const newImages = result.data?.banner_images || result.data?.images || [];
+      if (Array.isArray(newImages) && newImages.length > 0) {
+        setStorefrontData(prev => ({
+          ...prev,
+          banner_images: newImages,
+          carouselSlides: Array.isArray(result.data?.carousel_slides)
+            ? result.data.carousel_slides
+            : newImages.map((image: string, index: number) => ({
+                image,
+                title: prev.carouselSlides?.[index]?.title || "",
+                description: prev.carouselSlides?.[index]?.description || "",
+              })),
+          banner_style: "carousel",
+        }));
+      }
+      toast.success('Banner images uploaded successfully!');
+      if (bannerImagesInputRef.current) bannerImagesInputRef.current.value = '';
+    } catch (error) {
+      console.error('❌ Banner images upload error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to upload banner images');
+    } finally {
+      setIsUploadingBannerImages(false);
+    }
+  };
+
   const handleEditStorefront = () => setIsEditingStorefront(true);
   const handleCancelStorefront = () => setIsEditingStorefront(false);
 
   const handleSaveStorefront = async () => {
     try {
       toast.loading('Saving changes...');
-      const rawPhone = storefrontData.whatsappNumber.replace(/\s/g, '');
-      const formattedPhone = rawPhone.startsWith('0')
-        ? `${storefrontData.countryCode}${rawPhone.slice(1)}`
-        : `${storefrontData.countryCode}${rawPhone}`;
+      const formattedPhone = formatInternationalPhone(storefrontData.whatsappNumber, storefrontData.countryCode);
 
       const requestBody = {
         store_name: storefrontData.storeName,
-        business_type: storefrontData.storeType,
         store_description: storefrontData.bio,
         metadata: {
+          ...storefrontData.metadata,
           owner_name: storefrontData.metadata?.owner_name || "",
           address: storefrontData.metadata?.address || "",
           address_line_2: storefrontData.metadata?.address_line_2 || "",
@@ -622,11 +784,22 @@ function StorefrontComponent() {
           state: storefrontData.metadata?.state || storefrontData.location,
           post_code: storefrontData.metadata?.post_code || "",
           phone: formattedPhone,
+          email: storefrontData.metadata?.email || "",
+          instagram: storefrontData.metadata?.instagram || "",
+          facebook: storefrontData.metadata?.facebook || "",
+          twitter: storefrontData.metadata?.twitter || "",
+          x: storefrontData.metadata?.x || "",
           latitude: storefrontData.metadata?.latitude || 0,
           longitude: storefrontData.metadata?.longitude || 0,
           country: storefrontData.metadata?.country || "NG",
-          brand_color: storefrontData.metadata?.brand_color || getThemeColors(themeColor),
+          brand_color: storefrontData.metadata?.brand_color || savedBrandColor,
+          storefront_announcement: storefrontData.metadata?.storefront_announcement || savedAnnouncement,
+          storefront_about_us: storefrontData.metadata?.storefront_about_us || "",
+          storefront_carousel_slides: storefrontData.carouselSlides || [],
         },
+        // Forward banner style + multi-image list to the backend
+        banner_style: storefrontData.banner_style,
+        banner_images: storefrontData.banner_images || [],
       };
 
       const response = await fetch('/api/store', {
@@ -646,55 +819,136 @@ function StorefrontComponent() {
     }
   };
 
-  const handleEditTheme = () => setIsEditingTheme(true);
-  const handleCancelTheme = () => setIsEditingTheme(false);
-
-  const handleSaveTheme = async () => {
-    if (isSavingTheme) return;
-    setIsSavingTheme(true);
+  const handleEditAppearance = () => setIsEditingAppearance(true);
+  const handleSaveAppearance = async () => {
+    if (isSavingAppearance) return;
+    const announcement = storefrontData.metadata?.storefront_announcement || savedAnnouncement;
+    if (announcement.enabled && !announcement.message.trim()) {
+      toast.error("Add announcement text or turn the strip off before saving.");
+      return;
+    }
+    setIsSavingAppearance(true);
     try {
-      const brandColor = getThemeColors(themeColor);
+      const brandColor = storefrontData.metadata?.brand_color || savedBrandColor;
       const requestBody = {
         metadata: {
+          ...storefrontData.metadata,
           owner_name: storefrontData.metadata?.owner_name || "Store Owner",
           address: storefrontData.metadata?.address || "",
           address_line_2: storefrontData.metadata?.address_line_2 || "",
           city: storefrontData.metadata?.city || storefrontData.location || "Lagos",
           state: storefrontData.metadata?.state || "Lagos",
           post_code: storefrontData.metadata?.post_code || "",
-          phone: storefrontData.metadata?.phone || `+234${storefrontData.whatsappNumber.replace(/^0/, '')}`,
+          phone: formatInternationalPhone(storefrontData.whatsappNumber, storefrontData.countryCode),
+          email: storefrontData.metadata?.email || "",
+          instagram: storefrontData.metadata?.instagram || "",
+          facebook: storefrontData.metadata?.facebook || "",
+          twitter: storefrontData.metadata?.twitter || "",
+          x: storefrontData.metadata?.x || "",
           latitude: storefrontData.metadata?.latitude || 0,
           longitude: storefrontData.metadata?.longitude || 0,
           country: storefrontData.metadata?.country || "NG",
-          brand_color: brandColor
+          brand_color: brandColor,
+          storefront_announcement: announcement,
         }
       };
-      toast.loading('Updating theme...');
+      toast.loading('Saving storefront appearance...');
       const response = await fetch('/api/store', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
       });
       const result = await parseApiResponse(response);
-      if (!response.ok) throw new Error(result.error || 'Failed to update theme');
+      if (!response.ok) throw new Error(result.error || 'Failed to save storefront appearance');
 
-      const themeMap: Record<string, string> = {
-        'Surge Green': 'surge-green', 'Ocean Blue': 'ocean-blue',
-        'Sunset Orange': 'sunset-orange', 'Purple Elegance': 'purple-elegance'
-      };
-      localStorage.setItem('colorScheme', themeMap[themeColor] || 'surge-green');
-      setIsEditingTheme(false);
+      setIsEditingAppearance(false);
       toast.dismiss();
-      toast.success('Theme updated successfully!');
-      setStorefrontData(prev => ({ ...prev, metadata: { ...prev.metadata, brand_color: brandColor } }));
-      window.dispatchEvent(new Event('themeChange'));
+      toast.success('Storefront appearance saved.');
+      setSavedBrandColor(brandColor);
+      setSavedAnnouncement(announcement);
+      setStorefrontData(prev => ({ ...prev, metadata: { ...prev.metadata, brand_color: brandColor, storefront_announcement: announcement } }));
     } catch (error) {
-      console.error('❌ Error updating theme:', error);
+      console.error('Error saving storefront appearance:', error);
       toast.dismiss();
-      toast.error(error instanceof Error ? error.message : 'Failed to update theme');
+      toast.error(error instanceof Error ? error.message : 'Failed to save storefront appearance');
     } finally {
-      setIsSavingTheme(false);
+      setIsSavingAppearance(false);
     }
+  };
+
+  const handleCancelAppearance = () => {
+    setStorefrontData((prev) => ({
+      ...prev,
+      metadata: {
+        ...prev.metadata,
+        brand_color: savedBrandColor,
+        storefront_announcement: savedAnnouncement,
+      },
+    }));
+    setIsEditingAppearance(false);
+  };
+
+  const updateBrandColor = (key: keyof BrandColor, value: string) => {
+    setStorefrontData((prev) => ({
+      ...prev,
+      metadata: {
+        ...prev.metadata,
+        brand_color: {
+          ...(prev.metadata?.brand_color || savedBrandColor),
+          [key]: value,
+        },
+      },
+    }));
+  };
+
+  const updateAnnouncement = (key: keyof StorefrontAnnouncement, value: string | boolean) => {
+    setStorefrontData((prev) => ({
+      ...prev,
+      metadata: {
+        ...prev.metadata,
+        storefront_announcement: {
+          ...(prev.metadata?.storefront_announcement || savedAnnouncement),
+          [key]: value,
+        },
+      },
+    }));
+  };
+
+  const moveBannerImage = (index: number, direction: -1 | 1) => {
+    const images = [...(storefrontData.banner_images || [])];
+    const slides = [...(storefrontData.carouselSlides || [])];
+    const target = index + direction;
+    if (target < 0 || target >= images.length) return;
+    [images[index], images[target]] = [images[target], images[index]];
+    if (slides.length === images.length) [slides[index], slides[target]] = [slides[target], slides[index]];
+    setStorefrontData((prev) => ({ ...prev, banner_images: images, carouselSlides: slides }));
+  };
+
+  const removeBannerImage = (index: number) => {
+    setStorefrontData((prev) => {
+      const bannerImages = (prev.banner_images || []).filter((_, imageIndex) => imageIndex !== index);
+      const carouselSlides = (prev.carouselSlides || []).filter((_, imageIndex) => imageIndex !== index);
+      return {
+        ...prev,
+        banner_images: bannerImages,
+        carouselSlides,
+        ...(bannerImages.length === 0 && prev.banner_style === "carousel"
+          ? { banner_style: "portrait" as const }
+          : {}),
+      };
+    });
+  };
+
+  const updateCarouselSlide = (index: number, field: "title" | "description", value: string) => {
+    setStorefrontData((prev) => {
+      const slides = (prev.banner_images || []).map((image, slideIndex) => ({
+        image,
+        title: prev.carouselSlides?.[slideIndex]?.title || "",
+        description: prev.carouselSlides?.[slideIndex]?.description || "",
+      }));
+      slides[index] = { ...slides[index], [field]: value };
+      return { ...prev, carouselSlides: slides };
+    });
   };
 
   const handleEditDeliveryMethod = () => setIsEditingDeliveryMethod(true);
@@ -707,11 +961,12 @@ function StorefrontComponent() {
       sendbox: enabledModes.includes('sendbox'),
       vendor: enabledModes.includes('vendor'),
       gig: enabledModes.includes('gig'),
-      relay: enabledModes.includes('relay'), // ← NEW
+      relay: isFoodVendor && enabledModes.includes('relay'),
     });
   };
 
   const handleDeliveryMethodChange = (method: 'pickup' | 'sendbox' | 'vendor' | 'gig' | 'relay') => {
+    if (method === 'relay' && !isFoodVendor) return;
     setDeliveryMethods(prev => {
       const newState = { ...prev };
       if (method === 'sendbox' && !prev.sendbox) {
@@ -750,7 +1005,7 @@ function StorefrontComponent() {
       if (deliveryMethods.sendbox) enabledModes.push('sendbox');
       if (deliveryMethods.vendor) enabledModes.push('vendor');
       if (deliveryMethods.gig) enabledModes.push('gig');
-      if (deliveryMethods.relay) enabledModes.push('relay'); // ← NEW
+      if (isFoodVendor && deliveryMethods.relay) enabledModes.push('relay');
 
       toast.loading('Updating delivery methods...');
       const response = await fetch('/api/store', {
@@ -861,6 +1116,16 @@ function StorefrontComponent() {
     setStorefrontData((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleMetadataChange = (field: keyof StoreMetadata, value: string) => {
+    setStorefrontData((prev) => ({
+      ...prev,
+      metadata: {
+        ...prev.metadata,
+        [field]: value,
+      },
+    }));
+  };
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast.success('Copied to clipboard!');
@@ -884,29 +1149,6 @@ function StorefrontComponent() {
     let urlToCopy = storefrontUrl || storefrontData.customUrl;
     urlToCopy = urlToCopy.replace(/%3A/g, ':').replace(/%2F/g, '/');
     copyToClipboard(urlToCopy);
-  };
-
-  const handleAddBank = (bankData: { bankName: string; accountNumber: string; accountHolder: string }) => {
-    const getBankIcon = (bankName: string) => {
-      if (bankName === 'Access Bank') return <Accessbank />;
-      const colors: { [key: string]: string } = {
-        'GTBank': 'bg-orange-500', 'Zenith Bank': 'bg-red-600', 'UBA': 'bg-red-700',
-        'First Bank': 'bg-blue-800', 'Fidelity Bank': 'bg-purple-600', 'Sterling Bank': 'bg-blue-700',
-        'Union Bank': 'bg-blue-600', 'Wema Bank': 'bg-purple-700', 'Unity Bank': 'bg-green-600',
-        'Polaris Bank': 'bg-indigo-600', 'Stanbic IBTC': 'bg-blue-500', 'Ecobank': 'bg-red-500',
-        'FCMB': 'bg-yellow-600', 'Keystone Bank': 'bg-teal-600',
-      };
-      const abbreviation = bankName.split(' ').map(w => w[0]).join('').slice(0, 3).toUpperCase();
-      const color = colors[bankName] || 'bg-gray-500';
-      return <div className={`w-8 h-8 ${color} rounded-full flex items-center justify-center text-white text-xs font-bold`}>{abbreviation}</div>;
-    };
-    setBankAccounts([...bankAccounts, {
-      id: `bank-${bankAccounts.length + 1}`,
-      icon: getBankIcon(bankData.bankName),
-      accountNumber: bankData.accountNumber,
-      bankName: bankData.bankName,
-      accountHolder: bankData.accountHolder
-    }]);
   };
 
   if (isLoading) {
@@ -963,12 +1205,12 @@ function StorefrontComponent() {
         </div>
       </div>
 
-      {/* Storefront Setup Card — unchanged */}
+      {/* Ticket stores manage an event storefront profile, not a retail catalog. */}
       <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
         <CardContent>
           <div className="space-y-6 pt-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-medium">Storefront Setup</h2>
+              <h2 className="text-sm font-medium">{isTicketVendor ? "Event storefront profile" : "Storefront Setup"}</h2>
               {!isEditingStorefront ? (
                 <Button onClick={handleEditStorefront} variant="outline" size="sm" className="dark:bg-background">
                   <span className="hidden sm:inline mr-2">Edit</span><EditIcon />
@@ -1006,62 +1248,109 @@ function StorefrontComponent() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="storeName" className="text-xs">Store Name *</Label>
-                <Input id="storeName" value={storefrontData.storeName} onChange={(e) => handleInputChange("storeName", e.target.value)} disabled={!isEditingStorefront} className="dark:bg-background" placeholder="Enter store name" />
+                <Label htmlFor="storeName" className="text-xs">{isTicketVendor ? "Organizer / storefront name *" : "Store Name *"}</Label>
+                <Input id="storeName" value={storefrontData.storeName} onChange={(e) => handleInputChange("storeName", e.target.value)} disabled={!isEditingStorefront} className="dark:bg-background" placeholder={isTicketVendor ? "Enter organizer name" : "Enter store name"} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="whatsapp" className="text-xs">WhatsApp Business Number *</Label>
-                <div className="flex gap-2">
-                  <Select value={storefrontData.countryCode} onValueChange={(value) => handleInputChange("countryCode", value)} disabled={!isEditingStorefront}>
-                    <SelectTrigger className="max-w-[120px] dark:bg-background"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="+234">+234 (NG)</SelectItem>
-                      <SelectItem value="+254">+254 (KE)</SelectItem>
-                      <SelectItem value="+1">+1 (US)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Input id="whatsapp" value={storefrontData.whatsappNumber} onChange={(e) => handleInputChange("whatsappNumber", e.target.value)} disabled={!isEditingStorefront} className="flex-1 dark:bg-background" placeholder="Enter WhatsApp number" />
-                </div>
+                <Label htmlFor="whatsapp" className="text-xs">Vendor WhatsApp Business Number</Label>
+                <Input
+                  id="whatsapp"
+                  value={`${storefrontData.countryCode} ${storefrontData.whatsappNumber}`.trim()}
+                  disabled
+                  className="dark:bg-background"
+                  aria-describedby="whatsapp-source-note"
+                />
+                <p id="whatsapp-source-note" className="text-xs text-muted-foreground">This uses the phone number on the vendor account and appears as the store contact number.</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="storeType" className="text-xs">Store Type *</Label>
-                <Select value={storefrontData.storeType} onValueChange={(value) => handleInputChange("storeType", value)} disabled={!isEditingStorefront}>
-                  <SelectTrigger className="w-full dark:bg-background"><SelectValue placeholder="Select store type" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Restaurant/Food Service">Restaurant/Food Service</SelectItem>
-                    <SelectItem value="Cafe">Cafe</SelectItem>
-                    <SelectItem value="Fashion">Fashion</SelectItem>
-                    <SelectItem value="Electronics">Electronics</SelectItem>
-                    <SelectItem value="Beauty & Cosmetics">Beauty & Cosmetics</SelectItem>
-                    <SelectItem value="Home & Garden">Home & Garden</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="location" className="text-xs">Location *</Label>
-                <Select value={storefrontData.location} onValueChange={(value) => handleInputChange("location", value)} disabled={!isEditingStorefront}>
-                  <SelectTrigger className="w-full dark:bg-background"><SelectValue placeholder="Select location" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Lagos">Lagos</SelectItem>
-                    <SelectItem value="Abuja">Abuja</SelectItem>
-                    <SelectItem value="Port Harcourt">Port Harcourt</SelectItem>
-                    <SelectItem value="Ibadan">Ibadan</SelectItem>
-                    <SelectItem value="Kano">Kano</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="location" className="text-xs">{isTicketVendor ? "Organizer city *" : "Main store city *"}</Label>
+                <Input id="location" value={storefrontData.location} onChange={(event) => handleInputChange("location", event.target.value)} disabled={!isEditingStorefront} className="dark:bg-background" placeholder="e.g. Lagos" />
+                <p className="text-xs text-muted-foreground">{isTicketVendor ? "Shown on your public ticket storefront. Set each event venue in its event details." : "This is the city shown on your store profile. Add other branches under Logistics settings."}</p>
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="bio" className="text-xs">Bio *</Label>
-              <Textarea id="bio" value={storefrontData.bio} onChange={(e) => handleInputChange("bio", e.target.value)} disabled={!isEditingStorefront} className="min-h-[100px] dark:bg-background resize-none" maxLength={500} placeholder="Tell customers about your store..." />
+              <Textarea id="bio" value={storefrontData.bio} onChange={(e) => handleInputChange("bio", e.target.value)} disabled={!isEditingStorefront} className="min-h-[100px] dark:bg-background resize-none" maxLength={500} placeholder={isTicketVendor ? "Describe your events and what attendees can expect..." : "Tell customers about your store..."} />
               <div className="text-right text-xs text-muted-foreground">{storefrontData.bio.length}/500</div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="banner" className="text-xs">Store Banner</Label>
+              <Label htmlFor="aboutUs" className="text-xs">About Us</Label>
+              <Textarea
+                id="aboutUs"
+                value={storefrontData.metadata?.storefront_about_us || ""}
+                onChange={(event) => handleMetadataChange("storefront_about_us", event.target.value)}
+                disabled={!isEditingStorefront}
+                className="min-h-[140px] resize-y dark:bg-background"
+                maxLength={3000}
+                placeholder={isTicketVendor ? "Tell attendees about the organizer and the events you host." : "Tell customers about your brand, story, and what makes your store special."}
+              />
+              <p className="text-right text-xs text-muted-foreground">{(storefrontData.metadata?.storefront_about_us || "").length}/3000</p>
+            </div>
+
+            <div className="rounded-2xl border border-[#F1F1F1] p-4 dark:border-[#252525]">
+              <div className="mb-4">
+                <h3 className="text-sm font-medium">Contact and social links</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  These details appear on the storefront footer and contact page.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="storeEmail" className="text-xs">Contact Email</Label>
+                  <Input
+                    id="storeEmail"
+                    type="email"
+                    value={storefrontData.metadata?.email || ""}
+                    onChange={(e) => handleMetadataChange("email", e.target.value)}
+                    disabled={!isEditingStorefront}
+                    className="dark:bg-background"
+                    placeholder="orders@yourstore.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="instagram" className="text-xs">Instagram URL</Label>
+                  <Input
+                    id="instagram"
+                    value={storefrontData.metadata?.instagram || ""}
+                    onChange={(e) => handleMetadataChange("instagram", e.target.value)}
+                    disabled={!isEditingStorefront}
+                    className="dark:bg-background"
+                    placeholder="https://instagram.com/yourstore"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="facebook" className="text-xs">Facebook URL</Label>
+                  <Input
+                    id="facebook"
+                    value={storefrontData.metadata?.facebook || ""}
+                    onChange={(e) => handleMetadataChange("facebook", e.target.value)}
+                    disabled={!isEditingStorefront}
+                    className="dark:bg-background"
+                    placeholder="https://facebook.com/yourstore"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="twitter" className="text-xs">X / Twitter URL</Label>
+                  <Input
+                    id="twitter"
+                    value={storefrontData.metadata?.x || storefrontData.metadata?.twitter || ""}
+                    onChange={(e) => {
+                      handleMetadataChange("x", e.target.value);
+                      handleMetadataChange("twitter", e.target.value);
+                    }}
+                    disabled={!isEditingStorefront}
+                    className="dark:bg-background"
+                    placeholder="https://x.com/yourstore"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Store Banner — portrait fallback */}
+            <div className="space-y-2">
+              <Label htmlFor="banner" className="text-xs">{isTicketVendor ? "Ticket storefront banner" : "Store Banner"}</Label>
               <input type="file" ref={bannerInputRef} onChange={handleBannerUpload} accept="image/jpeg,image/jpg,image/png,image/webp" className="hidden" />
               <div className="border-1 border-dashed border-primary rounded-2xl p-8 text-center cursor-pointer hover:bg-primary/5 transition-colors" onClick={() => isEditingStorefront && bannerInputRef.current?.click()}>
                 {isUploadingBanner ? (
@@ -1075,15 +1364,88 @@ function StorefrontComponent() {
                 ) : (
                   <div className="flex flex-col items-center gap-2">
                     <ImageIcon className="w-8 h-8 text-primary" />
-                    <p className="text-sm font-medium">{isEditingStorefront ? 'Upload store banner' : 'No banner uploaded'}</p>
+                    <p className="text-sm font-medium">{isEditingStorefront ? (isTicketVendor ? 'Upload ticket storefront banner' : 'Upload store banner') : 'No banner uploaded'}</p>
                     <p className="text-xs text-muted-foreground">{isEditingStorefront ? 'Max 10MB, JPEG, PNG, WebP' : 'Edit to upload banner'}</p>
                   </div>
                 )}
               </div>
             </div>
 
+            {/* Storefront/Banner style selector */}
             <div className="space-y-2">
-              <Label htmlFor="customUrl" className="text-xs">Custom Storefront URL *</Label>
+              <Label className="text-xs">{isTicketVendor ? "Ticket storefront banner style" : "Storefront / Banner style"}</Label>
+              <Select
+                value={storefrontData.banner_style || "portrait"}
+                onValueChange={(value) => handleInputChange("banner_style", value)}
+                disabled={!isEditingStorefront}
+              >
+                <SelectTrigger className="dark:bg-background"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="portrait">Portrait (single banner)</SelectItem>
+                  <SelectItem value="carousel">Carousel (multi-image, auto-sliding)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {storefrontData.banner_style === "carousel"
+                  ? "Upload multiple banner images — the carousel will slide through them automatically."
+                  : "A single portrait banner is shown. Use multi-image upload for the carousel."}
+              </p>
+            </div>
+
+            {/* Multi-banner upload for carousel */}
+            <div className="space-y-2">
+              <Label htmlFor="banner-images" className="text-xs">{isTicketVendor ? "Event storefront carousel images" : "Banner Images (multi-image)"}</Label>
+              <input
+                type="file"
+                ref={bannerImagesInputRef}
+                onChange={handleBannerImagesUpload}
+                accept="image/jpeg,image/jpg,image/png,image/webp"
+                multiple
+                className="hidden"
+              />
+              <div className="border-1 border-dashed border-primary rounded-2xl p-8 text-center cursor-pointer hover:bg-primary/5 transition-colors" onClick={() => isEditingStorefront && bannerImagesInputRef.current?.click()}>
+                {isUploadingBannerImages ? (
+                  <div className="flex flex-col items-center gap-2"><Loader2 className="w-8 h-8 animate-spin text-primary" /><p className="text-sm font-medium">Uploading banner images...</p></div>
+                ) : storefrontData.banner_images && storefrontData.banner_images.length > 0 ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="grid w-40 h-16 grid-cols-3 gap-2 rounded-md border overflow-hidden">
+                      {storefrontData.banner_images.slice(0, 3).map((img, i) => (
+                        <div key={`${img}-${i}`} className="bg-cover bg-center" style={{ backgroundImage: `url(${img})` }} />
+                      ))}
+                    </div>
+                    <p className="text-sm font-medium">{storefrontData.banner_images.length} banner images</p>
+                    <p className="text-xs text-muted-foreground">Select more images to add slides. You can reorder or remove slides below.</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2">
+                    <ImageIcon className="w-8 h-8 text-primary" />
+                    <p className="text-sm font-medium">{isEditingStorefront ? 'Upload banner images' : 'No banner images uploaded'}</p>
+                    <p className="text-xs text-muted-foreground">{isEditingStorefront ? 'JPEG, PNG, WebP — used for the carousel' : 'Edit to upload multi-image banner'}</p>
+                  </div>
+                )}
+              </div>
+              {storefrontData.banner_images && storefrontData.banner_images.length > 0 && (
+                <div className="space-y-2">
+                  {storefrontData.banner_images.map((image, index) => (
+                    <div key={`${image}-${index}`} className="grid grid-cols-[5rem_minmax(0,1fr)_auto] gap-3 rounded-lg border p-3">
+                      <div className="h-14 w-20 rounded bg-cover bg-center" style={{ backgroundImage: `url(${image})` }} />
+                      <div className="space-y-2">
+                        <Input value={storefrontData.carouselSlides?.[index]?.title || ""} onChange={(event) => updateCarouselSlide(index, "title", event.target.value)} disabled={!isEditingStorefront} placeholder={`Slide ${index + 1} title (optional)`} maxLength={100} />
+                        <Textarea value={storefrontData.carouselSlides?.[index]?.description || ""} onChange={(event) => updateCarouselSlide(index, "description", event.target.value)} disabled={!isEditingStorefront} placeholder="Slide description (optional)" maxLength={240} className="min-h-[64px] resize-y" />
+                      </div>
+                      <div className="flex flex-col">
+                        <Button type="button" variant="ghost" size="icon" title="Move banner up" aria-label="Move banner up" disabled={!isEditingStorefront || index === 0} onClick={() => moveBannerImage(index, -1)}><ArrowUp className="h-4 w-4" /></Button>
+                        <Button type="button" variant="ghost" size="icon" title="Move banner down" aria-label="Move banner down" disabled={!isEditingStorefront || index === storefrontData.banner_images!.length - 1} onClick={() => moveBannerImage(index, 1)}><ArrowDown className="h-4 w-4" /></Button>
+                        <Button type="button" variant="ghost" size="icon" title="Remove banner" aria-label="Remove banner" disabled={!isEditingStorefront} onClick={() => removeBannerImage(index)}><Trash2 className="h-4 w-4" /></Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="customUrl" className="text-xs">{isTicketVendor ? "Public ticket storefront URL" : "Custom Storefront URL *"}</Label>
               <div className="flex flex-col md:flex-row gap-2">
                 <div className="flex items-center gap-2 flex-1 px-2 py-1.5 border rounded-md dark:bg-background overflow-auto">
                   <ExternalLink className="w-4 h-4 text-muted-foreground" />
@@ -1106,219 +1468,62 @@ function StorefrontComponent() {
                 </Button>
               </div>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="webchatUrl" className="text-xs">Web Chat URL *</Label>
+              <div className="flex flex-col md:flex-row gap-2">
+                <div className="flex items-center gap-2 flex-1 px-2 py-1.5 border rounded-md dark:bg-background overflow-auto">
+                  <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm">{webchatUrl || "No web chat URL available"}</span>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => copyToClipboard(webchatUrl)} className="dark:bg-background" disabled={!webchatUrl}>
+                  <span className="hidden sm:inline">Copy Link </span><Copy className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="linkinbioUrl" className="text-xs">Link-in-Bio URL *</Label>
+              <div className="flex flex-col md:flex-row gap-2">
+                <div className="flex items-center gap-2 flex-1 px-2 py-1.5 border rounded-md dark:bg-background overflow-auto">
+                  <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm">{linkinbioUrl || "No link-in-bio URL available"}</span>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => copyToClipboard(linkinbioUrl)} className="dark:bg-background" disabled={!linkinbioUrl}>
+                  <span className="hidden sm:inline">Copy Link </span><Copy className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* ── Delivery Method Card ─────────────────────────────────────────────── */}
       <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
-        <CardContent>
-          <div className="space-y-6 pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-medium">Delivery Method</h2>
-                <p className="text-xs text-muted-foreground mt-1">Choose how customers can receive their orders</p>
-              </div>
-              {!isEditingDeliveryMethod ? (
-                <Button onClick={handleEditDeliveryMethod} variant="outline" size="sm" className="dark:bg-background">
-                  <span className="hidden sm:inline mr-2">Edit</span><EditIcon />
-                </Button>
-              ) : (
-                <div className="flex gap-2">
-                  <Button onClick={handleCancelDeliveryMethod} variant="outline" size="sm">Cancel</Button>
-                  <Button onClick={handleSaveDeliveryMethod} variant="default" size="sm" disabled={isSavingDeliveryMethod}>
-                    {isSavingDeliveryMethod ? <Loader2 className="w-4 h-4 animate-spin" /> : <><SaveIcon /><span className="hidden sm:inline ml-2">Save Changes</span></>}
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-4">
-              {/* ── Pickup — always visible for both types ─────────────────── */}
-              <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                <input type="checkbox" id="pickup" checked={deliveryMethods.pickup} onChange={() => handleDeliveryMethodChange('pickup')} disabled={!isEditingDeliveryMethod} className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:cursor-not-allowed" />
-                <div className="flex-1">
-                  <label htmlFor="pickup" className={`text-sm font-medium ${!isEditingDeliveryMethod ? 'cursor-default' : 'cursor-pointer'}`}>Pickup</label>
-                  <p className="text-xs text-muted-foreground mt-1">Customers can pick up orders from your store location</p>
-                </div>
-              </div>
-
-              {/* ── Food vendor: show Relay and Vendor Delivery ───────────── */}
-              {isFoodVendor && (
-                <>
-                  <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                    <input type="checkbox" id="relay" checked={deliveryMethods.relay} onChange={() => handleDeliveryMethodChange('relay')} disabled={!isEditingDeliveryMethod} className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50" />
-                    <div className="flex-1">
-                      <label htmlFor="relay" className={`text-sm font-medium ${!isEditingDeliveryMethod ? 'cursor-default' : 'cursor-pointer'}`}>Relay by Chowdeck</label>
-                      <p className="text-xs text-muted-foreground mt-1">Food delivery handled by Relay (Chowdeck)</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                    <input type="checkbox" id="vendor" checked={deliveryMethods.vendor} onChange={() => handleDeliveryMethodChange('vendor')} disabled={!isEditingDeliveryMethod} className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50" />
-                    <div className="flex-1">
-                      <label htmlFor="vendor" className={`text-sm font-medium ${!isEditingDeliveryMethod ? 'cursor-default' : 'cursor-pointer'}`}>Vendor Delivery</label>
-                      <p className="text-xs text-muted-foreground mt-1">You handle delivery logistics yourself</p>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* ── Non-food vendors: show SendBox, Vendor, GIG ───────────── */}
-              {!isFoodVendor && (
-                <>
-                  <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                    <input type="checkbox" id="sendbox" checked={deliveryMethods.sendbox} onChange={() => handleDeliveryMethodChange('sendbox')} disabled={!isEditingDeliveryMethod || deliveryMethods.vendor} className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50" />
-                    <div className="flex-1">
-                      <label htmlFor="sendbox" className={`text-sm font-medium ${!isEditingDeliveryMethod || deliveryMethods.vendor ? 'cursor-not-allowed text-muted-foreground' : 'cursor-pointer'}`}>SendBox</label>
-                      <p className="text-xs text-muted-foreground mt-1">Delivery handled by SendBox</p>
-                      {deliveryMethods.vendor && <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">⚠️ Cannot be selected with Vendor Delivery</p>}
-                    </div>
-                  </div>
-
-                  <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                    <input type="checkbox" id="vendor" checked={deliveryMethods.vendor} onChange={() => handleDeliveryMethodChange('vendor')} disabled={!isEditingDeliveryMethod || deliveryMethods.sendbox} className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50" />
-                    <div className="flex-1">
-                      <label htmlFor="vendor" className={`text-sm font-medium ${!isEditingDeliveryMethod || deliveryMethods.sendbox ? 'cursor-not-allowed text-muted-foreground' : 'cursor-pointer'}`}>Vendor Delivery</label>
-                      <p className="text-xs text-muted-foreground mt-1">You handle delivery logistics yourself</p>
-                      {deliveryMethods.sendbox && <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">⚠️ Cannot be selected with Sendbox</p>}
-                    </div>
-                  </div>
-
-                  <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                    <input type="checkbox" id="gig" checked={deliveryMethods.gig} onChange={() => handleDeliveryMethodChange('gig')} disabled={!isEditingDeliveryMethod} className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50" />
-                    <div className="flex-1">
-                      <label htmlFor="gig" className={`text-sm font-medium ${!isEditingDeliveryMethod ? 'cursor-default' : 'cursor-pointer'}`}>GIG Logistics</label>
-                      <p className="text-xs text-muted-foreground mt-1">Delivery handled by GIG Logistics</p>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Info box */}
-            {(deliveryMethods.pickup || deliveryMethods.sendbox || deliveryMethods.vendor || deliveryMethods.gig || deliveryMethods.relay) && (
-              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                <p className="text-xs text-blue-700 dark:text-blue-300">
-                  <strong>Currently enabled:</strong>{' '}
-                  {[
-                    deliveryMethods.pickup && 'Pickup',
-                    deliveryMethods.relay && 'Relay by Chowdeck',
-                    deliveryMethods.sendbox && 'SendBox',
-                    deliveryMethods.vendor && 'Vendor Delivery',
-                    deliveryMethods.gig && 'GIG Logistics',
-                  ].filter(Boolean).join(', ')}
-                </p>
-              </div>
-            )}
+        <CardContent className="flex items-center justify-between gap-4 py-5">
+          <div>
+            <h3 className="text-sm font-medium">{isTicketVendor ? "Ticket storefront sales" : "Store status"}</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {isStoreManuallyClosed
+                ? isTicketVendor
+                  ? "Ticket purchases are paused on your public storefront until you reopen sales."
+                  : "Your storefront is closed to customers until you reopen it."
+                : isTicketVendor
+                  ? "Ticket purchases are available. Pause public sales temporarily without unpublishing events."
+                  : "Your storefront is open. Close it temporarily without changing your business hours."}
+            </p>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* ── Payment Method Card ─────────────────────────────────────────────── */}
-      <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
-        <CardContent>
-          <div className="space-y-6 pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <CreditCard className="h-4 w-4 text-primary" />
-                  <h2 className="text-sm font-medium">Payment Methods</h2>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">Choose how customers can pay at checkout</p>
-              </div>
-              {!isEditingPaymentMethod ? (
-                <Button onClick={handleEditPaymentMethod} variant="outline" size="sm" className="dark:bg-background">
-                  <span className="hidden sm:inline mr-2">Edit</span><EditIcon />
-                </Button>
-              ) : (
-                <div className="flex gap-2">
-                  <Button onClick={handleCancelPaymentMethod} variant="outline" size="sm">Cancel</Button>
-                  <Button onClick={handleSavePaymentMethod} variant="default" size="sm" disabled={isSavingPaymentMethod}>
-                    {isSavingPaymentMethod ? <Loader2 className="w-4 h-4 animate-spin" /> : <><SaveIcon /><span className="hidden sm:inline ml-2">Save Changes</span></>}
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            {isLoadingPaymentMethods ? (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Loading payment methods...
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                  <input type="checkbox" id="payment-paystack" checked={paymentMethods.paystack} disabled className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:cursor-not-allowed" />
-                  <div className="flex-1">
-                    <label htmlFor="payment-paystack" className="text-sm font-medium">Paystack</label>
-                    <p className="text-xs text-muted-foreground mt-1">Card, bank transfer, and local payment options.</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                  <input type="checkbox" id="payment-klump" checked={paymentMethods.klump} onChange={() => handlePaymentMethodChange("klump")} disabled={!isEditingPaymentMethod} className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50" />
-                  <div className="flex-1">
-                    <label htmlFor="payment-klump" className={`text-sm font-medium ${!isEditingPaymentMethod ? "cursor-default" : "cursor-pointer"}`}>Klump</label>
-                    <p className="text-xs text-muted-foreground mt-1">Buy now, pay later for eligible storefront orders.</p>
-                  </div>
-                </div>
-
-                <div className="space-y-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                  <div className="flex items-start space-x-3">
-                    <input type="checkbox" id="payment-crypto" checked={paymentMethods.crypto} onChange={() => handlePaymentMethodChange("crypto")} disabled={!isEditingPaymentMethod} className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50" />
-                    <div className="flex-1">
-                      <label htmlFor="payment-crypto" className={`text-sm font-medium ${!isEditingPaymentMethod ? "cursor-default" : "cursor-pointer"}`}>Crypto</label>
-                      <p className="text-xs text-muted-foreground mt-1">Accept supported crypto payments when checkout support is enabled.</p>
-                    </div>
-                  </div>
-
-                  {isEditingPaymentMethod && paymentMethods.crypto && (
-                    <div className="grid grid-cols-1 gap-3 pl-7 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label className="text-xs">Settlement Bank</Label>
-                        <Select value={selectedKuvarpayBankCode} onValueChange={setSelectedKuvarpayBankCode}>
-                          <SelectTrigger className="w-full dark:bg-background">
-                            <SelectValue placeholder="Select bank" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {kuvarpayBanks.map((bank) => (
-                              <SelectItem key={bank.code} value={bank.code}>{bank.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-xs">Account Number</Label>
-                        <Input
-                          value={kuvarpayAccountNumber}
-                          onChange={(event) => setKuvarpayAccountNumber(event.target.value.replace(/\D/g, ""))}
-                          placeholder="Enter account number"
-                          className="dark:bg-background"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <p className="text-xs text-blue-700 dark:text-blue-300">
-                <strong>Currently enabled:</strong>{" "}
-                {[
-                  paymentMethods.paystack && "Paystack",
-                  paymentMethods.klump && "Klump",
-                  paymentMethods.crypto && "Crypto",
-                ].filter(Boolean).join(", ") || "Paystack"}
-              </p>
-            </div>
+          <div className="flex shrink-0 items-center gap-3">
+            <span className="text-xs font-medium">{isStoreManuallyClosed ? "Closed" : "Open"}</span>
+            <Switch
+              checked={isStoreManuallyClosed}
+              onCheckedChange={(closed) => void updateStoreClosure(closed)}
+              disabled={isUpdatingStoreStatus || isLoading}
+              aria-label="Manually close or reopen storefront"
+            />
           </div>
         </CardContent>
       </Card>
 
       {/* Availability Setup */}
-      <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
+      {!isTicketVendor && <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
         <CardContent>
           <div className="space-y-5 pt-6">
             <div className="flex items-center justify-between">
@@ -1482,76 +1687,161 @@ function StorefrontComponent() {
             )}
           </div>
         </CardContent>
-      </Card>
+      </Card>}
 
-      {/* Bank Account Setup — unchanged */}
+      {/* Storefront appearance is separate from the vendor dashboard theme. */}
       <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
         <CardContent>
           <div className="space-y-4 pt-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium">Bank Account Setup</h3>
-              <Button variant="outline" size="sm" onClick={() => setIsAddBankModalOpen(true)}>
-                <span className="hidden sm:inline">Add Bank Account</span> <PlusIcon />
-              </Button>
-            </div>
-            <div className="space-y-3">
-              {bankAccounts.map((account) => (
-                <div key={account.id} className="flex items-center justify-between p-4 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-                      <span className="text-xs font-bold">{account.bankName.slice(0, 2)}</span>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-sm">{account.accountNumber}</h4>
-                      <p className="text-xs text-muted-foreground">{account.bankName} . {account.accountHolder}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Theme & Customization — unchanged */}
-      <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
-        <CardContent>
-          <div className="space-y-4 pt-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium">Theme & Customization</h3>
-              {!isEditingTheme ? (
-                <Button onClick={handleEditTheme} variant="outline" size="sm" className="dark:bg-background">
+              <div>
+                <h3 className="text-sm font-medium">Storefront appearance</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {isTicketVendor
+                    ? "Customize the colors and announcement attendees see on your public ticket storefront."
+                    : "Customize the colors and announcement customers see in your store."}
+                </p>
+              </div>
+              {!isEditingAppearance ? (
+                <Button onClick={handleEditAppearance} variant="outline" size="sm" className="dark:bg-background">
                   <span className="hidden sm:inline mr-2">Edit</span><EditIcon />
                 </Button>
               ) : (
                 <div className="flex gap-2">
-                  <Button onClick={handleCancelTheme} variant="outline" size="sm">Cancel</Button>
-                  <Button onClick={handleSaveTheme} variant="default" size="sm" disabled={isSavingTheme}>
-                    {isSavingTheme ? <Loader2 className="w-4 h-4 animate-spin" /> : <><SaveIcon /><span className="hidden sm:inline ml-2">Save Changes</span></>}
+                  <Button onClick={handleCancelAppearance} variant="outline" size="sm">Cancel</Button>
+                  <Button onClick={handleSaveAppearance} variant="default" size="sm" disabled={isSavingAppearance}>
+                    {isSavingAppearance ? <Loader2 className="w-4 h-4 animate-spin" /> : <><SaveIcon /><span className="hidden sm:inline ml-2">Save appearance</span></>}
                   </Button>
                 </div>
               )}
             </div>
-            <div className="flex items-center justify-between p-4 rounded-lg">
-              <div className="flex items-center gap-3">
-                <ThemeIcon />
-                <span className="text-sm">Theme</span>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              {([
+                ["primary", "Button color", "Primary storefront buttons and accents"],
+                ["secondary", "Secondary", "Highlights and active states"],
+                ["accent", "Soft accent", "Subtle backgrounds"],
+                ["text", "Text color", "Default storefront text"],
+              ] as const).map(([key, label, description]) => {
+                const value = storefrontData.metadata?.brand_color?.[key] || savedBrandColor[key];
+                return (
+                  <label key={key} className="flex items-center gap-3 rounded-lg border p-3">
+                    <input
+                      type="color"
+                      value={value}
+                      onChange={(event) => updateBrandColor(key, event.target.value.toUpperCase())}
+                      disabled={!isEditingAppearance}
+                      aria-label={`${label} color`}
+                      className="h-10 w-10 cursor-pointer rounded border-0 bg-transparent p-0 disabled:cursor-not-allowed"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium">{label}</span>
+                      <span className="block text-xs text-muted-foreground">{description}</span>
+                      <span className="mt-1 block font-sans text-xs uppercase">{value}</span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="space-y-3 rounded-lg border p-4">
+              <div>
+                <p className="text-sm font-medium">Footer image</p>
+                <p className="mt-1 text-xs text-muted-foreground">This background is used across your storefront pages. It does not change your banner.</p>
               </div>
-              <Select value={themeColor} onValueChange={setThemeColor} disabled={!isEditingTheme}>
-                <SelectTrigger className="w-[180px] dark:bg-background"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Surge Green">Surge Green</SelectItem>
-                  <SelectItem value="Ocean Blue">Ocean Blue</SelectItem>
-                  <SelectItem value="Sunset Orange">Sunset Orange</SelectItem>
-                  <SelectItem value="Purple Elegance">Purple Elegance</SelectItem>
-                </SelectContent>
-              </Select>
+              <div
+                className="h-28 rounded-md border bg-cover bg-center"
+                style={{ backgroundImage: `url("${storefrontData.metadata?.storefront_footer_image || '/Banner.png'}")` }}
+                role="img"
+                aria-label="Footer background preview"
+              />
+              <input
+                ref={footerImageInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleFooterImageUpload}
+                disabled={!isEditingAppearance || isUploadingFooterImage}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!isEditingAppearance || isUploadingFooterImage}
+                onClick={() => footerImageInputRef.current?.click()}
+              >
+                {isUploadingFooterImage ? <Loader2 className="mr-2 size-4 animate-spin" /> : <ImageIcon className="mr-2 size-4" />}
+                {isUploadingFooterImage ? 'Uploading...' : 'Choose footer image'}
+              </Button>
+            </div>
+
+            <div className="space-y-4 rounded-lg border p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium">Announcement strip</p>
+                  <p className="mt-1 text-xs text-muted-foreground">A scrolling message at the top of your storefront.</p>
+                </div>
+                <Switch
+                  checked={storefrontData.metadata?.storefront_announcement?.enabled || false}
+                  onCheckedChange={(checked) => updateAnnouncement("enabled", checked)}
+                  disabled={!isEditingAppearance}
+                  aria-label="Enable announcement strip"
+                />
+              </div>
+              <div className="grid gap-4 md:grid-cols-[1fr_auto_auto]">
+                <div className="space-y-2">
+                  <Label htmlFor="announcement-message" className="text-xs">Message</Label>
+                  <Input
+                    id="announcement-message"
+                    value={storefrontData.metadata?.storefront_announcement?.message || ""}
+                    onChange={(event) => updateAnnouncement("message", event.target.value)}
+                    maxLength={140}
+                    disabled={!isEditingAppearance || !storefrontData.metadata?.storefront_announcement?.enabled}
+                    placeholder="Free delivery on orders over ..."
+                  />
+                  <p className="text-right text-xs text-muted-foreground">{storefrontData.metadata?.storefront_announcement?.message?.length || 0}/140</p>
+                </div>
+                {([
+                  ["background_color", "Strip color"],
+                  ["text_color", "Text color"],
+                ] as const).map(([key, label]) => {
+                  const fallback = key === "background_color" ? savedBrandColor.primary : "#FFFFFF";
+                  const value = storefrontData.metadata?.storefront_announcement?.[key] || fallback;
+                  return (
+                    <label key={key} className="flex items-center gap-2 rounded-md border px-3 py-2">
+                      <input
+                        type="color"
+                        value={value}
+                        onChange={(event) => updateAnnouncement(key, event.target.value.toUpperCase())}
+                        disabled={!isEditingAppearance || !storefrontData.metadata?.storefront_announcement?.enabled}
+                        aria-label={label}
+                        className="h-8 w-8 cursor-pointer rounded border-0 bg-transparent p-0 disabled:cursor-not-allowed"
+                      />
+                      <span className="text-xs">{label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+              <div
+                className="overflow-hidden rounded-md py-2 text-xs font-semibold"
+                style={{
+                  backgroundColor: storefrontData.metadata?.storefront_announcement?.background_color || savedBrandColor.primary,
+                  color: storefrontData.metadata?.storefront_announcement?.text_color || "#FFFFFF",
+                }}
+              >
+                <div className="px-4 text-center">
+                  {storefrontData.metadata?.storefront_announcement?.enabled
+                    ? storefrontData.metadata?.storefront_announcement?.message || "Your announcement preview"
+                    : "Announcement strip is off"}
+                </div>
+              </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <AddBankModal isOpen={isAddBankModalOpen} onClose={() => setIsAddBankModalOpen(false)} onAddBank={handleAddBank} />
+      <PaymentMethods />
+      {!isTicketVendor && <LogisticsSettings />}
     </div>
   );
 }

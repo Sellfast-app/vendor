@@ -22,6 +22,7 @@ function createLogoutResponse(message: string) {
 
   response.cookies.delete("accessToken");
   response.cookies.delete("store_name");
+  response.cookies.delete("user_role");
 
   return response;
 }

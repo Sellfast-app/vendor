@@ -12,10 +12,9 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronRight, Edit, Trash, ChevronLeft, Upload, X } from "lucide-react";
+import { ChevronRight, Edit, Trash, ChevronLeft, Upload, X, Plus } from "lucide-react";
 import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
-import FlashIcon from "@/components/svgIcons/FlashIcon";
 import SaveIcon from "@/components/svgIcons/SaveIcon";
 import {
     Accordion,
@@ -24,6 +23,7 @@ import {
     AccordionTrigger,
 } from "@/components/ui/accordion";
 import { toast } from "sonner";
+import { getCurrencySymbol } from "@/lib/v2-currency";
 
 interface FrontendProduct {
     id: string;
@@ -36,9 +36,59 @@ interface FrontendProduct {
     status: string;
     createdAt: string;
     thumbnail: string | string[];
-    variants?: { id: string; size: string | number; color: string; price: number; quantity: number }[];
+    variants?: { id: string; name?: string; size: string | number; color: string; sku?: string; price: number | null; quantity: number; image_url?: string; image?: string; imageFile?: File; imageRemoved?: boolean }[];
+    bundleItems?: { productId: string; productName: string; sku: string; quantity: number }[];
+    shortDescription?: string;
+    discountType?: "fixed" | "percentage" | null;
+    discountMode?: "amount_off" | "sale_price" | null;
+    discountValue?: number | null;
+    unit?: string;
+    barcode?: string;
+    collection?: string;
+    sizeChartUrl?: string;
+    minOrderQuantity?: number | null;
+    maxOrderQuantity?: number | null;
+    location?: string;
     // New fields for API
     product_weight?: number;
+    est_prod_days_from?: number;
+    est_prod_days_to?: number;
+    product_type?: string;
+}
+
+interface AvailableProduct {
+    id: string;
+    productName: string;
+    sku: string;
+    stock: number;
+    productType?: string;
+    product_type?: string;
+}
+
+interface ApiProduct {
+    id: string;
+    product_sku?: string | null;
+    product_name?: string | null;
+    product_description?: string | null;
+    product_quantity?: number | string | null;
+    product_price?: number | string | null;
+    product_status?: string | null;
+    created_at?: string;
+    product_images?: string[] | null;
+    variants?: Array<{ id?: string; name?: string; size?: string | number; color?: string; sku?: string; price?: number | string | null; quantity?: number | string; image_url?: string; image?: string }>;
+    bundle_items?: Array<{ product_id: string; product_name?: string; product_sku?: string; quantity?: number | string }>;
+    short_description?: string | null;
+    discount_type?: "fixed" | "percentage" | null;
+    discount_mode?: "amount_off" | "sale_price" | null;
+    discount_value?: number | string | null;
+    product_unit?: string | null;
+    barcode?: string | null;
+    collection_name?: string | null;
+    size_chart_url?: string | null;
+    min_order_quantity?: number | null;
+    max_order_quantity?: number | null;
+    store_location?: string | null;
+    product_weight?: number | string | null;
     est_prod_days_from?: number;
     est_prod_days_to?: number;
     product_type?: string;
@@ -50,26 +100,30 @@ interface ProductDetailsModalProps {
     onEdit: (product: FrontendProduct) => void;
     onDelete: (product: FrontendProduct) => void;
     product: FrontendProduct | null;
+    availableProducts?: AvailableProduct[];
     isEditMode?: boolean;
+    currency?: string;
+    canManage?: boolean;
 }
 
-export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete, product, isEditMode = false }: ProductDetailsModalProps) {
+export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete, product, availableProducts = [], isEditMode = false, currency = "NGN", canManage = true }: ProductDetailsModalProps) {
     const [localProduct, setLocalProduct] = useState<FrontendProduct | null>(null);
     const [editMode, setEditMode] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
     const [newImages, setNewImages] = useState<File[]>([]);
     const [removedImages, setRemovedImages] = useState<string[]>([]);
+    const [bundleProductToAdd, setBundleProductToAdd] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        console.log("ProductDetailsModal updating with product:", product, "Initial Edit Mode:", isEditMode);
         setLocalProduct(product);
         setEditMode(isEditMode);
         setCurrentImageIndex(0);
         setNewImages([]);
         setRemovedImages([]);
-    }, [product, isEditMode]);
+        setBundleProductToAdd("");
+    }, [isOpen, product, isEditMode]);
 
     // Helper function to get current image URL for slider
     const getCurrentImageUrl = (): string => {
@@ -82,31 +136,48 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
         return localProduct.thumbnail;
     };
 
-    const handleInputChange = (field: keyof FrontendProduct, value: string | number) => {
+    const handleInputChange = (field: keyof FrontendProduct, value: string | number | null) => {
         if (localProduct) {
             setLocalProduct(prev => prev ? { ...prev, [field]: value } : null);
         }
     };
 
+    const updateVariant = (index: number, field: "name" | "size" | "color" | "sku" | "price" | "quantity", value: string) => {
+        if (!localProduct) return;
+        const variants = [...(localProduct.variants || [])];
+        variants[index] = {
+            ...variants[index],
+            [field]: field === "price"
+                ? value.trim() === "" ? null : Number(value)
+                : field === "quantity" ? Number(value) || 0 : value,
+        };
+        setLocalProduct({ ...localProduct, variants });
+    };
+
+    const updateVariantImage = (index: number, file: File | null) => {
+        if (!localProduct) return;
+        const variants = [...(localProduct.variants || [])];
+        variants[index] = {
+            ...variants[index],
+            imageFile: file || undefined,
+            imageRemoved: file ? false : true,
+        };
+        setLocalProduct({ ...localProduct, variants });
+    };
+
+    const addBundleProduct = () => {
+        if (!localProduct || !bundleProductToAdd) return;
+        const item = availableProducts.find((candidate) => candidate.id === bundleProductToAdd);
+        if (!item || (item.productType || item.product_type) === "bundle" || localProduct.bundleItems?.some((entry) => entry.productId === item.id)) return;
+        setLocalProduct({ ...localProduct, bundleItems: [...(localProduct.bundleItems || []), { productId: item.id, productName: item.productName, sku: item.sku, quantity: 1 }] });
+        setBundleProductToAdd("");
+    };
+
     const handleSave = async () => {
         if (!localProduct) return;
       
-        console.log('🔄 Starting product update process...');
-        console.log('📝 Local Product Data:', {
-          id: localProduct.id,
-          productName: localProduct.productName,
-          sales: localProduct.sales,
-          stock: localProduct.stock,
-          status: localProduct.status,
-          description: localProduct.description,
-          product_weight: localProduct.product_weight,
-          est_prod_days_from: localProduct.est_prod_days_from,
-          est_prod_days_to: localProduct.est_prod_days_to
-        });
-    
         // Validate that we have a product ID
         if (!localProduct.id) {
-            console.error('❌ Product ID is missing!');
             toast.error('Product ID is missing. Cannot update product.');
             return;
         }
@@ -116,95 +187,80 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
           // Prepare form data for PATCH request
           const formData = new FormData();
       
-          // Required fields from API docs - status is required
+          formData.append('name', localProduct.productName);
           formData.append('status', mapStatusToApi(localProduct.status));
-          
-          // Optional fields - only include if they have values
-          if (localProduct.productName) formData.append('name', localProduct.productName);
-          if (localProduct.sales) formData.append('price', localProduct.sales.toString());
-          if (localProduct.stock) formData.append('quantity', localProduct.stock.toString());
-          if (localProduct.description) formData.append('description', localProduct.description);
-          if (localProduct.est_prod_days_from) formData.append('est_prod_days_from', localProduct.est_prod_days_from.toString());
-          if (localProduct.est_prod_days_to) formData.append('est_prod_days_to', localProduct.est_prod_days_to.toString());
-          if (localProduct.product_weight) formData.append('weight', localProduct.product_weight.toString());
+          formData.append('price', localProduct.sales.toString());
+          formData.append('quantity', localProduct.stock.toString());
+          formData.append('description', localProduct.description || '');
+          formData.append('short_description', localProduct.shortDescription || '');
+          formData.append('discount_type', localProduct.discountType || '');
+          formData.append('discount_mode', localProduct.discountMode || 'amount_off');
+          formData.append('discount_value', localProduct.discountValue?.toString() || '');
+          formData.append('est_prod_days_from', String(localProduct.est_prod_days_from ?? 0));
+          formData.append('est_prod_days_to', String(localProduct.est_prod_days_to ?? 0));
+          formData.append('weight', String(localProduct.product_weight ?? 0));
+          formData.append('unit', localProduct.unit || '');
+          formData.append('barcode', localProduct.barcode || '');
+          formData.append('collection', localProduct.collection || '');
+          formData.append('size_chart_url', localProduct.sizeChartUrl || '');
+          formData.append('min_order_quantity', localProduct.minOrderQuantity?.toString() || '');
+          formData.append('max_order_quantity', localProduct.maxOrderQuantity?.toString() || '');
+          formData.append('location', localProduct.location || '');
+          const uploadFiles = [...newImages];
+          const variants = (localProduct.variants || []).map((variant) => {
+            const { imageFile, imageRemoved, image, ...fields } = variant;
+            if (imageFile) {
+              return { ...fields, image_file_index: uploadFiles.push(imageFile) - 1 };
+            }
+            if (imageRemoved) return { ...fields, image_url: "" };
+            const imageUrl = variant.image_url || image;
+            return imageUrl ? { ...fields, image_url: imageUrl } : fields;
+          });
+          formData.append('variants', JSON.stringify(variants));
+          formData.append('bundle_items', JSON.stringify((localProduct.bundleItems || []).map(item => ({
+            product_id: item.productId,
+            quantity: item.quantity,
+          }))));
+          if (allImages.length > 5) throw new Error('A product can have at most five images.');
+          formData.append('existing_images', JSON.stringify(existingImages));
       
           // Add new images
-          newImages.forEach((file) => {
+          uploadFiles.forEach((file) => {
             formData.append('files', file);
           });
       
-          console.log('🔄 Updating product with data:', {
-            productId: localProduct.id,
-            status: mapStatusToApi(localProduct.status),
-            name: localProduct.productName,
-            price: localProduct.sales,
-            quantity: localProduct.stock,
-            description: localProduct.description,
-            est_prod_days_from: localProduct.est_prod_days_from,
-            est_prod_days_to: localProduct.est_prod_days_to,
-            weight: localProduct.product_weight,
-            newImages: newImages.length
-          });
-      
           const apiUrl = `/api/products/${localProduct.id}`;
-          console.log('🔗 Calling API URL:', apiUrl);
-      
-          // Log form data being sent
-          console.log('📦 FormData contents:');
-          for (const [key, value] of formData.entries()) {
-            if (value instanceof File) {
-              console.log(`  ${key}: File - ${value.name}`);
-            } else {
-              console.log(`  ${key}:`, value);
-            }
-          }
       
           const response = await fetch(apiUrl, {
             method: 'PATCH',
             body: formData,
           });
       
-          console.log('📡 API Response Status:', response.status);
-          console.log('📡 API Response URL:', response.url);
     
           if (!response.ok) {
             const errorData = await response.json();
-            console.error('❌ API Error Response:', errorData);
             throw new Error(errorData.message || 'Failed to update product');
           }
       
           const result = await response.json();
-          console.log('✅ Full API Response:', result);
-          console.log('✅ Result keys:', Object.keys(result));
       
           if (result.status === 'success') {
-            // FIX: Backend is returning "datat" instead of "data" (typo in backend)
-            // Handle both cases for backwards compatibility
             const productData = result.data || result.datat;
-            
-            console.log('✅ Product data extracted:', productData);
-            
             if (!productData) {
-              console.error('❌ No product data found in response:', result);
               throw new Error('No product data returned from server');
             }
             
             // Update local product with the response data
             const updatedProduct = transformProduct(productData);
-            console.log('✅ Transformed product:', updatedProduct);
-            
             onEdit(updatedProduct);
             setEditMode(false);
             setNewImages([]);
             setRemovedImages([]);
             toast.success('Product updated successfully!');
           } else {
-            console.error('❌ Status is not success:', result);
             throw new Error(result.message || 'Failed to update product');
           }
         } catch (error) {
-          console.error('❌ Error updating product:', error);
-          console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
           toast.error(`Failed to update product: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
           setIsLoading(false);
@@ -254,8 +310,12 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (files) {
-            const newFiles = Array.from(files);
-            setNewImages(prev => [...prev, ...newFiles]);
+            const newFiles = Array.from(files).filter(file => file.type.startsWith("image/") && file.size <= 5 * 1024 * 1024);
+            const availableSlots = Math.max(0, 5 - existingImages.length - newImages.length);
+            if (newFiles.length > availableSlots) toast.error("A product can have at most five images.");
+            setNewImages(prev => [...prev, ...newFiles.slice(0, availableSlots)]);
+            if (newFiles.length !== files.length) toast.error("Use image files up to 5 MB each.");
+            e.target.value = "";
         }
     };
 
@@ -271,20 +331,45 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
         fileInputRef.current?.click();
     };
 
-   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const transformProduct = (apiProduct: any): FrontendProduct => ({
+    const transformProduct = (apiProduct: ApiProduct): FrontendProduct => ({
         id: apiProduct.id,
-        sku: apiProduct.product_sku,
-        productName: apiProduct.product_name,
-        description: apiProduct.product_description,
-        stock: apiProduct.product_quantity,
-        remanent: apiProduct.product_quantity,
-        sales: parseFloat(apiProduct.product_price) || 0,
-        status: mapStatusFromApi(apiProduct.product_status),
-        createdAt: apiProduct.created_at,
-        thumbnail: apiProduct.product_images || [],
-        variants: Array.isArray(apiProduct.variants) ? apiProduct.variants : [],
-        product_weight: apiProduct.product_weight ? parseFloat(apiProduct.product_weight) : undefined,
+        sku: apiProduct.product_sku || "",
+        productName: apiProduct.product_name || "",
+        description: apiProduct.product_description || "",
+        stock: Number(apiProduct.product_quantity || 0),
+        remanent: Number(apiProduct.product_quantity || 0),
+        sales: Number(apiProduct.product_price || 0),
+        status: mapStatusFromApi(apiProduct.product_status || ""),
+        createdAt: apiProduct.created_at || "",
+        thumbnail: Array.isArray(apiProduct.product_images) ? apiProduct.product_images : [],
+        variants: Array.isArray(apiProduct.variants) ? apiProduct.variants.map((variant, index) => ({
+            id: String(variant.id || `${apiProduct.id}-variant-${index}`),
+            name: String(variant.name || variant.size || ""),
+            size: variant.size || "",
+            color: String(variant.color || ""),
+            sku: String(variant.sku || ""),
+            price: variant.price == null ? null : Number(variant.price),
+            quantity: Number(variant.quantity || 0),
+            image_url: String(variant.image_url || variant.image || ""),
+        })) : [],
+        bundleItems: Array.isArray(apiProduct.bundle_items) ? apiProduct.bundle_items.map((item) => ({
+            productId: String(item.product_id),
+            productName: String(item.product_name || "Product"),
+            sku: String(item.product_sku || ""),
+            quantity: Number(item.quantity || 1),
+        })) : [],
+        shortDescription: apiProduct.short_description || "",
+        discountType: apiProduct.discount_type || null,
+        discountMode: apiProduct.discount_mode || null,
+        discountValue: apiProduct.discount_value == null ? null : Number(apiProduct.discount_value),
+        unit: apiProduct.product_unit || "",
+        barcode: apiProduct.barcode || "",
+        collection: apiProduct.collection_name || "",
+        sizeChartUrl: apiProduct.size_chart_url || "",
+        minOrderQuantity: apiProduct.min_order_quantity ?? null,
+        maxOrderQuantity: apiProduct.max_order_quantity ?? null,
+        location: apiProduct.store_location || "",
+        product_weight: apiProduct.product_weight == null ? undefined : Number(apiProduct.product_weight),
         est_prod_days_from: apiProduct.est_prod_days_from,
         est_prod_days_to: apiProduct.est_prod_days_to,
         product_type: apiProduct.product_type,
@@ -296,7 +381,7 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
             'made-to-order': 'Made-to-order',
             'out-of-stock': 'Out of Stock'
         };
-        return statusMap[status] || 'Ready Stock';
+        return statusMap[status] || status || 'Unknown';
     };
 
     const mapStatusToApi = (status: string): string => {
@@ -305,7 +390,7 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
             'Made-to-order': 'made-to-order',
             'Out of Stock': 'out-of-stock'
         };
-        return statusMap[status] || 'ready';
+        return statusMap[status] || status;
     };
 
     // Get all images (existing + new)
@@ -323,8 +408,8 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[800px] border-none rounded-lg p-6 bg-card overflow-y-auto max-h-[90vh]">
-                <DialogHeader>
+            <DialogContent className="flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-none flex-col overflow-hidden rounded-lg border-none bg-card p-0 sm:w-[min(96vw,1100px)] sm:max-w-[min(96vw,1100px)]">
+                <DialogHeader className="shrink-0 border-b px-4 py-3 sm:px-6">
                     <DialogTitle className="text-sm">
                         {editMode ? "Edit Product" : "Product Details"}
                     </DialogTitle>
@@ -333,8 +418,9 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                     </DialogDescription>
                 </DialogHeader>
 
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
                 {localProduct ? (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
+                    <div className="mt-2 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(280px,0.8fr)_minmax(0,1.5fr)]">
                         {/* Left Column - Product Image */}
                         <div className="space-y-4">
                             <div className="relative w-full h-64 rounded-lg overflow-hidden">
@@ -413,7 +499,9 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                                         <Button
                                                             variant="destructive"
                                                             size="icon"
-                                                            className="absolute -top-2 -right-2 h-5 w-5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                                                            type="button"
+                                                            aria-label={`Remove product image ${index + 1}`}
                                                             onClick={() => handleRemoveExistingImage(img)}
                                                         >
                                                             <X className="h-3 w-3" />
@@ -435,7 +523,9 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                                 <Button
                                                     variant="destructive"
                                                     size="icon"
-                                                    className="absolute -top-2 -right-2 h-5 w-5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                                                    type="button"
+                                                    aria-label={`Remove new image ${index + 1}`}
                                                     onClick={() => handleRemoveNewImage(index)}
                                                 >
                                                     <X className="h-3 w-3" />
@@ -446,31 +536,6 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                 </div>
                             )}
 
-                            {/* Product Insight */}
-                            <div className="p-4 bg-muted rounded-lg">
-                                <div className="flex items-center justify-between gap-2 mb-3">
-                                    <span className="font-medium text-sm">Product Insights</span>
-                                    <FlashIcon />
-                                </div>
-                                <div className="grid grid-cols-2 gap-4 text-sm">
-                                    <div>
-                                        <Label className="text-muted-foreground">Total Sales</Label>
-                                        <p className="font-semibold">0</p>
-                                    </div>
-                                    <div>
-                                        <Label className="text-muted-foreground">Total Revenue</Label>
-                                        <p className="font-semibold">₦0</p>
-                                    </div>
-                                    <div>
-                                        <Label className="text-muted-foreground">Total Ratings</Label>
-                                        <p className="font-semibold">4.5/5</p>
-                                    </div>
-                                    <div>
-                                        <Label className="text-muted-foreground">Stock Quantity</Label>
-                                        <p className="font-semibold">{localProduct.stock}</p>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
 
                         {/* Right Column - Product Data */}
@@ -503,9 +568,13 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                     className={`min-h-[100px] resize-none ${!editMode ? 'bg-muted' : ''}`}
                                 />
                             </div>
-                            <div className="grid grid-cols-3 gap-4">
+                            {editMode && <div>
+                                <Label htmlFor="shortDescription" className="text-xs mb-1">Short description</Label>
+                                <Input id="shortDescription" maxLength={180} value={localProduct.shortDescription || ""} onChange={(e) => handleInputChange("shortDescription", e.target.value)} />
+                            </div>}
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                                 <div>
-                                    <Label htmlFor="price" className="text-xs mb-1">Price (₦)</Label>
+                                    <Label htmlFor="price" className="text-xs mb-1">Price ({getCurrencySymbol(currency)})</Label>
                                     <Input
                                         id="price"
                                         type="number"
@@ -540,13 +609,13 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                     />
                                 </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                 <div>
                                     <Label htmlFor="est_prod_days_from" className="text-xs mb-1">Production Days (From)</Label>
                                     <Input
                                         id="est_prod_days_from"
                                         type="number"
-                                        value={localProduct.est_prod_days_from || ''}
+                                        value={localProduct.est_prod_days_from ?? ''}
                                         onChange={(e) => handleInputChange('est_prod_days_from', parseInt(e.target.value) || 0)}
                                         readOnly={!editMode}
                                         className={!editMode ? 'bg-muted' : ''}
@@ -558,13 +627,33 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                     <Input
                                         id="est_prod_days_to"
                                         type="number"
-                                        value={localProduct.est_prod_days_to || ''}
+                                        value={localProduct.est_prod_days_to ?? ''}
                                         onChange={(e) => handleInputChange('est_prod_days_to', parseInt(e.target.value) || 0)}
                                         readOnly={!editMode}
                                         className={!editMode ? 'bg-muted' : ''}
                                         placeholder="Maximum days"
                                     />
                                 </div>
+                            </div>
+                            {editMode && <div className="space-y-2 rounded-md border p-3">
+                                <Label className="text-xs">Product discount</Label>
+                                <Select value={localProduct.discountType ? localProduct.discountMode === "sale_price" ? "sale_price" : localProduct.discountType === "percentage" ? "percentage" : "amount_off" : "none"} onValueChange={(value) => {
+                                    const discountType = value === "percentage" ? "percentage" : value === "none" ? null : "fixed";
+                                    setLocalProduct({ ...localProduct, discountType, discountMode: value === "sale_price" ? "sale_price" : "amount_off", discountValue: value === "none" ? null : localProduct.discountValue });
+                                }}>
+                                    <SelectTrigger disabled={!editMode}><SelectValue /></SelectTrigger>
+                                    <SelectContent><SelectItem value="none">No discount</SelectItem><SelectItem value="percentage">Percentage off</SelectItem><SelectItem value="amount_off">Amount off</SelectItem>{localProduct.product_type === "single" && <SelectItem value="sale_price">Set discounted price</SelectItem>}</SelectContent>
+                                </Select>
+                                {localProduct.discountType && <Input type="number" min="0.01" max={localProduct.discountType === "percentage" ? 100 : undefined} placeholder={localProduct.discountMode === "sale_price" ? "Discounted price" : localProduct.discountType === "percentage" ? "Discount percent" : "Amount off"} value={localProduct.discountValue ?? ""} onChange={(e) => handleInputChange("discountValue", e.target.value === "" ? null : Number(e.target.value))} />}
+                            </div>}
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <div><Label className="text-xs mb-1">Unit</Label><Input value={localProduct.unit || ""} readOnly={!editMode} onChange={(e) => handleInputChange("unit", e.target.value)} /></div>
+                                <div><Label className="text-xs mb-1">Barcode</Label><Input value={localProduct.barcode || ""} readOnly={!editMode} onChange={(e) => handleInputChange("barcode", e.target.value)} /></div>
+                                <div><Label className="text-xs mb-1">Collection</Label><Input value={localProduct.collection || ""} readOnly={!editMode} onChange={(e) => handleInputChange("collection", e.target.value)} /></div>
+                                <div><Label className="text-xs mb-1">Size chart URL</Label><Input value={localProduct.sizeChartUrl || ""} readOnly={!editMode} onChange={(e) => handleInputChange("sizeChartUrl", e.target.value)} /></div>
+                                <div><Label className="text-xs mb-1">Minimum order quantity</Label><Input type="number" min="1" value={localProduct.minOrderQuantity ?? ""} readOnly={!editMode} onChange={(e) => handleInputChange("minOrderQuantity", e.target.value === "" ? null : Number(e.target.value))} /></div>
+                                <div><Label className="text-xs mb-1">Maximum order quantity</Label><Input type="number" min="1" value={localProduct.maxOrderQuantity ?? ""} readOnly={!editMode} onChange={(e) => handleInputChange("maxOrderQuantity", e.target.value === "" ? null : Number(e.target.value))} /></div>
+                                <div><Label className="text-xs mb-1">Store location</Label><Input value={localProduct.location || ""} readOnly={!editMode} onChange={(e) => handleInputChange("location", e.target.value)} /></div>
                             </div>
                             <div>
                                 <Label htmlFor="status" className="text-xs mb-1">Status</Label>
@@ -593,28 +682,55 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                             </div>
 
                             {/* Variants Accordion */}
-                            {localProduct.variants && localProduct.variants.length > 0 && (
+                            {localProduct.product_type === "variant" && (
                                 <Accordion type="single" collapsible className="w-full">
                                     <AccordionItem value="variants">
                                         <AccordionTrigger className="text-sm font-medium">Variants</AccordionTrigger>
                                         <AccordionContent>
-                                            {localProduct.variants.map((variant) => (
-                                                <div key={variant.id} className="flex items-center justify-between py-2 border-b last:border-b-0">
-                                                    <div className="flex items-center space-x-4">
-                                                        <span
-                                                            className="w-6 h-6 rounded-full inline-block"
-                                                            style={{ backgroundColor: variant.color }}
-                                                        />
-                                                        <span>{variant.size}</span>
-                                                        <span>₦{variant.price.toLocaleString()}</span>
-                                                        <span>{variant.quantity}</span>
-                                                    </div>
+                                            {(localProduct.variants || []).map((variant, index) => (
+                                                <div key={variant.id || index} className="grid grid-cols-1 gap-2 border-b py-3 last:border-b-0 sm:grid-cols-2 lg:grid-cols-3">
+                                                    <Input aria-label="Variant name" value={variant.name || ""} readOnly={!editMode} placeholder="Name" onChange={(e) => updateVariant(index, "name", e.target.value)} />
+                                                    <Input aria-label="Variant size" value={variant.size} readOnly={!editMode} placeholder="Size" onChange={(e) => updateVariant(index, "size", e.target.value)} />
+                                                    <Input aria-label="Variant color" value={variant.color} readOnly={!editMode} placeholder="Color" onChange={(e) => updateVariant(index, "color", e.target.value)} />
+                                                    <Input aria-label="Variant SKU" value={variant.sku || ""} readOnly={!editMode} placeholder="SKU" onChange={(e) => updateVariant(index, "sku", e.target.value)} />
+                                                    <Input aria-label="Variant price" type="number" min="0" value={variant.price ?? ""} readOnly={!editMode} placeholder="Same as product price" onChange={(e) => updateVariant(index, "price", e.target.value)} />
+                                            <Input aria-label="Variant quantity" type="number" min="0" value={variant.quantity} readOnly={!editMode} placeholder="Quantity" onChange={(e) => updateVariant(index, "quantity", e.target.value)} />
+                                            {(editMode || variant.image_url || variant.image) && <div className="flex items-center gap-2 sm:col-span-2 lg:col-span-3">
+                                                {(variant.imageFile || (!variant.imageRemoved && (variant.image_url || variant.image))) && <span className="text-xs text-muted-foreground">{variant.imageFile ? variant.imageFile.name : "Variant image attached"}</span>}
+                                                {editMode && <>
+                                                    <Label htmlFor={`variant-image-${variant.id}`} className="cursor-pointer rounded-md border px-3 py-2 text-xs">{variant.imageFile || variant.image_url || variant.image ? "Replace image" : "Add image"}</Label>
+                                                    <Input id={`variant-image-${variant.id}`} type="file" accept="image/*" className="sr-only" onChange={(event) => {
+                                                        const file = event.target.files?.[0];
+                                                        if (!file) return;
+                                                        if (!file.type.startsWith("image/") || file.size > 5 * 1024 * 1024) {
+                                                            toast.error("Choose an image up to 5 MB.");
+                                                            event.target.value = "";
+                                                            return;
+                                                        }
+                                                        updateVariantImage(index, file);
+                                                        event.target.value = "";
+                                                    }} />
+                                                    {(variant.imageFile || variant.image_url || variant.image) && <Button type="button" variant="ghost" size="sm" onClick={() => updateVariantImage(index, null)}><X className="mr-1 h-4 w-4" />Remove image</Button>}
+                                                </>}
+                                            </div>}
+                                                    {editMode && <Button type="button" variant="ghost" size="sm" className="justify-self-start" aria-label="Remove variant" onClick={() => setLocalProduct({ ...localProduct, variants: (localProduct.variants || []).filter((_, variantIndex) => variantIndex !== index) })}><X className="mr-1 h-4 w-4" />Remove variant</Button>}
                                                 </div>
                                             ))}
+                                            {editMode && <Button type="button" variant="outline" size="sm" disabled={(localProduct.variants || []).length >= 100} onClick={() => setLocalProduct({ ...localProduct, variants: [...(localProduct.variants || []), { id: crypto.randomUUID(), name: "", size: "", color: "", sku: "", price: null, quantity: 0 }] })}><Plus className="h-4 w-4 mr-1" /> Add variant</Button>}
                                         </AccordionContent>
                                     </AccordionItem>
                                 </Accordion>
                             )}
+
+                            {localProduct.product_type === "bundle" && <section className="space-y-2 rounded-md border p-3">
+                                <h3 className="text-sm font-medium">Bundle contents</h3>
+                                {(localProduct.bundleItems || []).map((item) => <div key={item.productId} className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[minmax(0,1fr)_90px_auto]">
+                                    <span className="text-sm">{item.productName} <span className="text-muted-foreground">{item.sku}</span></span>
+                                    <Input type="number" min="1" value={item.quantity} readOnly={!editMode} aria-label={`Quantity of ${item.productName}`} onChange={(e) => setLocalProduct({ ...localProduct, bundleItems: (localProduct.bundleItems || []).map((entry) => entry.productId === item.productId ? { ...entry, quantity: Number(e.target.value) || 1 } : entry) })} />
+                                    {editMode && <Button type="button" variant="ghost" size="icon" aria-label={`Remove ${item.productName}`} onClick={() => setLocalProduct({ ...localProduct, bundleItems: (localProduct.bundleItems || []).filter((entry) => entry.productId !== item.productId) })}><X className="h-4 w-4" /></Button>}
+                                </div>)}
+                                {editMode && <div className="flex gap-2"><Select value={bundleProductToAdd} onValueChange={setBundleProductToAdd}><SelectTrigger><SelectValue placeholder="Add a product" /></SelectTrigger><SelectContent>{availableProducts.filter((candidate) => candidate.id !== localProduct.id && (candidate.productType || candidate.product_type) !== "bundle" && !localProduct.bundleItems?.some((item) => item.productId === candidate.id)).map((candidate) => <SelectItem key={candidate.id} value={candidate.id}>{candidate.productName}</SelectItem>)}</SelectContent></Select><Button type="button" variant="outline" onClick={addBundleProduct} disabled={!bundleProductToAdd}><Plus className="h-4 w-4" /></Button></div>}
+                            </section>}
                         </div>
                     </div>
                 ) : (
@@ -622,7 +738,8 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                         <p className="text-muted-foreground">No product data available</p>
                     </div>
                 )}
-                <div className="flex justify-end gap-2 border-t pt-3.5">
+                </div>
+                <div className="flex shrink-0 justify-end gap-2 border-t bg-card px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
                     {editMode ? (
                         <>
                             <Button variant="outline" size="sm" onClick={handleCancel} disabled={isLoading}>
@@ -637,7 +754,7 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                 {isLoading ? 'Saving...' : 'Save'}
                             </Button>
                         </>
-                    ) : (
+                    ) : canManage ? (
                         <>
                             <Button variant="outline" size="sm" onClick={() => setEditMode(true)} disabled={!localProduct}>
                                 <Edit className="h-4 w-4 mr-2" /> Edit
@@ -646,7 +763,7 @@ export default function ProductDetailsModal({ isOpen, onClose, onEdit, onDelete,
                                 <Trash className="h-4 w-4 mr-2" /> Delete
                             </Button>
                         </>
-                    )}
+                    ) : null}
                 </div>
             </DialogContent>
         </Dialog>

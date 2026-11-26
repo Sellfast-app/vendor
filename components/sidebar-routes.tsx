@@ -2,19 +2,22 @@
 
 import { AvatarImage } from "@/components/ui/avatar";
 import { Avatar, AvatarFallback } from "@radix-ui/react-avatar";
-import { LayoutDashboardIcon } from "lucide-react";
+import { Globe, LayoutDashboardIcon, MonitorSmartphone, Utensils } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { SVGProps, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { SidebarItem } from "../app/(dashboard)/_components/sidebar-item";
 import Products from "./svgIcons/Products";
+import InventoryNavigation from "./inventory-navigation";
+import { useStoreBusiness } from "@/components/store-business-context";
 import Orders from "./svgIcons/Orders";
 import Analytics from "./svgIcons/Analytics";
-import Payouts from "./svgIcons/Payouts";
 import Settings from "./svgIcons/Settings";
+import EventIcon from "./svgIcons/EventIcon";
 import Logout from "./svgIcons/Logout";
+import StaffIcon from "./svgIcons/StaffIcon";
+import Emailcon from "./svgIcons/Emailcon";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
-import { OnboardingProgress } from "./OnboardingModal";
 
 interface RouteLink {
   label: string;
@@ -33,11 +36,16 @@ const adminRoutes: Route[] = [
   { icon: LayoutDashboardIcon, label: "Overview", href: "/dashboard" },
   { icon: Products, label: "Products", href: "/products" },
   { icon: Orders, label: "Orders", href: "/orders" },
+  { icon: MonitorSmartphone, label: "POS", href: "/pos" },
+  { icon: Utensils, label: "Menu", href: "/products" },
   { icon: Analytics, label: "Analytics", href: "/analytics" },
-  { icon: Payouts, label: "Payouts", href: "/payouts" },
+  { icon: EventIcon, label: "Events", href: "/events" },
+  { icon: Emailcon, label: "Leads", href: "/leads" },
+  { icon: StaffIcon, label: "Staff", href: "/staff" },
 ];
 
 const actionRoutes: Route[] = [
+  { icon: Globe, label: "Domains", href: "/domains" },
   { icon: Settings, label: "Settings", href: "/settings" },
   { icon: Logout, label: "Logout", href: "/" },
 ];
@@ -47,6 +55,10 @@ export const SidebarRoutes = () => {
   const [storeLogo, setStoreLogo] = useState<string | null>(null); // Add this state
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [isStaff, setIsStaff] = useState(false);
+  const { businessType, status: businessStatus, error: businessError, retry: retryBusiness } = useStoreBusiness();
+  const isFoodStore = businessType === "food";
+  const isTicketStore = businessType === "ticketing";
 
   // Helper function to get cookie value
   const getCookieValue = (name: string): string | null => {
@@ -62,9 +74,7 @@ export const SidebarRoutes = () => {
   // Fetch store data including logo
   const fetchStoreData = async () => {
     try {
-      console.log('🔄 Sidebar - Fetching store data for logo...');
-      
-      const response = await fetch('/api/store');
+      const response = await fetch('/api/store', { cache: "no-store" });
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -75,11 +85,9 @@ export const SidebarRoutes = () => {
       
       if (result.status === 'success' && result.data?.storeDetails) {
         const storeDetails = result.data.storeDetails;
-        
         // Set store logo if available
         if (storeDetails.logo) {
           setStoreLogo(storeDetails.logo);
-          console.log('✅ Sidebar - Logo fetched:', storeDetails.logo);
         }
         
         // Also update business name from API if different from cookie
@@ -88,14 +96,14 @@ export const SidebarRoutes = () => {
           setBusinessName(storeName);
         }
       }
-    } catch (error) {
-      console.error('❌ Sidebar - Error fetching store data:', error);
-      // Don't show toast error here to avoid spamming
+    } catch {
+      // Keep sidebar rendering stable if store branding is temporarily unavailable.
     }
   };
 
   // Retrieve business name from cookies and fetch store data on mount
   useEffect(() => {
+    setIsStaff(getCookieValue("user_role") === "vendor_staff");
     const storeName = getCookieValue("store_name");
     if (storeName) {
       setBusinessName(decodeURIComponent(storeName));
@@ -178,20 +186,45 @@ export const SidebarRoutes = () => {
   };
 
   return (
-    <div className="flex flex-col w-full">
-        <OnboardingProgress/>
-      {adminRoutes.map((route) => (
-        <SidebarItem
-          key={route.href!}
-          icon={route.icon}
-          label={route.label}
-          href={route.href}
-        />
-      ))}
-      <div className="mt-[300px] w-full">
+    <div className="flex min-h-full w-full flex-col">
+      <div className="space-y-1">
+        {businessStatus === "loading" && <div className="space-y-2 px-4 py-3" aria-label="Loading workspace navigation">
+          {[0, 1, 2, 3, 4, 5].map(item => <div key={item} className="h-10 animate-pulse rounded-md bg-muted" />)}
+        </div>}
+        {businessStatus === "error" && <div className="mx-4 space-y-2 py-3" role="alert">
+          <p className="text-xs text-muted-foreground">{businessError}</p>
+          <button className="text-xs font-medium text-primary" onClick={retryBusiness}>Retry workspace load</button>
+        </div>}
+        {businessStatus === "ready" && adminRoutes
+          .filter((route) => !isStaff || ["Overview", "Products", "Orders", "POS"].includes(route.label))
+          .filter((route) => {
+            if (route.label === "Events") return isTicketStore;
+            if (route.label === "Menu") return isFoodStore;
+            if (route.label === "Products") return !isTicketStore;
+            return true;
+          })
+          .map((route, index) => {
+          const displayedRoute = route.label === "Orders" && isTicketStore
+            ? { ...route, label: "Ticket orders", href: "/orders/tickets" }
+            : route;
+          return (
+          <div key={route.label}>
+          {!(route.label === "Products" && isFoodStore) && <SidebarItem
+            key={displayedRoute.href!}
+            icon={displayedRoute.icon}
+            label={displayedRoute.label}
+            href={displayedRoute.href}
+            data-tour={index === 0 ? "sidebar-nav" : undefined}
+          />}
+          {route.label === "Products" && isFoodStore && (isStaff
+            ? <SidebarItem icon={Products} label="Food items" href="/inventory/items" />
+            : <InventoryNavigation />)}
+          </div>
+        )})}
+      </div>
+      <div className="mt-auto w-full pt-6">
         <div className="w-full border-b border-[#F5F5F5] dark:border-[#1F1F1F]">
-        
-          {updatedActionRoutes.map((route) => (
+          {updatedActionRoutes.filter((route) => !isStaff || ["Settings", "Logout"].includes(route.label)).map((route) => (
             <SidebarItem
               key={route.label}
               icon={route.icon}
@@ -202,31 +235,29 @@ export const SidebarRoutes = () => {
             />
           ))}
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger className="w-full"> 
-            <div className="flex items-center space-x-3 ml-6 mt-5">
-          <Avatar className="w-10 h-10 border rounded-full text-center">
-            {/* Display logo if available, otherwise fallback */}
-            <AvatarImage 
-              src={storeLogo || ""} 
-              alt={businessName} 
-              className="object-cover rounded-full"
-            />
-            <AvatarFallback>{getInitials(businessName)}</AvatarFallback>
-          </Avatar>
-          <div>
-            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-              {businessName}
-            </p>
-          </div>
-        </div></DropdownMenuTrigger>
-        <DropdownMenuContent>
-          <DropdownMenuItem>
-            Other Stores
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-         </DropdownMenu>
-        
+        {!isStaff && <DropdownMenu>
+          <DropdownMenuTrigger className="w-full">
+            <div className="mx-4 mt-4 flex items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted">
+              <Avatar className="h-10 w-10 rounded-full border text-center">
+                <AvatarImage
+                  src={storeLogo || ""}
+                  alt={businessName}
+                  className="rounded-full object-cover"
+                />
+                <AvatarFallback>{getInitials(businessName)}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
+                  {businessName}
+                </p>
+                <p className="text-xs text-muted-foreground">Store workspace</p>
+              </div>
+            </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuItem>Other Stores</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>}
       </div>
     </div>
   );

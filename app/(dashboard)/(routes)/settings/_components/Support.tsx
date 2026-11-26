@@ -26,14 +26,14 @@ function SupportComponent() {
   const [faqs, setFaqs] = useState<FAQ[]>([
     {
       id: "1",
-      question: "How to withdraw?",
-      answer: "With Swiftree, you do not need to manually initiate a withdrawal! We do not operate on an escrow system, which means all your payouts are completely automated.\n\nHere is how our automatic payout timeline works:\n\nStandard Transactions: Once a customer completes a purchase on your storefront, the funds are automatically credited to your account within 8 to 12 hours via our payment processing partner.\n\nWeekend Transactions: If a customer makes a purchase on a Friday or over the weekend, your funds will be automatically credited to your account on the next business day (typically Monday).\n\nAll credits are processed automatically, ensuring you receive your money directly and seamlessly.",
+      question: "How are customer payments settled?",
+      answer: "Payments are processed by the payment provider selected for your store. When split settlement is configured, the provider sends the vendor share to the settlement account linked to that provider. Settlement timing and fees depend on the provider and country; Swiftree does not hold a withdrawable wallet balance.",
       isOpen: false,
     },
     {
       id: "2",
-      question: "How do I add my bank account?",
-      answer: "Go to Settings > Finance > Bank Account Setup and click 'Add Bank Account'. Enter your bank details including account number, bank name, and account holder name. Verify the information and save.",
+      question: "Where do I set up a payment settlement account?",
+      answer: "Open Settings > StoreFront Settings > Payment Methods. Add and verify the settlement details required by the payment provider you want to use.",
       isOpen: false,
     },
     {
@@ -73,7 +73,7 @@ function SupportComponent() {
               <div className="relative max-w-[240px] w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder='e.g., "How to withdraw"...'
+                  placeholder='Search help topics...'
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 dark:bg-background"

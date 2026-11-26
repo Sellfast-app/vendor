@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+export const maxDuration = 60;
 
 const CACHE_DURATION = 300; // 5 minutes
 
@@ -72,11 +73,15 @@ export async function GET(request: NextRequest) {
     const dir = searchParams.get("dir") || "";
     const minPrice = searchParams.get("minPrice") || "";
     const maxPrice = searchParams.get("maxPrice") || "";
+    const minStock = searchParams.get("minStock") || "";
+    const maxStock = searchParams.get("maxStock") || "";
+    const createdFrom = searchParams.get("created_from") || "";
+    const createdTo = searchParams.get("created_to") || "";
     const search = searchParams.get("search") || "";
     const bustCache = searchParams.get("_t"); // Cache busting parameter
 
     // Create cache key based on all parameters (excluding _t)
-    const cacheKey = `${storeId}-${page}-${pageSize}-${status}-${sort}-${dir}-${minPrice}-${maxPrice}-${search}`;
+    const cacheKey = `${storeId}-${page}-${pageSize}-${status}-${sort}-${dir}-${minPrice}-${maxPrice}-${minStock}-${maxStock}-${createdFrom}-${createdTo}-${search}`;
 
     // Check if cache should be bypassed (if _t parameter exists)
     const shouldBypassCache = !!bustCache;
@@ -89,6 +94,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json(cachedData.data);
       }
     } else {
+      cache.delete(cacheKey);
       console.log('🔄 Cache bypassed due to _t parameter');
     }
 
@@ -101,6 +107,10 @@ export async function GET(request: NextRequest) {
       ...(dir && { dir }),
       ...(minPrice && { minPrice }),
       ...(maxPrice && { maxPrice }),
+      ...(minStock && { minStock }),
+      ...(maxStock && { maxStock }),
+      ...(createdFrom && { created_from: createdFrom }),
+      ...(createdTo && { created_to: createdTo }),
       ...(search && { search }),
     });
 
@@ -126,7 +136,7 @@ export async function GET(request: NextRequest) {
     const result = await response.json();
 
     // Cache the successful response (unless bypassing cache)
-    if (result.status === 'success' && !shouldBypassCache) {
+    if (result.status === 'success') {
       cache.set(cacheKey, {
         data: result,
         timestamp: Date.now()
@@ -182,7 +192,7 @@ export async function POST(request: Request) {
     
     // Prepare request to external API
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    const timeoutId = setTimeout(() => controller.abort(), 55000);
     
     try {
       const response = await fetch(`${API_BASE_URL}/api/products`, {
@@ -236,8 +246,8 @@ export async function POST(request: Request) {
       
       if (fetchError.name === "AbortError") {
         return NextResponse.json(
-          { status: "error", message: "Request timeout. Please try again." },
-          { status: 408 }
+          { status: "error", message: "Product save is taking longer than expected and may still be processing. Check your product list before trying again." },
+          { status: 504 }
         );
       }
       

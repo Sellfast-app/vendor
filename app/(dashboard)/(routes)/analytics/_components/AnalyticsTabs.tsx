@@ -2,11 +2,9 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SalesBreakdown from "./SalesBreakdown";
-import PayoutsRevenue from "./PayoutsRevenue";
 import InventoryTrends from "./InventoryTrends";
 import CustomerInsights from "./CustomerInsights";
 import { FaChartLine } from "react-icons/fa";
-import { PiHandCoinsDuotone } from "react-icons/pi";
 import { MdOutlineInventory } from "react-icons/md";
 import { MdInsights } from "react-icons/md";
 
@@ -28,12 +26,6 @@ export default function AnalyticsTabs() {
         <FaChartLine/><span className="hidden sm:inline ml-2"> Sales Breakdown</span>
         </TabsTrigger>
         <TabsTrigger 
-          value="payouts" 
-          className="flex-shrink-0 bg-transparent data-[state=active]:bg-primary  dark:data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-input"
-        >
-         <PiHandCoinsDuotone/> <span className="hidden sm:inline ml-2"> Payouts Revenue</span>
-        </TabsTrigger>
-        <TabsTrigger 
           value="inventory" 
           className="flex-shrink-0 bg-transparent data-[state=active]:bg-primary dark:data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-input"
         >
@@ -49,10 +41,6 @@ export default function AnalyticsTabs() {
       
       <TabsContent value="sales">
         <SalesBreakdown />
-      </TabsContent>
-      
-      <TabsContent value="payouts">
-        <PayoutsRevenue />
       </TabsContent>
       
       <TabsContent value="inventory">

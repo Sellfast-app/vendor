@@ -13,7 +13,7 @@ export async function POST(request: Request) {
   
   try {
     const { email: rawEmail, password } = await request.json();
-    const email = typeof rawEmail === "string" ? rawEmail.trim() : "";
+    const email = typeof rawEmail === "string" ? rawEmail.trim().toLowerCase() : "";
 
     // Rate limiting check
     const now = Date.now();
@@ -99,6 +99,15 @@ export async function POST(request: Request) {
 
       const result = await response.json();
 
+      if (response.ok && result.data?.password_reset_required === true) {
+        return NextResponse.json({
+          status: "success",
+          message: result.message || "Change your temporary password before signing in",
+          success: true,
+          data: { password_reset_required: true, user_email: result.data.email || email },
+        });
+      }
+
       // Handle specific API response formats
       if (response.status === 500 && result.status === 'fail') {
         loginAttempts.set(email, { count: userAttempts.count + 1, lastAttempt: now });
@@ -136,6 +145,7 @@ export async function POST(request: Request) {
       // Extract user and store info
       const userEmail = email;
       const userId = result.data?.id || null;
+      const userRole = typeof result.data?.role === "string" ? result.data.role : "vendor_owner";
       let storeName = email.split('@')[0] + "'s Store";
       let storeId = null;
       let storeUrl = null;
@@ -165,7 +175,8 @@ export async function POST(request: Request) {
             user_email: userEmail,
             store_name: storeName, 
             store_id: storeId, 
-            store_url: storeUrl 
+            store_url: storeUrl,
+            role: userRole,
           }
         },
         { status: 200 }
@@ -182,6 +193,7 @@ export async function POST(request: Request) {
 
       // Set access token
       nextResponse.cookies.set("accessToken", result.data.token, cookieOptions);
+      nextResponse.cookies.set("user_role", userRole, { ...cookieOptions, httpOnly: false, maxAge: 86400 });
       console.log("[LOGIN] ✅ Access token cookie set");
 
       // Set user_id cookie (accessible to client)

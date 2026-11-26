@@ -1,92 +1,101 @@
 "use client";
 
-import React, { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
+import { useCallback, useEffect, useState } from "react";
+import { Bell, Loader2, Mail, MessageCircle } from "lucide-react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
-interface NotificationSetting {
-  id: string;
-  title: string;
-  description: string;
-  enabled: boolean;
-}
+type Preferences = { in_app_enabled: true; email_enabled: boolean; whatsapp_enabled: boolean };
 
-function PreferencesComponent() {
-  const [notifications, setNotifications] = useState<NotificationSetting[]>([
-    {
-      id: "email",
-      title: "Email Notifications",
-      description: "Get notified on orders, payouts from storefront and dashboard via email",
-      enabled: false,
-    },
-    {
-      id: "sms",
-      title: "SMS Notifications",
-      description: "Get notified on orders, payouts, alert, deliveries from storefront and dashboard via SMS",
-      enabled: false,
-    },
-    {
-      id: "whatsapp",
-      title: "WhatsApp Notifications",
-      description: "Get notified on alerts, deliveries coming from your WhatsApp bot",
-      enabled: false,
-    },
-    {
-      id: "in-app",
-      title: "In App Notifications",
-      description: "Get notified on everything inside your dashboard",
-      enabled: true,
-    },
-  ]);
+export default function NotificationSettings() {
+  const [preferences, setPreferences] = useState<Preferences | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState<"email" | "whatsapp" | null>(null);
 
-  const handleToggle = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((notification) =>
-        notification.id === id
-          ? { ...notification, enabled: !notification.enabled }
-          : notification
-      )
-    );
-  };
+  const loadPreferences = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await fetch("/api/notifications/preferences", { cache: "no-store" });
+      const result = await response.json();
+      if (!response.ok || result.status !== "success") throw new Error(result.message || "Could not load notification settings");
+      setPreferences(result.data);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not load notification settings");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { void loadPreferences(); }, [loadPreferences]);
+
+  async function updatePreference(channel: "email" | "whatsapp", enabled: boolean) {
+    if (!preferences) return;
+    const previous = preferences;
+    const next = {
+      ...preferences,
+      email_enabled: channel === "email" ? enabled : preferences.email_enabled,
+      whatsapp_enabled: channel === "whatsapp" ? enabled : preferences.whatsapp_enabled,
+    };
+    setPreferences(next);
+    setSaving(channel);
+    try {
+      const response = await fetch("/api/notifications/preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email_enabled: next.email_enabled, whatsapp_enabled: next.whatsapp_enabled }),
+      });
+      const result = await response.json();
+      if (!response.ok || result.status !== "success") throw new Error(result.message || "Could not save notification settings");
+      setPreferences(result.data);
+      toast.success(`${channel === "email" ? "Email" : "WhatsApp"} order alerts ${enabled ? "enabled" : "disabled"}.`);
+    } catch (error) {
+      setPreferences(previous);
+      toast.error(error instanceof Error ? error.message : "Could not save notification settings");
+    } finally {
+      setSaving(null);
+    }
+  }
 
   return (
-    <div className="w-full space-y-6">
-      <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
-        <CardContent>
-          <div className="space-y-6 pt-6">
-            <h2 className="text-sm font-medium">Preferences</h2>
-
-            <div className="space-y-6">
-              {notifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className="flex items-start justify-between gap-4 py-2"
-                >
-                  <div className="flex-1">
-                    <Label
-                      htmlFor={notification.id}
-                      className="text-sm font-medium cursor-pointer"
-                    >
-                      {notification.title}
-                    </Label>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {notification.description}
-                    </p>
-                  </div>
-                  <Switch
-                    id={notification.id}
-                    checked={notification.enabled}
-                    onCheckedChange={() => handleToggle(notification.id)}
-                  />
-                </div>
-              ))}
-            </div>
+    <Card className="shadow-none">
+      <CardHeader className="border-b">
+        <p className="text-xs font-medium uppercase text-primary">Notifications</p>
+        <h2 className="mt-2 text-lg font-semibold">Order alerts</h2>
+        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+          In-app alerts are always on. Email and WhatsApp alerts are off until you enable them.
+        </p>
+      </CardHeader>
+      <CardContent className="divide-y p-0">
+        <div className="flex items-center gap-4 px-5 py-4 sm:px-6">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary"><Bell aria-hidden="true" className="h-5 w-5" /></div>
+          <div className="min-w-0 flex-1">
+            <Label htmlFor="notification-in-app" className="text-sm font-medium">In-app</Label>
+            <p className="mt-1 text-sm text-muted-foreground">Payment-verified orders appear in the dashboard notification inbox.</p>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+          <Badge variant="outline" className="border-primary/30 text-primary">Always on</Badge>
+        </div>
+        <div className="flex items-center gap-4 px-5 py-4 sm:px-6">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted text-foreground"><Mail aria-hidden="true" className="h-5 w-5" /></div>
+          <div className="min-w-0 flex-1">
+            <Label htmlFor="notification-email" className="text-sm font-medium">Email</Label>
+            <p className="mt-1 text-sm text-muted-foreground">Send an email to the vendor account when an order payment is verified.</p>
+          </div>
+          {saving === "email" ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : null}
+          <Switch id="notification-email" checked={preferences?.email_enabled ?? false} disabled={loading || !preferences || saving !== null} onCheckedChange={(checked) => void updatePreference("email", checked)} />
+        </div>
+        <div className="flex items-center gap-4 px-5 py-4 sm:px-6">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted text-foreground"><MessageCircle aria-hidden="true" className="h-5 w-5" /></div>
+          <div className="min-w-0 flex-1">
+            <Label htmlFor="notification-whatsapp" className="text-sm font-medium">WhatsApp</Label>
+            <p className="mt-1 text-sm text-muted-foreground">Send an order alert to the WhatsApp number on your vendor account after payment verification.</p>
+          </div>
+          {saving === "whatsapp" ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : null}
+          <Switch id="notification-whatsapp" checked={preferences?.whatsapp_enabled ?? false} disabled={loading || !preferences || saving !== null} onCheckedChange={(checked) => void updatePreference("whatsapp", checked)} />
+        </div>
+      </CardContent>
+    </Card>
   );
 }
-
-export default PreferencesComponent;

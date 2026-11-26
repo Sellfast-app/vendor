@@ -1,358 +1,220 @@
 "use client";
 
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import React, { JSX, useState, useEffect } from "react";
-import { RiShare2Fill } from "react-icons/ri";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import ProductsIcon from "@/components/svgIcons/ProductsIcon";
 import LowStock from "@/components/svgIcons/LowStock";
 import OutOfStock from "@/components/svgIcons/OutOfStock";
 import PendingDispatch from "@/components/svgIcons/PendingDispatch";
+import { AlertCircle, MessageCircle, MonitorSmartphone, RefreshCw, ShoppingBag } from "lucide-react";
 import { AnalyticsMetric } from "./_components/AnalyticsMetric";
-import Map from "@/components/svgIcons/Map";
-import NigerianFlag from "@/components/svgIcons/NigerianFlag";
-import { Progress } from "@/components/ui/progress";
-import UsaFlag from "@/components/svgIcons/UsaFlag";
-import { ArrowRight } from "lucide-react";
-import AnalyticsTabs from "./_components/AnalyticsTabs";
-import StorefrontVisitsChart from "./_components/StoreFrontVisitChart";
-import { ExportModal } from "@/components/ExportModal";
-import CustomerInsightsModal from './_components/CustomerInsightsModal';
-import ViewPerformanceModal from './_components/ViewPerformanceModal';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DateRangeKey, calculateDateRange } from "./utils";
+import { calculateDateRange } from "./utils";
+import { useStoreBusiness } from "@/components/store-business-context";
+import { BusinessTypeGuard } from "@/components/business-type-guard";
+import { ReportDownload } from "@/components/report-download";
 
-interface OverviewMetric {
-  id: string;
-  icon1: JSX.Element;
-  title: string;
-  value: string | number;
-  change: number;
-  changeType: "positive" | "negative";
-  title2: string;
-  value2: string | number;
+const dateRanges = [
+  { value: "today", label: "Today" },
+  { value: "last_week", label: "Last 7 days" },
+  { value: "30_days", label: "Last 30 days" },
+  { value: "6_months", label: "Last 6 months" },
+  { value: "last_year", label: "Last year" },
+] as const;
+
+const channelDefinitions = [
+  { id: "website", label: "Website storefront", icon: ShoppingBag },
+  { id: "whatsapp", label: "WhatsApp AI", icon: MessageCircle },
+  { id: "web_chat", label: "Web chat widget", icon: MonitorSmartphone },
+] as const;
+
+type Channel = { sales_channel: string; orders: number | string; paid_orders?: number | string; free_orders?: number | string; revenue: number | string; average_order_value: number | string };
+type SalesSource = { sales_source: string; orders: number | string; paid_orders: number | string; revenue: number | string };
+type DailyPoint = { date: string; orders: number | string; revenue: number | string };
+type Country = { country: string; orders: number | string };
+type ChannelActivity = {
+  linkInBioViews: number | string;
+  linkInBioClicks: number | string;
+  webChatSessions: number | string;
+  webChatMessages: number | string;
+  checkoutStarted?: number | string;
+  checkoutSubmitted?: number | string;
+};
+type AnalyticsData = {
+  totals: {
+    revenue: number | string;
+    orders: number | string;
+    delivered_orders: number | string;
+    pending_orders: number | string;
+    out_for_delivery: number | string;
+    average_order_value: number | string;
+    settled_orders?: number | string;
+    paid_orders?: number | string;
+    free_orders?: number | string;
+  };
+  channels: Channel[];
+  sources?: SalesSource[];
+  daily: DailyPoint[];
+  countries: Country[];
+  channelActivity?: ChannelActivity;
+  abandonedCheckout: { available: boolean; reason?: string; started?: number | string; abandoned?: number | string; submitted?: number | string; minimumAgeMinutes?: number; byChannel?: Record<string, { started: number; abandoned: number; submitted: number; supported?: boolean }> };
+};
+
+type AnalyticsResponse = { status: string; message?: string; data?: { v2Analytics?: AnalyticsData } };
+
+function number(value: number | string | undefined) {
+  return Number(value || 0);
 }
 
-interface LocationData {
-  id: string;
-  name: string;
-  percentage: number;
-  flag: JSX.Element;
-  count: number;
-  coordinates: [number, number]
+function money(value: number | string | undefined) {
+  return `NGN ${number(value).toLocaleString("en-NG", { maximumFractionDigits: 2 })}`;
 }
 
-interface ViewPerformanceData {
-  totalViews: number;
-  viewsToday: number;
-  avgViewsPerDay: number;
+function AnalyticsPageContent() {
+  const { businessType } = useStoreBusiness();
+  const isTicketStore = businessType === "ticketing";
+  const [selectedRange, setSelectedRange] = useState<(typeof dateRanges)[number]["value"]>("30_days");
+  const [revenueRange, setRevenueRange] = useState<(typeof dateRanges)[number]["value"]>("30_days");
+  const [channelRange, setChannelRange] = useState<(typeof dateRanges)[number]["value"]>("30_days");
+  const [abandonedRange, setAbandonedRange] = useState<(typeof dateRanges)[number]["value"]>("30_days");
+  const [countryRange, setCountryRange] = useState<(typeof dateRanges)[number]["value"]>("30_days");
+  const [dataByRange, setDataByRange] = useState<Partial<Record<(typeof dateRanges)[number]["value"], AnalyticsData>>>({});
+  const [loadingRanges, setLoadingRanges] = useState<Partial<Record<(typeof dateRanges)[number]["value"], boolean>>>({});
+  const [errorsByRange, setErrorsByRange] = useState<Partial<Record<(typeof dateRanges)[number]["value"], string>>>({});
+
+  const loadAnalytics = useCallback(async (range: (typeof dateRanges)[number]["value"], force = false) => {
+    if (!force && dataByRange[range]) return;
+    const { startDate, endDate } = calculateDateRange(range);
+    setLoadingRanges((current) => ({ ...current, [range]: true }));
+    setErrorsByRange((current) => ({ ...current, [range]: "" }));
+    try {
+      const query = new URLSearchParams({ startDate, endDate });
+      const response = await fetch(`/api/analytics?${query}`, { cache: "no-store" });
+      const result = await response.json() as AnalyticsResponse;
+      if (!response.ok || result.status !== "success" || !result.data?.v2Analytics) {
+        throw new Error(result.message || "Unable to load analytics");
+      }
+      setDataByRange((current) => ({ ...current, [range]: result.data!.v2Analytics! }));
+    } catch (loadError) {
+      setErrorsByRange((current) => ({ ...current, [range]: loadError instanceof Error ? loadError.message : "Unable to load analytics" }));
+    } finally {
+      setLoadingRanges((current) => ({ ...current, [range]: false }));
+    }
+  }, [dataByRange]);
+
+  const requestedRanges = useMemo(() => Array.from(new Set([selectedRange, revenueRange, channelRange, abandonedRange, countryRange])),
+    [selectedRange, revenueRange, channelRange, abandonedRange, countryRange]);
+  useEffect(() => { requestedRanges.forEach((range) => { void loadAnalytics(range); }); }, [requestedRanges, loadAnalytics]);
+
+  const selectedRangeLabel = dateRanges.find((range) => range.value === selectedRange)?.label;
+  const data = dataByRange[selectedRange] || null;
+  const revenueData = dataByRange[revenueRange];
+  const channelData = dataByRange[channelRange];
+  const abandonedData = dataByRange[abandonedRange];
+  const countryData = dataByRange[countryRange];
+  const loading = loadingRanges[selectedRange] ?? true;
+  const error = errorsByRange[selectedRange] || "";
+  const totals = data?.totals;
+  const metrics = isTicketStore
+    ? [
+        { title: "Ticket revenue", value: money(totals?.revenue), icon1: <ProductsIcon />, description: `${number(totals?.paid_orders)} paid ticket orders · ${selectedRangeLabel}` },
+        { title: "Ticket orders", value: number(totals?.orders).toLocaleString(), icon1: <LowStock />, description: `${number(totals?.paid_orders)} paid · ${number(totals?.free_orders)} free/covered` },
+        { title: "Paid ticket orders", value: number(totals?.paid_orders).toLocaleString(), icon1: <OutOfStock />, description: selectedRangeLabel },
+        { title: "Average ticket order", value: money(totals?.average_order_value), icon1: <PendingDispatch />, description: "Successful payments" },
+      ]
+    : [
+        { title: "Settled revenue", value: money(totals?.revenue), icon1: <ProductsIcon />, description: `${number(totals?.paid_orders)} paid orders · ${selectedRangeLabel}` },
+        { title: "Orders placed", value: number(totals?.orders).toLocaleString(), icon1: <LowStock />, description: `${number(totals?.settled_orders)} settled · ${number(totals?.delivered_orders)} delivered` },
+        { title: "Out for delivery", value: number(totals?.out_for_delivery).toLocaleString(), icon1: <OutOfStock />, description: selectedRangeLabel },
+        { title: "Average order value", value: money(totals?.average_order_value), icon1: <PendingDispatch />, description: "Successful payments" },
+      ];
+  const maxDailyRevenue = Math.max(...(revenueData?.daily || []).map((point) => number(point.revenue)), 1);
+  const maxChannelOrders = Math.max(...(channelData?.channels || []).map((channel) => number(channel.orders)), 1);
+
+  const rangeSelect = (value: (typeof dateRanges)[number]["value"], onChange: (value: (typeof dateRanges)[number]["value"]) => void) => (
+    <Select value={value} onValueChange={(next) => onChange(next as typeof value)}>
+      <SelectTrigger aria-label="Chart date range" className="h-8 w-[145px] text-xs"><SelectValue /></SelectTrigger>
+      <SelectContent>{dateRanges.map((range) => <SelectItem key={range.value} value={range.value}>{range.label}</SelectItem>)}</SelectContent>
+    </Select>
+  );
+
+  return (
+    <main className="mx-auto min-h-screen px-4 py-6 sm:px-6 lg:px-8">
+      <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div><p className="text-xs font-medium uppercase text-primary">Performance</p><h1 className="mt-2 text-2xl font-semibold">{isTicketStore ? "Ticket analytics" : "Analytics"}</h1><p className="mt-1 text-sm text-muted-foreground">{isTicketStore ? "Ticket sales and customer activity for your events." : "Sales and customer activity for your store."}</p></div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={selectedRange} onValueChange={(value) => setSelectedRange(value as typeof selectedRange)}>
+            <SelectTrigger aria-label="Summary date range" className="w-full sm:w-[180px]"><SelectValue placeholder="Summary range" /></SelectTrigger>
+            <SelectContent>{dateRanges.map((range) => <SelectItem key={range.value} value={range.value}>{range.label}</SelectItem>)}</SelectContent>
+          </Select>
+          {(() => {
+            const range = calculateDateRange(selectedRange);
+            return <ReportDownload endpoint="/api/analytics/export" filename="swiftree-analytics" startDate={range.startDate} endDate={range.endDate} compact />;
+          })()}
+        </div>
+      </header>
+
+      {error && <div role="alert" className="mb-5 flex flex-col gap-3 rounded-md border border-destructive/30 p-4 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-2 text-sm"><AlertCircle className="h-4 w-4 text-destructive" /><span>{error}</span></div><Button size="sm" variant="outline" onClick={() => void loadAnalytics(selectedRange, true)}><RefreshCw className="mr-2 h-4 w-4" />Retry</Button></div>}
+
+      <section aria-label="Store performance" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {metrics.map((metric) => <div key={metric.title}>{loading ? <Card className="shadow-none"><CardContent className="space-y-3 p-5"><Skeleton className="h-4 w-28" /><Skeleton className="h-8 w-36" /><Skeleton className="h-3 w-24" /></CardContent></Card> : <AnalyticsMetric metric={metric} />}</div>)}
+      </section>
+
+      <div className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <Card className="shadow-none">
+          <CardHeader className="border-b"><p className="text-xs font-medium uppercase text-primary">Discovery and engagement</p><h2 className="mt-1 text-sm font-semibold">Link-in-Bio and Web Chat activity</h2></CardHeader>
+          <CardContent className="grid grid-cols-2 gap-x-6 gap-y-5 p-5 sm:grid-cols-3">
+            {loading ? Array.from({ length: 5 }).map((_, index) => <Skeleton key={index} className="h-12 w-full" />) : <>
+              {[
+                ["Link-in-Bio views", data?.channelActivity?.linkInBioViews],
+                ["Link clicks", data?.channelActivity?.linkInBioClicks],
+                ["Web Chat sessions", data?.channelActivity?.webChatSessions],
+                ["Web Chat messages", data?.channelActivity?.webChatMessages],
+                ["Orders from Link-in-Bio", data?.sources?.find((source) => source.sales_source === "linkinbio")?.orders],
+              ].map(([label, value]) => <div key={String(label)}><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-lg font-semibold tabular-nums">{number(value as number | string | undefined).toLocaleString()}</p></div>)}
+            </>}
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-none">
+          <CardHeader className="border-b"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-medium uppercase text-primary">Sales</p><h2 className="mt-1 text-sm font-semibold">Revenue over time</h2></div>{rangeSelect(revenueRange, setRevenueRange)}</div></CardHeader>
+          <CardContent className="p-5">
+            {loadingRanges[revenueRange] && !revenueData ? <Skeleton className="h-44 w-full" /> : revenueData?.daily.length ? <div className="overflow-x-auto"><div className="flex h-44 min-w-full items-end gap-1 border-b px-1">{revenueData.daily.map((point) => {
+              const value = number(point.revenue);
+              const height = value > 0 ? Math.max(4, (value / maxDailyRevenue) * 100) : 2;
+              return <div key={point.date} title={`${point.date}: ${money(value)} · ${number(point.orders)} orders`} className="flex h-full min-w-[5px] flex-1 items-end"><div className="w-full rounded-t-sm bg-primary/75" style={{ height: `${height}%` }} /></div>;
+            })}</div><div className="mt-2 flex justify-between text-[11px] text-muted-foreground"><span>{revenueData.daily[0]?.date}</span><span>{revenueData.daily[revenueData.daily.length - 1]?.date}</span></div></div> : errorsByRange[revenueRange] ? <div role="alert" className="flex h-44 items-center justify-center gap-2 text-sm text-destructive">{errorsByRange[revenueRange]} <Button variant="outline" size="sm" onClick={() => void loadAnalytics(revenueRange, true)}>Retry</Button></div> : <div className="flex h-44 items-center justify-center text-sm text-muted-foreground">No sales recorded for this period.</div>}
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-none">
+          <CardHeader className="border-b"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-medium uppercase text-primary">Channels</p><h2 className="mt-1 text-sm font-semibold">Sales channel performance</h2></div>{rangeSelect(channelRange, setChannelRange)}</div></CardHeader>
+          <CardContent className="space-y-5 p-5">
+            {loadingRanges[channelRange] && !channelData ? channelDefinitions.map((channel) => <div key={channel.id} className="space-y-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-3 w-full" /></div>) : channelDefinitions.map(({ id, label, icon: Icon }) => {
+              const channel = channelData?.channels.find((item) => item.sales_channel === id);
+              const orderCount = number(channel?.orders);
+              return <div key={id}><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><Icon className="h-4 w-4 text-primary" /><span className="text-sm font-medium">{label}</span></div><span className="text-sm tabular-nums">{orderCount} placed</span></div><Progress className="mt-2" value={(orderCount / maxChannelOrders) * 100} /><div className="mt-2 flex justify-between gap-3 text-xs text-muted-foreground"><span>{number(channel?.paid_orders)} paid · {number(channel?.free_orders)} free/covered</span><span>Settled revenue {money(channel?.revenue)}</span></div><div className="mt-1 text-xs text-muted-foreground">Paid-order AOV {money(channel?.average_order_value)}</div></div>;
+            })}
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-none">
+          <CardHeader className="border-b"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-medium uppercase text-primary">Checkout</p><h2 className="mt-1 text-sm font-semibold">Abandoned checkout flows</h2></div>{rangeSelect(abandonedRange, setAbandonedRange)}</div></CardHeader>
+          <CardContent className="p-5">{loadingRanges[abandonedRange] && !abandonedData ? <Skeleton className="h-24 w-full" /> : abandonedData?.abandonedCheckout.available ? <div className="space-y-3">{channelDefinitions.map(({ id, label }) => { const flow = abandonedData.abandonedCheckout.byChannel?.[id]; return <div key={id} className="flex flex-wrap items-center justify-between gap-3 border-b pb-3 last:border-0 last:pb-0"><div><p className="text-sm font-medium">{label}</p>{flow?.supported === false && <p className="text-xs text-muted-foreground">Checkout is not available in this channel yet</p>}</div>{flow?.supported === false ? <span className="text-xs text-muted-foreground">Not tracked</span> : <p className="text-xs text-muted-foreground">{number(flow?.started)} started · {number(flow?.abandoned)} abandoned · {number(flow?.submitted)} submitted</p>}</div>; })}<p className="text-xs text-muted-foreground">A session is abandoned after {abandonedData.abandonedCheckout.minimumAgeMinutes} minutes without an order submission. Free and coupon-covered orders count as submitted.</p></div> : <div className="py-6 text-center"><p className="text-sm font-medium">Checkout tracking is not connected</p><p className="mt-1 text-xs text-muted-foreground">{abandonedData?.abandonedCheckout.reason || "Checkout starts and order submissions are not available for this period."}</p></div>}</CardContent>
+        </Card>
+
+        <Card className="shadow-none">
+          <CardHeader className="border-b"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-medium uppercase text-primary">Customers</p><h2 className="mt-1 text-sm font-semibold">Orders by country</h2></div>{rangeSelect(countryRange, setCountryRange)}</div></CardHeader>
+          <CardContent className="space-y-3 p-5">{loadingRanges[countryRange] && !countryData ? Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="h-5 w-full" />) : countryData?.countries.length ? countryData.countries.map((country) => <div key={country.country} className="flex items-center justify-between gap-3 text-sm"><span className="truncate">{country.country}</span><span className="tabular-nums text-muted-foreground">{number(country.orders).toLocaleString()} orders</span></div>) : errorsByRange[countryRange] ? <div role="alert" className="py-6 text-center text-sm text-destructive">{errorsByRange[countryRange]} <Button variant="outline" size="sm" onClick={() => void loadAnalytics(countryRange, true)}>Retry</Button></div> : <p className="py-6 text-center text-sm text-muted-foreground">No customer location data for this period.</p>}</CardContent>
+        </Card>
+      </div>
+    </main>
+  );
 }
 
 export default function AnalyticsPage() {
-  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [isCustomerInsightsOpen, setIsCustomerInsightsOpen] = useState(false);
-  const [isViewPerformanceOpen, setIsViewPerformanceOpen] = useState(false);
-  const [selectedRangeKey, setSelectedRangeKey] = useState<DateRangeKey>('30_days');
-  const [viewPerformance, setViewPerformance] = useState<ViewPerformanceData>({
-    totalViews: 0,
-    viewsToday: 0,
-    avgViewsPerDay: 0
-  });
-  const [loading, setLoading] = useState(false);
-
-  // Get the date range strings from the utility function
-  const { startDate, endDate } = calculateDateRange(selectedRangeKey);
-
-  // Fetch view performance data
-  const fetchViewPerformance = async () => {
-    setLoading(true);
-    try {
-      // Use the calculated startDate and endDate from selectedRangeKey
-      const queryParams = new URLSearchParams({ 
-        startDate: startDate
-      });
-      
-      // Add endDate
-      if (endDate) {
-        queryParams.append('endDate', endDate);
-      }
-      
-      // API endpoint
-      const url = `/api/analytics?${queryParams}`;
-      
-      console.log('📊 Fetching analytics with date range:', {
-        selectedRange: selectedRangeKey,
-        startDate: startDate,
-        endDate: endDate
-      });
-      
-      const res = await fetch(url, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-      });
-      
-      const result = await res.json();
-
-      if (res.ok && result.status === 'success') {
-        const data = result.data;
-        console.log('✅ Analytics data received:', {
-          totalViews: data.totalViews,
-          viewsToday: data.viewsToday,
-          avgViewsPerDay: data.avgViewsPerDay
-        });
-        
-        setViewPerformance({
-          totalViews: data.totalViews || 0,
-          viewsToday: data.viewsToday || 0,
-          avgViewsPerDay: data.avgViewsPerDay || 0
-        });
-      } else {
-        console.error('❌ Failed to fetch analytics:', result.message);
-      }
-    } catch (error) {
-      console.error('❌ Error fetching view performance:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Re-fetch when the date range changes
-  useEffect(() => {
-    fetchViewPerformance();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedRangeKey]);
-
-  const dateRangeOptions = [
-    { key: 'today', label: 'Today' },
-    { key: '24hrs', label: 'Last 24 Hours' },
-    { key: 'last_week', label: 'Last Week' },
-    { key: '30_days', label: 'Last 30 Days' },
-    { key: 'last_month', label: 'Last Month' },
-    { key: '6_months', label: 'Last 6 Months' },
-    { key: 'last_year', label: 'Last Year' },
-  ];
-
-  const overviewMetrics: OverviewMetric[] = [
-    {
-      id: "total-revenue",
-      icon1: <ProductsIcon />,
-      title: "Total Revenue",
-      value: "0",
-      change: 22.7,
-      changeType: "positive",
-      title2: "",
-      value2: ""
-    },
-    {
-      id: "processed-orders",
-      icon1: <LowStock />,
-      title: "Processed Orders",
-      value: "0",
-      change: 22.7,
-      changeType: "positive",
-      title2: "",
-      value2: ""
-    },
-    {
-      id: "out-for-delivery",
-      icon1: <OutOfStock />,
-      title: "Out for Delivery",
-      value: "0",
-      change: 22.7,
-      changeType: "positive",
-      title2: "",
-      value2: ""
-    },
-    {
-      id: "total-views",
-      icon1: <PendingDispatch />,
-      title: "Total Views",
-      value: "0",
-      change: 22.7,
-      changeType: "positive",
-      title2: "",
-      value2: ""
-    },
-    {
-      id: "avg-order-value",
-      icon1: <OutOfStock />,
-      title: "Avg. Order Value",
-      value: "0",
-      change: 22.7,
-      changeType: "positive",
-      title2: "",
-      value2: ""
-    },
-    {
-      id: "total-orders",
-      icon1: <PendingDispatch />,
-      title: "Total Orders",
-      value: "0",
-      change: 22.7,
-      changeType: "positive",
-      title2: "Avg.items/order:",
-      value2: "120(1,000,000)"
-    },
-  ];
-
-  // Define location data
-  const locationData: LocationData[] = [
-    {
-      id: "lagos",
-      name: "Lagos",
-      count: 244,
-      percentage: 72,
-      flag: <NigerianFlag />,
-      coordinates: [6.5244, 3.3792] as [number, number]
-    },
-    {
-      id: "rivers",
-      name: "Rivers",
-      count: 239,
-      percentage: 66,
-      flag: <NigerianFlag />,
-      coordinates: [4.8156, 7.0498] as [number, number]
-    },
-    {
-      id: "florida",
-      name: "Florida",
-      count: 225,
-      percentage: 60,
-      flag: <UsaFlag />,
-      coordinates: [27.6648, -81.5158] as [number, number]
-    },
-  ];
-
-  const fieldOptions = [
-    ...overviewMetrics.map((metric) => ({
-      label: metric.title,
-      value: metric.id,
-    })),
-    { label: "Payout Reports", value: "Payout Reports" },
-    { label: "Customer Insights", value: "Customer Insights" },
-    { label: "Active Customers in Location", value: "Active Customers in Location" },
-  ];
-
-  // Calculate progress values based on actual data
-  const calculateProgressValue = (current: number, max: number = 1000) => {
-    return Math.min((current / max) * 100, 100);
-  };
-
-  return (
-    <div className="min-h-screen mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex-col">
-          <h3 className="text-sm font-bold">Analytics</h3>
-          <p className="text-xs text-gray-500 mt-1">
-            Showing data from {new Date(startDate).toLocaleDateString()} to {new Date(endDate).toLocaleDateString()}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Select 
-            onValueChange={(value: string) => setSelectedRangeKey(value as DateRangeKey)}
-            defaultValue={selectedRangeKey}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select date range" />
-            </SelectTrigger>
-            <SelectContent>
-              {dateRangeOptions.map(option => (
-                <SelectItem key={option.key} value={option.key}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button onClick={() => setIsExportModalOpen(true)}>
-            <RiShare2Fill /> <span className="hidden sm:inline ml-2">Export</span>
-          </Button>
-        </div>
-      </div>
-      <div className="flex w-full gap-3 flex-col xl:flex-row">
-        <div className="w-full xl:w-[35%]">
-          <Card className="shadow-none border-[#F5F5F5] dark:border-[#1F1F1F] w-full mb-4">
-            <CardHeader className="border-b">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-xs">Total View Performance</span>
-                <Map />
-              </div>
-              <div className="flex flex-col items-center justify-center ">
-                <Progress 
-                  value={calculateProgressValue(viewPerformance.totalViews, 1000)} 
-                  className="mb-2" 
-                />
-                <Progress 
-                  value={calculateProgressValue(viewPerformance.avgViewsPerDay, 100)} 
-                  className="mb-2" 
-                />
-                <span className="text-center text-lg font-medium">
-                  {loading ? "Loading..." : viewPerformance.totalViews.toLocaleString()}
-                </span>
-                <span className="text-[#A0A0A0] text-xs">Total views</span>
-              </div>
-            </CardHeader>
-            
-            <CardContent>
-              <div className="flex flex-col gap-4 mt-4">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="flex items-center gap-2">
-                    <span className="w-5 h-2 bg-primary rounded-lg" />
-                    <p>Total Views Today</p>
-                  </span>
-                  <span>{loading ? "..." : viewPerformance.viewsToday.toLocaleString()}</span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="flex items-center gap-2">
-                    <span className="w-5 h-2 bg-primary/20 rounded-lg" />
-                    <p>Avg. Views per day</p>
-                  </span>
-                  <span>{loading ? "..." : viewPerformance.avgViewsPerDay.toLocaleString()}</span>
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter className="text-sm flex items-center justify-center border-t">
-              <Button 
-                variant={"ghost"} 
-                className="text-sm flex items-center justify-center gap-1 text-primary" 
-                onClick={() => setIsViewPerformanceOpen(true)} 
-                disabled
-              >
-                <span>See Details</span>
-                <ArrowRight className="w-4 h-4" />
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
-        <div className="space-y-8 w-full xl:w-[65%]">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-2">
-            {overviewMetrics.map((metric) => (
-              <AnalyticsMetric 
-                key={metric.id} 
-                metric={metric} 
-                startDate={startDate} 
-                endDate={endDate}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-      <ExportModal
-        isOpen={isExportModalOpen}
-        onClose={() => setIsExportModalOpen(false)}
-        endpointPrefix="Analytics"
-        fieldOptions={fieldOptions}
-        dataName="Analytics"
-      />
-      <CustomerInsightsModal
-        isOpen={isCustomerInsightsOpen}
-        onClose={() => setIsCustomerInsightsOpen(false)}
-        locationData={locationData}
-      />
-      <ViewPerformanceModal
-        isOpen={isViewPerformanceOpen}
-        onClose={() => setIsViewPerformanceOpen(false)}
-      />
-    </div>
-  );
+  return <BusinessTypeGuard allow={["retail", "food", "ticketing"]} redirectTo="/dashboard"><AnalyticsPageContent /></BusinessTypeGuard>;
 }
