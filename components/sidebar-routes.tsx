@@ -2,7 +2,7 @@
 
 import { AvatarImage } from "@/components/ui/avatar";
 import { Avatar, AvatarFallback } from "@radix-ui/react-avatar";
-import { Globe, LayoutDashboardIcon, Utensils } from "lucide-react";
+import { Globe, LayoutDashboardIcon, MonitorSmartphone, Utensils } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { SVGProps, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -36,6 +36,7 @@ const adminRoutes: Route[] = [
   { icon: LayoutDashboardIcon, label: "Overview", href: "/dashboard" },
   { icon: Products, label: "Products", href: "/products" },
   { icon: Orders, label: "Orders", href: "/orders" },
+  { icon: MonitorSmartphone, label: "POS", href: "/pos" },
   { icon: Utensils, label: "Menu", href: "/products" },
   { icon: Analytics, label: "Analytics", href: "/analytics" },
   { icon: EventIcon, label: "Events", href: "/events" },
@@ -195,7 +196,7 @@ export const SidebarRoutes = () => {
           <button className="text-xs font-medium text-primary" onClick={retryBusiness}>Retry workspace load</button>
         </div>}
         {businessStatus === "ready" && adminRoutes
-          .filter((route) => !isStaff || ["Overview", "Products", "Orders"].includes(route.label))
+          .filter((route) => !isStaff || ["Overview", "Products", "Orders", "POS"].includes(route.label))
           .filter((route) => {
             if (route.label === "Events") return isTicketStore;
             if (route.label === "Menu") return isFoodStore;

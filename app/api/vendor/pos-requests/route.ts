@@ -11,7 +11,9 @@ async function proxy(request: NextRequest) {
 
   try {
     const body = request.method === "POST" ? await request.json() : undefined;
-    const response = await fetch(`${API_BASE_URL}/api/vendor/pos-requests`, {
+    const url = new URL(`${API_BASE_URL}/api/vendor/pos-requests`);
+    if (request.method === "GET") url.searchParams.set("store_id", storeId);
+    const response = await fetch(url, {
       method: request.method,
       headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
       ...(body ? { body: JSON.stringify({ ...body, store_id: storeId }) } : {}),
