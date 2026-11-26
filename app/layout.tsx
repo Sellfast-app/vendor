@@ -24,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preload" href="/fonts/inter-4.1/InterVariable.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
         <link rel="apple-touch-icon" href="/icon-192x192.png" />

@@ -1,46 +1,13 @@
 'use client';
 
-import Analytics from "@/components/svgIcons/Analytics";
-import Orders from "@/components/svgIcons/Orders";
-import Products from "@/components/svgIcons/Products";
-import { LayoutDashboardIcon, Bell, Ticket, Settings } from "lucide-react";
+import { LayoutDashboard, BarChart3, Bell, CalendarDays, ChevronUp, Globe, Mail, MoreHorizontal, Package, Settings, ShoppingBag, Ticket, UsersRound, Utensils } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useStoreBusiness } from "@/components/store-business-context";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
-const routes = [
-  {
-    icon: LayoutDashboardIcon,
-    label: "Overview",
-    href: "/dashboard",
-  },
-  {
-    icon: Products,
-    label: "Products",
-    href: "/products",
-  },
-  {
-    icon: Orders,
-    label: "Orders",
-    href: "/orders",
-  },
-  {
-    icon: Ticket,
-    label: "Events",
-    href: "/events",
-  },
-  {
-    icon: Analytics,
-    label: "Analytics",
-    href: "/analytics",
-  },
-  {
-    icon: Bell,
-    label: "Notifications",
-    href: "/notifications",
-  },
-];
+type MobileRoute = { icon: typeof LayoutDashboard; label: string; href: string };
 
 export const MobileSidebar = () => {
   const pathname = usePathname();
@@ -50,44 +17,77 @@ export const MobileSidebar = () => {
   }, []);
   const { businessType, status, error, retry } = useStoreBusiness();
   const isTicketStore = businessType === "ticketing";
-  const visibleRoutes = status === "ready"
-    ? routes
-      .filter(route => !isStaff || ["Overview", "Products", "Orders"].includes(route.label))
-      .filter(route => route.label !== "Events" || isTicketStore)
-      .filter(route => route.label !== "Products" || !isTicketStore)
-      .map((route) => route.label === "Orders" && isTicketStore
-        ? { ...route, label: "Ticket orders", href: "/orders/tickets" }
-        : route)
-      .concat(isStaff ? [{ label: "Settings", href: "/settings", icon: Settings }] : [])
+  const catalogRoute: MobileRoute = isTicketStore
+    ? { label: "Events", href: "/events", icon: CalendarDays }
+    : businessType === "food"
+      ? { label: "Food items", href: "/inventory/items", icon: Utensils }
+      : { label: "Products", href: "/products", icon: Package };
+  const primaryRoutes: MobileRoute[] = status === "ready" ? [
+    { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
+    catalogRoute,
+    { label: isTicketStore ? "Ticket orders" : "Orders", href: isTicketStore ? "/orders/tickets" : "/orders", icon: isTicketStore ? Ticket : ShoppingBag },
+  ] : [];
+  const moreRoutes: MobileRoute[] = status === "ready"
+    ? isStaff
+      ? [{ label: "Settings", href: "/settings", icon: Settings }]
+      : [
+          ...(!isTicketStore ? [
+            ...(businessType === "food" ? [
+              { label: "Categories", href: "/inventory/categories", icon: Package },
+              { label: "Units", href: "/inventory/units", icon: Package },
+            ] : []),
+            { label: "Leads", href: "/leads", icon: Mail },
+          ] : [{ label: "Attendee check-in", href: "/events/attendees", icon: Ticket }]),
+          { label: "Analytics", href: "/analytics", icon: BarChart3 },
+          { label: "Staff", href: "/staff", icon: UsersRound },
+          { label: "Domains", href: "/domains", icon: Globe },
+          { label: "Notifications", href: "/notifications", icon: Bell },
+          { label: "Settings", href: "/settings", icon: Settings },
+        ]
     : [];
+  const isRouteActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const moreIsActive = moreRoutes.some(route => isRouteActive(route.href));
 
   return (
-    <div className="md:hidden fixed inset-x-0 bottom-0 z-50 overflow-x-auto border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom)] dark:border-gray-700 dark:bg-background">
-      <div className="flex w-max min-w-full items-center justify-around py-2">
-        {status === "loading" && <div className="h-9 w-40 animate-pulse rounded-md bg-muted" aria-label="Loading workspace navigation" />}
-        {status === "error" && <div className="flex items-center gap-2 text-xs" role="alert"><span className="max-w-48 truncate text-muted-foreground">{error}</span><button className="font-medium text-primary" onClick={retry}>Retry</button></div>}
-        {visibleRoutes.map((route) => {
-          const Icon = route.icon;
-          const isActive = pathname === route.href || (route.href === "/orders/tickets" && pathname.startsWith("/orders/tickets"));
-          return (
-            <Link
-              key={route.href}
-              href={route.href}
-              className={`flex min-w-[72px] shrink-0 flex-col items-center rounded-lg px-2 py-2 transition-colors ${
-                isActive 
-                  ? 'text-primary bg-primary/10' 
-                  : 'text-[#737373] hover:text-primary'
-              }`}
-            >
-              <Icon 
-                color={isActive ? 'var(--primary)' : '#737373'}
-                className="h-5 w-5" 
-              />
-              <span className="mt-1 max-w-[76px] truncate text-[11px] leading-tight">{route.label}</span>
-            </Link>
-          );
-        })}
-      </div>
+    <div className="fixed inset-x-0 bottom-0 z-50 border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom)] dark:border-gray-700 dark:bg-background md:hidden">
+      {status === "error" ? (
+        <div className="flex min-h-16 items-center justify-center gap-2 px-4 text-xs" role="alert">
+          <span className="max-w-[70vw] truncate text-muted-foreground">{error}</span>
+          <button className="shrink-0 font-medium text-primary" onClick={retry}>Retry</button>
+        </div>
+      ) : status === "loading" ? (
+        <div className="grid min-h-16 grid-cols-4 items-center gap-2 px-3" aria-label="Loading workspace navigation">
+          {[0, 1, 2, 3].map(item => <div key={item} className="mx-auto h-9 w-14 animate-pulse rounded-md bg-muted" />)}
+        </div>
+      ) : (
+        <nav aria-label="Mobile dashboard navigation" className="grid min-h-16 grid-cols-4 items-center gap-1 px-2 py-1">
+          {primaryRoutes.map(route => {
+            const Icon = route.icon;
+            const active = isRouteActive(route.href);
+            return <Link key={route.href} href={route.href} aria-current={active ? "page" : undefined}
+              className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-md px-1 py-1.5 text-[10px] font-medium leading-none ${active ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}>
+              <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+              <span className="max-w-full truncate">{route.label}</span>
+            </Link>;
+          })}
+          <DropdownMenu>
+            <DropdownMenuTrigger aria-label="More dashboard sections" className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-md px-1 py-1.5 text-[10px] font-medium leading-none ${moreIsActive ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}>
+              <span className="relative"><MoreHorizontal className="h-5 w-5" aria-hidden="true" />{moreIsActive && <ChevronUp className="absolute -right-2 -top-1 h-3 w-3" aria-hidden="true" />}</span>
+              <span>More</span>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="top" align="end" className="mb-2 max-h-[70dvh] w-56 overflow-y-auto">
+              {moreRoutes.map(route => {
+                const Icon = route.icon;
+                return <DropdownMenuItem key={route.href} asChild>
+                  <Link href={route.href} aria-current={isRouteActive(route.href) ? "page" : undefined} className="flex items-center gap-2">
+                    <Icon className="h-4 w-4" aria-hidden="true" />{route.label}
+                  </Link>
+                </DropdownMenuItem>;
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </nav>
+      )}
     </div>
   );
 };

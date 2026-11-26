@@ -13,7 +13,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
       <div className="hidden md:flex h-full w-56 flex-col fixed inset-y-0 z-45">
         <Sidebar />
       </div>
-      <main className="w-full min-w-0 overflow-x-clip md:pl-63 pt-[80px] h-full pb-[80px] md:pb-0 bg-[#FCFCFC] dark:bg-background">
+      <main className="w-full min-w-0 overflow-x-clip md:pl-63 pt-[80px] h-full pb-[calc(64px+env(safe-area-inset-bottom))] md:pb-0 bg-[#FCFCFC] dark:bg-background">
         {children}
       </main>
       <MobileSidebar />

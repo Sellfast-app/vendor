@@ -17,7 +17,8 @@ interface ApiResponseItem {
 }
 
 interface ApiResponse {
-  success: boolean;
+  success?: boolean;
+  status?: string;
   data: ApiResponseItem[];
   message?: string; // Add optional message property
 }
@@ -47,9 +48,7 @@ const SalesRevenueChart = () => {
             
             const result: ApiResponse = await response.json();
             
-            console.log('Chart API response:', result);
-            
-            if (result.success) {
+            if (result.success === true || result.status === 'success') {
                 // Transform API data to match our chart format
                 const chartData: ChartDataItem[] = result.data.map((item: ApiResponseItem) => ({
                     month: item.label,
@@ -58,7 +57,6 @@ const SalesRevenueChart = () => {
                 }));
                 setData(chartData);
             } else {
-                console.error('Chart API error:', result.message);
                 setData([]);
             }
         } catch (error) {

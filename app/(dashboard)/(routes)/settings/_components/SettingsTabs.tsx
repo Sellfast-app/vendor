@@ -38,25 +38,25 @@ function SettingsTabs() {
                     <TabsTrigger className="flex-none px-3" value="support">Support & Help</TabsTrigger>
                 </div>
                 </TabsList>
-                <TabsContent value="account" className="mt-4 min-w-0 max-w-full overflow-x-auto">
+                <TabsContent value="account" className="mt-4 min-w-0 max-w-full overflow-x-hidden">
                     <AccountInformation/>
                 </TabsContent>
-                <TabsContent value="store" className="mt-4 min-w-0 max-w-full overflow-x-auto">
+                <TabsContent value="store" className="mt-4 min-w-0 max-w-full overflow-x-hidden">
                     <StoreFront/>
                 </TabsContent>
-                {!isTicketStore && <TabsContent value="localization" className="mt-4 min-w-0 max-w-full overflow-x-auto">
+                {!isTicketStore && <TabsContent value="localization" className="mt-4 min-w-0 max-w-full overflow-x-hidden">
                     <LocalizationSettings onManageBranches={() => {
                         setTab('store')
                         window.setTimeout(() => document.getElementById('branch-pickup-locations')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
                     }}/>
                 </TabsContent>}
-                <TabsContent value="finance" className="mt-4 min-w-0 max-w-full overflow-x-auto">
+                <TabsContent value="finance" className="mt-4 min-w-0 max-w-full overflow-x-hidden">
                     <Finance/>
                 </TabsContent>
-                <TabsContent value="notification" className="mt-4 min-w-0 max-w-full overflow-x-auto">
+                <TabsContent value="notification" className="mt-4 min-w-0 max-w-full overflow-x-hidden">
                     <Notification/>
                 </TabsContent>
-                <TabsContent value="support" className="min-w-0 max-w-full overflow-x-auto">
+                <TabsContent value="support" className="min-w-0 max-w-full overflow-x-hidden">
                     <Support/>
                 </TabsContent>
             </Tabs>

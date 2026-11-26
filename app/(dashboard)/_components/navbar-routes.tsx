@@ -188,7 +188,7 @@ export const NavbarRoutes = () => {
   };
 
   return (
-    <div className="flex items-center justify-between gap-6 w-full p-4">
+    <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
       <div className="hidden md:block max-w-md pl-4 relative w-full">
         <Search className="absolute right-2 top-3 h-4 w-4 text-muted-foreground" />
         <input
@@ -199,8 +199,8 @@ export const NavbarRoutes = () => {
 
       <div className="md:hidden min-w-0 flex-1">
         <DropdownMenu>
-          <DropdownMenuTrigger aria-label={`Open ${businessName} workspace menu`} className="w-full max-w-[200px]">
-            <div className="flex items-center space-x-3">
+          <DropdownMenuTrigger aria-label={`Open ${businessName} workspace menu`} className="w-full min-w-0 max-w-[calc(100vw-120px)] md:max-w-[200px]">
+            <div className="flex min-w-0 items-center gap-2">
               <Avatar className="w-8 h-8 border rounded-full text-center">
                 {/* Display logo if available, otherwise fallback to initials */}
                 <AvatarImage 
@@ -212,7 +212,7 @@ export const NavbarRoutes = () => {
                   {getInitials(businessName)}
                 </AvatarFallback>
               </Avatar>
-              <div className="text-left">
+              <div className="min-w-0 flex-1 text-left">
                 <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                   {businessName}
                 </p>
@@ -232,13 +232,13 @@ export const NavbarRoutes = () => {
         </DropdownMenu>
       </div>
 
-      {!isStaff && <div className="flex items-center gap-3">
-        <Button variant="ghost" onClick={() => setIsNotificationModalOpen(true)}>
+      {!isStaff && <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+        <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" aria-label="Notifications" onClick={() => setIsNotificationModalOpen(true)}>
           <IoNotificationsOutline className="w-5 h-5" />
           {unreadNotifications > 0 && <span className="ml-1 min-w-5 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold leading-none text-primary-foreground">{unreadNotifications > 99 ? "99+" : unreadNotifications}</span>}
         </Button>
 
-        <Button variant="ghost" onClick={() => router.push("/settings")}>
+        <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" aria-label="Settings" onClick={() => router.push("/settings")}>
           <Settings className="md:hidden w-4 h-4 cursor-pointer hover:text-gray-600 dark:hover:text-gray-300 transition-colors" />
         </Button>
 

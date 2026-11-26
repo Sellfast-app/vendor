@@ -10,7 +10,6 @@ import React, { JSX, useEffect, useMemo, useState } from "react";
 import { RiShare2Fill } from "react-icons/ri";
 import {
   ArrowRight,
-  BadgeCheck,
   Banknote,
   CheckCircle2,
   ChevronRight,
@@ -316,7 +315,6 @@ function DashboardPage() {
       disabled: storeTypeStatus !== "ready",
     },
     { label: "Payment methods", icon: CreditCard, href: "/settings" },
-    { label: "Payment methods", icon: BadgeCheck, href: "/settings" },
     { label: "Store settings", icon: Settings, href: "/settings" },
   ];
 
@@ -412,7 +410,7 @@ function DashboardPage() {
               </div>
               <Progress value={setupProgress} className="h-2" />
             </div>
-            <Link href="/settings">
+            <Link href="/settings" className="w-full lg:w-auto">
               <Button className="w-full lg:w-auto">Next Step: Payment methods</Button>
             </Link>
           </div>
@@ -427,10 +425,11 @@ function DashboardPage() {
             <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row">
           <Button
             variant="outline"
             onClick={() => setIsPosRequestOpen(true)}
+            className="w-full"
           >
             <MonitorSmartphone className="h-4 w-4" />
             <span className="ml-2">Request POS</span>
@@ -438,7 +437,7 @@ function DashboardPage() {
           <Button
             variant="outline"
             onClick={() => setIsExportModalOpen(true)}
-            className="border-[#E7ECE7] bg-white dark:border-[#1F1F1F] dark:bg-background"
+            className="w-full border-[#E7ECE7] bg-white dark:border-[#1F1F1F] dark:bg-background"
           >
             <RiShare2Fill />
             <span className="ml-2">Export report</span>
@@ -446,6 +445,7 @@ function DashboardPage() {
           <Button
             onClick={handleOpenAddModal}
             data-tour="add-product"
+            className="col-span-2 w-full sm:col-span-1"
           >
             <PlusIcon className="h-4 w-4" />
             <span className="ml-2">
