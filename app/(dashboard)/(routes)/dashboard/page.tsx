@@ -455,8 +455,8 @@ function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="space-y-5">
+      <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="min-w-0 space-y-5">
           <Card className="shadow-none" data-tour="business-overview">
             <CardHeader className="pb-3">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -500,7 +500,7 @@ function DashboardPage() {
           </Card>
         </div>
 
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
           <Card className="border-primary/10 bg-primary/5 shadow-none" data-tour="todo-list">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between gap-3">
@@ -573,15 +573,15 @@ function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-none" data-tour="quick-actions">
+          <Card className="min-w-0 shadow-none" data-tour="quick-actions">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Quick Actions</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-3">
+            <CardContent className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
               {quickActions.map((action) => {
                 const Icon = action.icon;
                 const content = (
-                  <span className="flex h-24 flex-col items-center justify-center gap-2 rounded-lg border bg-white text-center text-xs font-medium transition hover:border-primary/40 dark:bg-background">
+                  <span className="flex h-24 min-w-0 flex-col items-center justify-center gap-2 rounded-lg border bg-white px-2 text-center text-xs font-medium transition hover:border-primary/40 dark:bg-background">
                     <Icon className="h-5 w-5 text-primary" />
                     {action.label}
                   </span>
@@ -589,14 +589,14 @@ function DashboardPage() {
 
                 if ("href" in action && action.href) {
                   return (
-                    <Link key={action.label} href={action.href}>
+                    <Link key={action.label} href={action.href} className="min-w-0">
                       {content}
                     </Link>
                   );
                 }
 
                 return (
-                  <button key={action.label} type="button" onClick={action.action} disabled={action.disabled}>
+                  <button key={action.label} type="button" onClick={action.action} disabled={action.disabled} className="min-w-0">
                     {content}
                   </button>
                 );
@@ -606,14 +606,14 @@ function DashboardPage() {
 
           <BestSellingProducts />
 
-          <Card className="shadow-none">
-            <CardContent className="flex items-start gap-3 p-4">
+          <Card className="min-w-0 shadow-none">
+            <CardContent className="flex min-w-0 items-start gap-3 p-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 <Globe2 className="h-5 w-5" />
               </div>
-              <div>
+              <div className="min-w-0 flex-1">
                 <h3 className="text-sm font-semibold">Routing hub</h3>
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className="mt-1 break-words text-xs text-muted-foreground">
                   Website, WhatsApp AI and web chat links will be grouped into your Swiftree routing hub.
                 </p>
               </div>

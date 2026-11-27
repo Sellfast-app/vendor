@@ -305,15 +305,15 @@ export default function LogisticsSettings() {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="grid gap-4 p-5 xl:grid-cols-2">
+        <CardContent className="grid min-w-0 gap-4 p-4 sm:p-5 xl:grid-cols-2">
           {logisticsModes.filter((mode) => mode.mode !== "relay" || catalogType === "food").map((mode) => (
-            <div key={mode.title} className="rounded-xl border p-4">
+            <div key={mode.title} className="min-w-0 rounded-xl border p-4">
               <div className="flex items-start justify-between gap-4">
-                <div className="flex gap-3">
+                <div className="flex min-w-0 flex-1 gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <mode.icon className="h-5 w-5" />
                   </div>
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                 <p className="text-sm font-medium">{mode.title}</p>
                       <Badge
@@ -325,7 +325,7 @@ export default function LogisticsSettings() {
                         {!mode.supported ? "Coming soon" : enabledModes.includes(mode.mode) ? "Enabled" : "Available"}
                       </Badge>
                     </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
+                    <p className="mt-1 break-words text-xs text-muted-foreground">
                       {mode.description}
                     </p>
                   </div>
@@ -343,23 +343,23 @@ export default function LogisticsSettings() {
       </Card>
 
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <Card className="shadow-none">
+        <Card className="min-w-0 shadow-none">
           <CardHeader className="border-b">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
+            <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 flex-1">
                 <h3 className="text-sm font-semibold">Manual rate setup</h3>
-                <p className="text-xs text-muted-foreground">
+                <p className="break-words text-xs text-muted-foreground">
                   Flat rates shown to buyers when automated logistics are not
                   used.
                 </p>
               </div>
-              <Button size="sm" onClick={openAddRateModal} disabled={isSavingRates}>
+              <Button size="sm" className="w-full shrink-0 sm:w-auto" onClick={openAddRateModal} disabled={isSavingRates}>
                 <Plus className="h-4 w-4" />
                 Add manual rate
               </Button>
             </div>
           </CardHeader>
-          <CardContent id="branch-pickup-locations" className="p-5">
+          <CardContent id="branch-pickup-locations" className="min-w-0 p-4 sm:p-5">
             {manualRates.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-8 text-center">
                 <Boxes className="h-8 w-8 text-muted-foreground/60" />
@@ -373,7 +373,7 @@ export default function LogisticsSettings() {
                 {manualRates.map((rate) => (
                   <div
                     key={rate.id}
-                    className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                    className="flex min-w-0 flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="flex min-w-0 gap-3">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#F5F5F5] text-primary">
@@ -383,12 +383,12 @@ export default function LogisticsSettings() {
                         <p className="truncate text-sm font-medium">
                           {rate.location}
                         </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="break-words text-xs text-muted-foreground">
                           Buyer sees: Manual shipping — {formatNaira(rate.rate, currency)}
                         </p>
                       </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-1">
+                    <div className="flex w-full shrink-0 items-center justify-between gap-1 sm:w-auto sm:justify-end">
                       <span className="text-sm font-semibold text-primary">
                         {formatNaira(rate.rate, currency)}
                       </span>
@@ -420,18 +420,18 @@ export default function LogisticsSettings() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-none">
+        <Card className="min-w-0 shadow-none">
           <CardHeader className="border-b">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
+            <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 flex-1">
                 <h3 className="text-sm font-semibold">
                   Branch pickup locations
                 </h3>
-                <p className="text-xs text-muted-foreground">
+                <p className="break-words text-xs text-muted-foreground">
                   Localized pickup options can be restricted by customer state.
                 </p>
               </div>
-              <Button size="sm" onClick={openAddLocationModal}>
+              <Button size="sm" className="w-full shrink-0 sm:w-auto" onClick={openAddLocationModal}>
                 <MapPinPlus className="h-4 w-4" />
                 Add pickup location
               </Button>
@@ -451,7 +451,7 @@ export default function LogisticsSettings() {
                 {pickupLocations.map((location) => (
                   <div
                     key={location.id}
-                    className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 md:flex-row md:items-center md:justify-between"
+                    className="flex min-w-0 flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="flex min-w-0 gap-3">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#F5F5F5] text-primary">

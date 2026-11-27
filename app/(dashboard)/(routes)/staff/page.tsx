@@ -106,8 +106,30 @@ export default function StaffPage() {
     </div>
 
     <div className="mt-6 grid gap-6">
-      <Card className="shadow-none"><CardHeader className="border-b"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-sm font-semibold">Team members</h2><p className="text-xs text-muted-foreground">Access is limited to dashboard and order fulfillment.</p></div><div className="relative"><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search staff" aria-label="Search staff" className="pl-9 sm:w-64" /><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /></div></div></CardHeader>
-        <CardContent className="p-0"><div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Staff</TableHead><TableHead>Role</TableHead><TableHead>Access</TableHead></TableRow></TableHeader><TableBody>
+      <Card className="min-w-0 shadow-none"><CardHeader className="border-b"><div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><h2 className="text-sm font-semibold">Team members</h2><p className="text-xs text-muted-foreground">Access is limited to dashboard and order fulfillment.</p></div><div className="relative w-full sm:w-64"><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search staff" aria-label="Search staff" className="w-full pl-9" /><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /></div></div></CardHeader>
+        <CardContent className="p-0">
+          <div className="divide-y md:hidden">
+            {loading ? <div className="p-4"><div className="h-14 animate-pulse rounded bg-muted" /></div> : visibleMembers.map((member) => <div key={member.staff_user_id} className="space-y-3 p-4">
+              <div className="flex min-w-0 items-start gap-3">
+                <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <p className="break-words text-sm font-medium">{[member.first_name, member.last_name].filter(Boolean).join(" ") || member.email}</p>
+                  <p className="break-all text-xs text-muted-foreground">{member.email}</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2 pl-7">
+                <span className="text-sm text-muted-foreground">Order staff</span>
+                <span className={`inline-flex items-center rounded-sm border px-2 py-1 text-xs font-medium ${member.is_active ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-muted bg-muted text-muted-foreground"}`}>
+                  {member.is_active ? "Active" : "Revoked"}
+                </span>
+              </div>
+              <Button className="w-full" size="sm" variant="outline" disabled={updatingStaffId === member.staff_user_id} onClick={() => void toggleMember(member, !member.is_active)}>
+                {updatingStaffId === member.staff_user_id ? "Updating..." : member.is_active ? "Revoke access" : "Restore access"}
+              </Button>
+            </div>)}
+            {!loading && !error && visibleMembers.length === 0 && <p className="py-10 text-center text-sm text-muted-foreground">No staff accounts found.</p>}
+          </div>
+          <div className="hidden overflow-x-auto md:block"><Table><TableHeader><TableRow><TableHead>Staff</TableHead><TableHead>Role</TableHead><TableHead>Access</TableHead></TableRow></TableHeader><TableBody>
           {loading ? <TableRow><TableCell colSpan={3}><div className="h-14 animate-pulse rounded bg-muted" /></TableCell></TableRow> : visibleMembers.map((member) => <TableRow key={member.staff_user_id}>
             <TableCell><div className="flex items-center gap-3"><UserRound className="h-4 w-4 text-muted-foreground" /><div><p className="text-sm font-medium">{[member.first_name, member.last_name].filter(Boolean).join(" ") || member.email}</p><p className="text-xs text-muted-foreground">{member.email}</p></div></div></TableCell>
             <TableCell><span className="text-sm">Order staff</span></TableCell>

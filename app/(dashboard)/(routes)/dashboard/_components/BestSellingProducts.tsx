@@ -184,10 +184,10 @@ const BestSellingProducts = () => {
   };
 
   return (
-    <Card className="w-full shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
+    <Card className="w-full min-w-0 shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]">
       <CardHeader className="pb-4">
-        <div className="flex justify-between items-start">
-          <div>
+        <div className="flex min-w-0 items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
             <CardTitle className="text-sm font-bold">
               Best Selling Products
             </CardTitle>
@@ -234,7 +234,7 @@ const BestSellingProducts = () => {
         )}
       </CardHeader>
       
-      <CardContent className="pt-0">
+      <CardContent className="min-w-0 pt-0">
         {loading ? (
           // Skeleton Loading State
           <div className="space-y-4">
@@ -256,7 +256,7 @@ const BestSellingProducts = () => {
           </div>
         ) : products.length === 0 ? (
           // No Data Available State
-          <div className="flex flex-col items-center justify-center py-8 text-center">
+          <div className="flex w-full min-w-0 flex-col items-center justify-center py-8 text-center">
             <div className="text-gray-400 mb-2">
               <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-8V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v1m4 0h-4" />
