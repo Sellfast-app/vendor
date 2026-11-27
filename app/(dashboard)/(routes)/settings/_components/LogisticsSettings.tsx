@@ -94,6 +94,7 @@ export default function LogisticsSettings() {
   const [editingLocation, setEditingLocation] = useState<PickupLocation | null>(null);
   const [manualRates, setManualRates] = useState<ManualRate[]>([]);
   const [pickupLocations, setPickupLocations] = useState<PickupLocation[]>([]);
+  const [branchesError, setBranchesError] = useState("");
   const [storeCountry, setStoreCountry] = useState<string | undefined>();
   const [catalogType, setCatalogType] = useState<"retail" | "food" | null>(null);
   const [enabledModes, setEnabledModes] = useState<string[]>([]);
@@ -136,9 +137,12 @@ export default function LogisticsSettings() {
               : [];
           }));
         }
+        setBranchesError("");
         const branchesResponse = await fetch("/api/branches", { cache: "no-store" });
         const branchesResult = await branchesResponse.json();
-        if (!branchesResponse.ok) throw new Error(branchesResult.message || "Unable to load branches");
+        if (!branchesResponse.ok || branchesResult.status !== "success") {
+          throw new Error(branchesResult.message || "Unable to load branches");
+        }
         setPickupLocations(Array.isArray(branchesResult.data) ? branchesResult.data.map((branch: Record<string, unknown>) => ({
           id: String(branch.id), name: String(branch.name), address: String(branch.address), city: String(branch.city),
           state: String(branch.region), country: String(branch.country), currency: String(branch.currency),
@@ -149,6 +153,7 @@ export default function LogisticsSettings() {
         })) : []);
       } catch (error) {
         console.error("Failed to load manual shipping rates:", error);
+        setBranchesError(error instanceof Error ? error.message : "Unable to load branches");
         toast.error(error instanceof Error ? error.message : "Failed to load logistics settings");
       } finally {
         setIsLoadingModes(false);
@@ -437,8 +442,13 @@ export default function LogisticsSettings() {
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="p-5">
-            {pickupLocations.length === 0 ? (
+          <CardContent className="min-w-0 p-4 sm:p-5">
+            {branchesError ? (
+              <div className="flex flex-col items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <p role="alert" className="text-sm text-amber-900">Branches could not be loaded: {branchesError}</p>
+                <Button size="sm" variant="outline" onClick={() => window.location.reload()}>Retry</Button>
+              </div>
+            ) : pickupLocations.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-8 text-center">
                 <Building2 className="h-8 w-8 text-muted-foreground/60" />
                 <p className="text-sm font-medium">No pickup locations yet</p>
@@ -457,14 +467,14 @@ export default function LogisticsSettings() {
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#F5F5F5] text-primary">
                         <MapPin className="h-5 w-5" />
                       </div>
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">
+                      <div className="min-w-0 flex-1">
+                        <p className="break-words text-sm font-medium [overflow-wrap:anywhere] sm:truncate">
                           {location.name}
                         </p>
-                        <p className="truncate text-xs text-muted-foreground">{location.address} · {location.city}, {location.state} · {location.currency}</p>
+                        <p className="break-words text-xs leading-5 text-muted-foreground [overflow-wrap:anywhere] sm:line-clamp-2">{location.address} · {location.city}, {location.state} · {location.currency}</p>
                       </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-1">
+                    <div className="flex shrink-0 items-center gap-1 self-end sm:self-auto">
                       <Badge variant="secondary">{location.is_default_online ? "Default" : "Branch"}</Badge>
                       <Button
                         variant="ghost"
